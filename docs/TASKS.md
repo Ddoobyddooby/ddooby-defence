@@ -12,7 +12,7 @@
 - **완료:** ART-01 시안 선택(Stage 1 v2·Stage 2·Stage 3), TECH-01 스캐폴딩(Next.js 16 + TS + Phaser 4, 검증 명령은 `README.md`), 전체 문서 탭 이름 통일
 - **사용자 결정:** TECH-01은 codex-main 독립 리뷰 없이 `main` 반영으로 마무리(2026-11-24)
 - **다음 작업 순서 (2026-11-24 사용자 확정):**
-  1. DOC-01 문서 상호검증: 스택 확정 후 남은 "미정·확인 필요" 문구 정리 + codex-main 문서 QA (ART-01·TECH-01이 DOC-01 선행 없이 진행된 점 보완)
+  1. ~~DOC-01~~ 완료(2026-11-24, 재리뷰 1 통과). 문서 상호검증: 스택 확정 후 남은 "미정·확인 필요" 문구 정리 + codex-main 문서 QA (ART-01·TECH-01이 DOC-01 선행 없이 진행된 점 보완)
   2. TECH-02 결정적 tick·시간 정밀도·명령 순서 계약 (claude-main 설계, codex-main 테스트 전략)
   3. DOC-02 요구사항↔QA↔TASK 추적표 골격 작성, 이후 태스크마다 채움 (QA-01 리뷰 근거)
   4. MAP-01·DATA-01부터 claude-1/2에 지시서로 위임
@@ -29,14 +29,14 @@
 
 ## 1. 문서·최종 기획 인계
 
-- [ ] **DOC-01 — 문서 v0.1 상호검증**
+- [x] **DOC-01 — 문서 v0.1 상호검증** (2026-11-24 codex-main 재리뷰 1 통과: `.codex-out/DOC-01-review.md`)
   - 담당: claude-main 조정, codex-main 독립 문서 QA
   - 선행: 08-1~08-10 기획 결정
   - 결과: `AGENTS.md`, `CLAUDE.md`, `SPEC.md`, `docs/PLAN.md`, `docs/TASKS.md`, `docs/WORKFLOW.md` 대조
   - QA: DOCQ-01~16, FINQ-01~16. 확정 규칙 누락·상충·자리표시자·실제 미정값 오염 점검
   - 완료 조건: 6개 문서 존재·참조 유효·실제 충돌 없음·미정 의존성 기록·검토 근거 보존
   - **현재:** 문서 작성 작업과 별개로 실제 실행 QA·시각 검증은 아직 미실행
-  - **진행(2026-11-24, 브랜치 `docs/doc-01-crosscheck`):** claude-main 1차 대조 완료. 링크·앵커 전부 유효. 스택(TECH-01)·아트 방향(ART-01) 확정 이후 남은 "미정·확인 필요" 표기 20곳을 6개 문서에서 갱신. codex-main 리뷰(`.codex-out/DOC-01-review.md`) 지적 있음 F1(보통)·F2(낮음) → 반영 후 재리뷰 1 대기
+  - **진행(2026-11-24, 브랜치 `docs/doc-01-crosscheck`):** claude-main 1차 대조 완료. 링크·앵커 전부 유효. 스택(TECH-01)·아트 방향(ART-01) 확정 이후 남은 "미정·확인 필요" 표기 20곳을 6개 문서에서 갱신. codex-main 리뷰(`.codex-out/DOC-01-review.md`) 지적 있음 F1(보통)·F2(낮음) → `1012b86` 반영 → 재리뷰 1 **통과**
 
 - [ ] **DOC-02 — 요구사항 ↔ QA ↔ TASK 세부 추적 매트릭스 확정**
   - 담당: claude-main / codex-main
