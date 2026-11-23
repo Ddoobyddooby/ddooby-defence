@@ -6,8 +6,8 @@
 
 - 제품: **Ddooby-defence** — 한 갈래 고정 경로를 따라 오는 몬스터를 4종 타워로 막는 2D 타워디펜스.
 - 구조: 스테이지 3개 × 고정 웨이브 5개, 18×10 논리 격자, 각 스테이지 독립 맵·경제. 자유 설치는 유효 격자에만 허용.
-- 현재 단계: **기획 구조 승인, 구현·밸런스 수치·디자인 미완성**. 실제 값은 `SPEC.md`의 미정 항목에 따른다.
-- 문서: `SPEC.md`=제품 요구·규칙·수용 기준, `docs/PLAN.md`=기술 구조·검증 제안, `docs/TASKS.md`=실행 순서·완료 조건, `docs/WORKFLOW.md`=협업·QA 운영, `CLAUDE.md`=Claude 개발팀 지침.
+- 현재 단계: **기획 구조 승인, 기술 스택 확정·스캐폴딩 완료(TECH-01), 아트 시각 방향 선택(ART-01). 게임 로직 구현·밸런스 수치 미완성**. 실제 값은 `SPEC.md`의 미정 항목에 따른다.
+- 문서: `SPEC.md`=제품 요구·규칙·수용 기준, `docs/PLAN.md`=기술 구조·검증 제안, `docs/TASKS.md`=실행 순서·완료 조건, `docs/WORKFLOW.md`=협업·QA 운영, `docs/DESIGN.md`=선택된 아트 시안·시각 기준, `CLAUDE.md`=Claude 개발팀 지침, `README.md`=설치·실행·검증 명령.
 - 충돌 시 사용자의 최신 명시적 결정을 우선하며 **제품 문서는 SPEC > PLAN > TASKS** 순서로 해석한다. 기술 제안·템플릿·임시 테스트 데이터는 승인된 제품 결정이 아니다.
 
 ## 역할과 권한
@@ -46,7 +46,7 @@
 
 - 저장소: `Ddoobyddooby/ddooby-defence`, 기본 브랜치 `main` (2026-11-23 확인).
 - 구현에서는 기능 브랜치/별도 작업 범위 사용을 원칙으로 하며, 기본 브랜치 반영은 게이트 해제 또는 사용자 승인에 따른다. 최초 빈 저장소 문서 부트스트랩은 **사용자의 직접 작성·커밋·push 요청**에 따른 별도 승인 범위다.
-- 기술 스택, 브랜치 명명, 실제 lint/test/build 명령은 **확인 필요**. 존재하지 않는 명령의 성공을 주장하지 않는다.
+- 기술 스택은 **Next.js + TypeScript + Phaser + 순수 TS 코어로 확정**(`docs/PLAN.md` TBD-STACK). 검증 명령은 `npm run lint`·`npm run typecheck`·`npm run test`·`npm run build`(`README.md`). 브랜치 명명·CI·배포는 **확인 필요**. 실행하지 않은 명령의 성공을 주장하지 않는다.
 - 개별 명령·QA 번호는 `SPEC.md`와 `docs/PLAN.md`를 확인한다. 임시 능력치·맵·화면 크기를 확정값으로 사용하지 않는다.
 
 <!-- BEGIN:nextjs-agent-rules -->
