@@ -43,7 +43,8 @@
 - [ ] **TECH-01 — 기술 스택·실행 환경 제안·확정**
   - 담당: Claude-main; 제품/운영 제약 확인: 사용자
   - 선행: DOC-01
-  - 범위: 브라우저/기타 플랫폼, React+Canvas 또는 2D 엔진 비교, lint/test/build/CI, 호스팅, 접근성·성능 목표
+  - 범위: 확정 스택(Next.js + TypeScript + Phaser + 순수 TS 코어)의 프로젝트 초기화, lint/typecheck/test/build 명령, CI·호스팅은 후속 결정, 접근성·성능 목표
+  - 진행(2026-11-23, 브랜치 `chore/tech-01-scaffold`): 스캐폴딩 및 `npm run lint`/`typecheck`/`test`/`build` 실제 실행 exit 0, 브라우저에서 18×10 Phaser 캔버스 1개 렌더 확인. CI·배포 미정, Codex QA 리뷰 미실행
   - QA: COREG-01, TSTR-01, GATE-05
   - 완료 조건: 결정/제안 구분, 설치·빌드·테스트 명령을 실제 실행해 확인
 

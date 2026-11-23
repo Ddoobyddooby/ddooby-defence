@@ -185,7 +185,7 @@ QA 상위 게이트는 **CORE/ECON/DATA/STATE/UI**. 설계됨/실행 대기/의�
 
 | 미정 ID | 기술 검토 질문 |
 |---|---|
-| TBD-STACK | **스택 선정 완료: Next.js + TypeScript + Phaser + 순수 TypeScript 코어.** 미정: 구체 버전, Next.js 라우터·프로젝트 구조, Phaser 클라이언트 초기화, 패키지 매니저, 테스트 도구, 개발 명령·배포 환경 |
+| TBD-STACK | **스택 선정 완료: Next.js + TypeScript + Phaser + 순수 TypeScript 코어.** TECH-01(2026-11-23) 확정: Next.js 16.4.6 App Router·`src/`·Tailwind CSS 4, Phaser 4.2.1, Vitest 5.1.1, npm(Node 24). 구조 `src/app`(라우트)·`src/game/core`(순수 TS, ESLint로 next/react/phaser import 금지)·`src/game/phaser`(클라이언트 전용 동적 import, unmount 시 destroy). 명령 `npm run lint`·`typecheck`(`next typegen && tsc --noEmit`)·`test`(`vitest run`)·`build`. **미정:** CI, 배포 환경(정적 export 여부) |
 | TBD-SIM | 고정 tick·시간 단위·소수 정밀도, 복수 입력 정렬, 리플레이 serialisation |
 | TBD-MAP | 실제 경로 폭, 교차/접촉 판정, 입력 격자 경계 소유 |
 | TBD-PROJECTILE | 투사체 이동·명중·TTL·VFX TTL |

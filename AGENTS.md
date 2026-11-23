@@ -48,3 +48,13 @@
 - 구현에서는 기능 브랜치/별도 작업 범위 사용을 원칙으로 하며, 기본 브랜치 반영은 게이트 해제 또는 사용자 승인에 따른다. 최초 빈 저장소 문서 부트스트랩은 **사용자의 직접 작성·커밋·push 요청**에 따른 별도 승인 범위다.
 - 기술 스택, 브랜치 명명, 실제 lint/test/build 명령은 **확인 필요**. 존재하지 않는 명령의 성공을 주장하지 않는다.
 - 개별 명령·QA 번호는 `SPEC.md`와 `docs/PLAN.md`를 확인한다. 임시 능력치·맵·화면 크기를 확정값으로 사용하지 않는다.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
