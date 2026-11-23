@@ -13,11 +13,11 @@
 - **사용자 결정:** TECH-01은 codex-main 독립 리뷰 없이 `main` 반영으로 마무리(2026-11-24)
 - **다음 작업 순서 (2026-11-24 사용자 확정):**
   1. ~~DOC-01~~ 완료(2026-11-24, 재리뷰 1 통과). 문서 상호검증: 스택 확정 후 남은 "미정·확인 필요" 문구 정리 + codex-main 문서 QA (ART-01·TECH-01이 DOC-01 선행 없이 진행된 점 보완)
-  2. TECH-02 결정적 tick·시간 정밀도·명령 순서 계약 (claude-main 설계, codex-main 테스트 전략)
+  2. **TECH-02 진행 중** 결정적 tick·시간 정밀도·명령 순서 계약 (claude-main 설계 초안 `docs/SIM-CONTRACT.md`, codex-main 테스트 전략 요청, 브랜치 `docs/tech-02-contract`)
   3. DOC-02 요구사항↔QA↔TASK 추적표 골격 작성, 이후 태스크마다 채움 (QA-01 리뷰 근거)
   4. MAP-01·DATA-01부터 claude-1/2에 지시서로 위임
 - **운영 흐름:** 사용자는 claude-main 탭에서 지시 → 코딩 claude-1/2, QA·리뷰 codex-main, 디자인 codex-design (WORKFLOW 2~4절). `main` 반영·push는 claude-main 탭에서 사용자 직접 확인 후
-- **정리 대기:** `chore/tech-01-scaffold` 브랜치(로컬·원격)는 이미 `main`에 포함, 삭제 여부 미결정
+- **브랜치 정리:** `chore/tech-01-scaffold`·`docs/doc-01-crosscheck` 로컬·원격 삭제 완료(2026-11-24, 사용자 승인)
 - **저장소 밖 자료:** 선택 전 Stage 1 구판 PNG와 `.omc/`는 원래 PC에만 있음(의도적 미포함)
 
 ## 표기·검증 원칙
@@ -71,7 +71,7 @@
   - 범위: tick 길이, 시각 비교/라운딩, 동일 tick 다중 명령 순서, 적 ID·명령 ID·경제 이벤트 키, HP 비율 보정 반올림, 직렬화·해시
   - QA: DATA-01~15, INT-01~15, TSTR-05~12
   - 완료 조건: 결정적 테스트 케이스로 동일 입력 동일 상태 확인
-  - **현재 모든 기술 세부값 미정**
+  - 진행(2026-11-24, 브랜치 `docs/tech-02-contract`): 계약 초안 `docs/SIM-CONTRACT.md` 작성. 사용자 확인: 틱 50ms·정수 고정소수점·비율 반올림(환급은 SPEC 내림 유지). codex-main 테스트 전략 요청. 기초 모듈·결정성 테스트 구현은 계약 승인 후 배정
 
 - [ ] **MAP-01 — StageMap·경로 예약 영역 계약과 후보**
   - 담당: claude-main 조정, 구현 담당 미배정; 사용자 실제 맵 후보 승인

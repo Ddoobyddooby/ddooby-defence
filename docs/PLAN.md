@@ -70,7 +70,7 @@ Phaser 입력(맵 클릭) ──논리 좌표/명령──▶ 순수 TypeScript 
 - `EnemyState`: enemyId, spawnSerial, pathProgress, hp, immutableSpawnStats, active slow per source.
 - `ProjectileState`: 발사 틱, 공격 스냅샷, 잠금 타깃 또는 고정 광역 충돌 좌표, 게임플레이 생존 상태.
 - `ProgressState`: clearedStageFlags만 로컬 저장. available/unlocked 상태는 플래그로 파생.
-- 기술 계약 미정: tickDuration 및 시간 정밀도, 동일 틱 복수 입력 순서, 격자 경계 귀속·경로 접촉, HP 비율 연산·반올림.
+- 기술 계약: tickDuration·시간 정밀도·동일 틱 복수 입력 순서·HP 비율 연산·반올림은 `docs/SIM-CONTRACT.md`(TECH-02 초안). 격자 경계 귀속·경로 접촉은 MAP-01 미정.
 
 ### 3.3 검증
 
@@ -186,7 +186,7 @@ QA 상위 게이트는 **CORE/ECON/DATA/STATE/UI**. 설계됨/실행 대기/의�
 | 미정 ID | 기술 검토 질문 |
 |---|---|
 | TBD-STACK | **스택 선정 완료: Next.js + TypeScript + Phaser + 순수 TypeScript 코어.** TECH-01(2026-11-23) 확정: Next.js 16.4.6 App Router·`src/`·Tailwind CSS 4, Phaser 4.2.1, Vitest 5.1.1, npm(Node 24). 구조 `src/app`(라우트)·`src/game/core`(순수 TS, ESLint로 next/react/phaser import 금지)·`src/game/phaser`(클라이언트 전용 동적 import, unmount 시 destroy). 명령 `npm run lint`·`typecheck`(`next typegen && tsc --noEmit`)·`test`(`vitest run`)·`build`. **미정:** CI, 배포 환경(정적 export 여부) |
-| TBD-SIM | 고정 tick·시간 단위·소수 정밀도, 복수 입력 정렬, 리플레이 serialisation |
+| TBD-SIM | **TECH-02 초안 `docs/SIM-CONTRACT.md`:** 틱 50ms·정수 고정소수점(mt·bp)·비율 반올림(사용자 확인 2026-11-24), 명령 seq 순서, 시도별 ID·경제 이벤트 키, 정규 스냅샷·FNV-1a 64 해시 리플레이. codex-main 테스트 전략 대기 |
 | TBD-MAP | 실제 경로 폭, 교차/접촉 판정, 입력 격자 경계 소유 |
 | TBD-PROJECTILE | 투사체 이동·명중·TTL·VFX TTL |
 | TBD-ENEMY | HP 비율 반올림/오버플로·저항률 경계 |
