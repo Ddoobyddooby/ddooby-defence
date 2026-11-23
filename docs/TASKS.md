@@ -11,7 +11,11 @@
 - **최종 갱신:** 2026-11-24, `main` 기준
 - **완료:** ART-01 시안 선택(Stage 1 v2·Stage 2·Stage 3), TECH-01 스캐폴딩(Next.js 16 + TS + Phaser 4, 검증 명령은 `README.md`), 전체 문서 탭 이름 통일
 - **사용자 결정:** TECH-01은 codex-main 독립 리뷰 없이 `main` 반영으로 마무리(2026-11-24)
-- **다음 작업:** TECH-02 결정적 tick·시간 정밀도·명령 순서 계약 (claude-main 설계, codex-main 테스트 전략) → MAP-01·DATA-01부터 claude-1/2에 지시서로 위임
+- **다음 작업 순서 (2026-11-24 사용자 확정):**
+  1. DOC-01 문서 상호검증: 스택 확정 후 남은 "미정·확인 필요" 문구 정리 + codex-main 문서 QA (ART-01·TECH-01이 DOC-01 선행 없이 진행된 점 보완)
+  2. TECH-02 결정적 tick·시간 정밀도·명령 순서 계약 (claude-main 설계, codex-main 테스트 전략)
+  3. DOC-02 요구사항↔QA↔TASK 추적표 골격 작성, 이후 태스크마다 채움 (QA-01 리뷰 근거)
+  4. MAP-01·DATA-01부터 claude-1/2에 지시서로 위임
 - **운영 흐름:** 사용자는 claude-main 탭에서 지시 → 코딩 claude-1/2, QA·리뷰 codex-main, 디자인 codex-design (WORKFLOW 2~4절). `main` 반영·push는 claude-main 탭에서 사용자 직접 확인 후
 - **정리 대기:** `chore/tech-01-scaffold` 브랜치(로컬·원격)는 이미 `main`에 포함, 삭제 여부 미결정
 - **저장소 밖 자료:** 선택 전 Stage 1 구판 PNG와 `.omc/`는 원래 PC에만 있음(의도적 미포함)
