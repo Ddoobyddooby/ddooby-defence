@@ -1,8 +1,8 @@
 # Ddooby-defence — TASKS v0.1
 
-> 상태: **미착수 태스크 계획 초안** (2026-11-23) · 관리: Claude-main(PM·개발 PL)
+> 상태: **미착수 태스크 계획 초안** (2026-11-23) · 관리: claude-main(PM·개발 PL)
 > 제품 규칙은 [SPEC](../SPEC.md), 기술 선택·검증 방향은 [PLAN](PLAN.md), 팀 운영은 [WORKFLOW](WORKFLOW.md)를 따른다. **SPEC > PLAN > TASKS**.
-> 이 파일의 체크박스는 완료 기준을 실제 확인하기 전까지 모두 `[ ]`. 탭·파일 담당자는 Claude-main이 실제 개발 환경을 확인하고 확정하며, 아래의 담당·파일 예시는 배정 완료가 아니다.
+> 이 파일의 체크박스는 완료 기준을 실제 확인하기 전까지 모두 `[ ]`. 탭·파일 담당자는 claude-main이 실제 개발 환경을 확인하고 확정하며, 아래의 담당·파일 예시는 배정 완료가 아니다.
 
 ## 표기·검증 원칙
 
@@ -14,7 +14,7 @@
 ## 1. 문서·최종 기획 인계
 
 - [ ] **DOC-01 — 문서 v0.1 상호검증**
-  - 담당: Claude-main 조정, Codex-main 독립 문서 QA
+  - 담당: claude-main 조정, codex-main 독립 문서 QA
   - 선행: 08-1~08-10 기획 결정
   - 결과: `AGENTS.md`, `CLAUDE.md`, `SPEC.md`, `docs/PLAN.md`, `docs/TASKS.md`, `docs/WORKFLOW.md` 대조
   - QA: DOCQ-01~16, FINQ-01~16. 확정 규칙 누락·상충·자리표시자·실제 미정값 오염 점검
@@ -22,16 +22,16 @@
   - **현재:** 문서 작성 작업과 별개로 실제 실행 QA·시각 검증은 아직 미실행
 
 - [ ] **DOC-02 — 요구사항 ↔ QA ↔ TASK 세부 추적 매트릭스 확정**
-  - 담당: Claude-main / Codex-main
+  - 담당: claude-main / codex-main
   - 선행: DOC-01
-  - 결과: SPEC의 요구사항 범주 ID를 개별 테스트·태스크까지 연결하는 표(위치 Claude-main 확정)
+  - 결과: SPEC의 요구사항 범주 ID를 개별 테스트·태스크까지 연결하는 표(위치 claude-main 확정)
   - QA: GATE-01~12, DOCQ-05~08, FINQ-08
   - 완료 조건: 핵심 경로 누락 없음, 잘못된 ID 참조 없음, 중복/유사 테스트 책임 구분
 
 ## 2. 디자인 시안 (v0.1 문서 이후)
 
 - [ ] **ART-01 — 별도 디자이너 탭 초기 시안**
-  - 담당: Codex 디자이너(별도 탭); 최종 선택: 사용자
+  - 담당: codex-design(별도 탭); 최종 선택: 사용자
   - 선행: DOC-01 및 문서 v0.1 사용자 검토
   - 범위: 판타지 2D 고정 경로에 맞는 맵·타워 4종·몬스터 4종·성·HUD 시각 콘셉트
   - 결과: 원본 및 `.codex-out/ART-01-image.md`(파일 목록·사용처·프롬프트 요약·생성일·출처)
@@ -41,7 +41,7 @@
 ## 3. 기술 기반과 환경 결정
 
 - [ ] **TECH-01 — 기술 스택·실행 환경 제안·확정**
-  - 담당: Claude-main; 제품/운영 제약 확인: 사용자
+  - 담당: claude-main; 제품/운영 제약 확인: 사용자
   - 선행: DOC-01
   - 범위: 확정 스택(Next.js + TypeScript + Phaser + 순수 TS 코어)의 프로젝트 초기화, lint/typecheck/test/build 명령, CI·호스팅은 후속 결정, 접근성·성능 목표
   - 진행(2026-11-23, 브랜치 `chore/tech-01-scaffold`): 스캐폴딩 및 `npm run lint`/`typecheck`/`test`/`build` 실제 실행 exit 0, 브라우저에서 18×10 Phaser 캔버스 1개 렌더 확인. CI·배포 미정, Codex QA 리뷰 미실행
@@ -49,7 +49,7 @@
   - 완료 조건: 결정/제안 구분, 설치·빌드·테스트 명령을 실제 실행해 확인
 
 - [ ] **TECH-02 — 결정적 수치·시계·명령 순서 계약**
-  - 담당: Claude-main 설계; Codex-main 테스트 전략
+  - 담당: claude-main 설계; codex-main 테스트 전략
   - 선행: TECH-01
   - 범위: tick 길이, 시각 비교/라운딩, 동일 tick 다중 명령 순서, 적 ID·명령 ID·경제 이벤트 키, HP 비율 보정 반올림, 직렬화·해시
   - QA: DATA-01~15, INT-01~15, TSTR-05~12
@@ -57,14 +57,14 @@
   - **현재 모든 기술 세부값 미정**
 
 - [ ] **MAP-01 — StageMap·경로 예약 영역 계약과 후보**
-  - 담당: Claude-main 조정, 구현 담당 미배정; 사용자 실제 맵 후보 승인
+  - 담당: claude-main 조정, 구현 담당 미배정; 사용자 실제 맵 후보 승인
   - 선행: TECH-01, TECH-02
   - 범위: 18×10, waypoint, spawn/base, path width, reserved tile, 경계 접촉/클릭 귀속
   - QA: MAPD-01~46, VAL-01~16, UI 좌표 검증
   - 완료 조건: 세 스테이지 모두 유효한 후보 데이터·검증 증거
 
 - [ ] **DATA-01 — 데이터 스키마·15개 웨이브 검증기**
-  - 담당: Claude-main 조정, 구현 담당 미배정
+  - 담당: claude-main 조정, 구현 담당 미배정
   - 선행: TECH-02, MAP-01의 데이터 계약
   - 범위: 타워·적·특성·스테이지 경제·SpawnSegment, 전체 15 Wave 사전 검사와 진입 시 재검사, 오류 격리
   - QA: WAVD-01~15, VAL-01~16, WBL-01~18, COREG-07~08
@@ -73,28 +73,28 @@
 ## 4. 핵심 게임 로직
 
 - [ ] **SIM-01 — 시도 상태·스테이지·웨이브 상태 머신**
-  - 담당: 구현 담당 Claude-main 배정
+  - 담당: 구현 담당 claude-main 배정
   - 선행: TECH-02, DATA-01
   - 범위: prep/combat/pause/result, spawn/clear, attempt snapshot, 8단계 틱
   - QA: INT-01~15, COREG-02, COREG-09~10, TSTR-04
   - 완료 조건: 동일 틱 동시 이벤트·패배 우선·재도전 초기화 테스트 통과
 
 - [ ] **SIM-02 — 타워·적·타깃·투사체·둔화**
-  - 담당: 구현 담당 Claude-main 배정
+  - 담당: 구현 담당 claude-main 배정
   - 선행: SIM-01, DATA-01
   - 범위: 4타워·3강화·4적·3특성, 타깃 4종, ST·AoE 발사/명중, slow source 상태
   - QA: BALD-01~10, ENMD-01~18, INT-01~15, BALX-03~08
   - 완료 조건: 타워 역할·발사 스냅샷·저항·중첩·만료·VFX/게임 상태 분리 검증
 
 - [ ] **ECON-01 — 원자적 경제 거래와 보상**
-  - 담당: 구현 담당 Claude-main 배정
+  - 담당: 구현 담당 claude-main 배정
   - 선행: SIM-01, DATA-01
   - 범위: 설치·강화·판매, actuallyPaid, 환급 한 번 내림, kill/wave award exactly-once, stage 독립 골드
   - QA: ECOD-01~20, COREG-05~06, BALX-09~12
   - 완료 조건: 실패·중복·동시 조건·retry 케이스에서 경제·점유 불변식 만족
 
 - [ ] **SIM-03 — 결정적 리플레이·실패 주입·회귀 기반**
-  - 담당: 구현 담당 Claude-main 배정, Codex-main 테스트 전략/독립 리뷰
+  - 담당: 구현 담당 claude-main 배정, codex-main 테스트 전략/독립 리뷰
   - 선행: SIM-01, SIM-02, ECON-01
   - 범위: code/content version + input sequence, tick별 핵심 상태·경제 이벤트·최종 결과 비교, 최초 불일치 탐색
   - QA: DATA, INT, TSTR-05~16, COREG-13~14
@@ -103,21 +103,21 @@
 ## 5. UI·저장·콘텐츠 수치
 
 - [ ] **UI-01 — 게임 화면·격자 입력·HUD**
-  - 담당: 구현 담당 Claude-main 배정
+  - 담당: 구현 담당 claude-main 배정
   - 선행: TECH-01, MAP-01, SIM-01, ECON-01, ART-01(선택 자산 연결 시)
   - 범위: 우측 HUD, 선택·설치·업그레이드·판매 확인·타깃, prep/combat/pause/result, 스테이지 카드·오류
   - QA: UI-01~88, HUD-01~16, COREG-12
   - 완료 조건: 논리 좌표 매핑·실제 게임 상태와 HUD 일치·금지 상태 입력 무효 검증
 
 - [ ] **SAVE-01 — 로컬 클리어·해금·저장 실패**
-  - 담당: 구현 담당 Claude-main 배정
+  - 담당: 구현 담당 claude-main 배정
   - 선행: SIM-01, UI-01
   - 범위: clear flags, derived unlock, 저장 오류·재시도·새로고침 손실 안내
   - QA: 진행 기록 UI/STATE, COREG-11, TSTR-17
   - 완료 조건: 성공/실패/기존 클리어 유지/재플레이 패배/재도전 구분 검증
 
 - [ ] **BAL-01 — 실제 초기 수치·맵·웨이브 후보와 검증**
-  - 담당: Claude-main 후보 설계·분석, Codex-main QA, 최종 승인 사용자
+  - 담당: claude-main 후보 설계·분석, codex-main QA, 최종 승인 사용자
   - 선행: MAP-01, SIM-03, ECON-01, UI-01, SAVE-01
   - 범위: 3개 맵·15개 웨이브·타워/적/특성 능력치·골드·환급률 후보 패키지, 기본/상성/경계 시나리오
   - QA: BALD, ECOD, ENMD, WBL, BALX-01~18, BAPR-01~12
@@ -127,7 +127,7 @@
 ## 6. 독립 QA·반영
 
 - [ ] **QA-01 — 구현 영역별 독립 리뷰 및 재검증**
-  - 담당: Codex-main QA PL; 통합 조정 Claude-main
+  - 담당: codex-main QA PL; 통합 조정 claude-main
   - 선행: 해당 변경의 특정 커밋/파일/검증 결과
   - 전문 역할: 테스트 전략 / 트리아지 / 독립 리뷰 중 요청별 하나
   - 결과: `.codex-out/<TASK-ID>-{test-plan|triage|review}.md` 또는 지정 파일
@@ -136,14 +136,14 @@
   - 보류가 있으면 기본 브랜치 통합 금지. **문서 작성 자체가 제품 출시 승인 아님**
 
 - [ ] **REL-01 — 전체 게이트·통합·출시 검토**
-  - 담당: Claude-main 조정, Codex-main 품질 판정, 사용자 예외·제품 승인
+  - 담당: claude-main 조정, codex-main 품질 판정, 사용자 예외·제품 승인
   - 선행: 관련 QA-01, BAL-01, 전체 스모크·회귀, 배포 계획
   - 결과: CORE/ECON/DATA/STATE/UI 게이트 증거, 위험 목록, 결과 보고
   - 완료 조건: 실검증 근거·보류 해제 또는 명시적 예외 승인·사용자 확인·복구안
 
 ## 7. 태스크 배정 시 주의
 
-- 현재 어떤 구현 탭에도 실제 파일·브랜치·포트가 할당되지 않았다. Claude-main이 실제 폴더와 스택을 본 후 **겹치지 않게** 배정한다.
+- 현재 어떤 구현 탭에도 실제 파일·브랜치·포트가 할당되지 않았다. claude-main이 실제 폴더와 스택을 본 후 **겹치지 않게** 배정한다.
 - 실제 테스트 명령 미정. `npm test` 등 임의 명령을 완료 근거로 기재하지 않는다.
 - 완료 `[x]`는 구현·문서 QA 실행 근거를 확보했을 때만. 제품 설계 승인과 실행 완료는 별개다.
 - 테스트·로그·이미지·탭 메시지가 전달되지 않았으면 완료로 보고하지 않는다.
