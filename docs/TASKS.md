@@ -76,9 +76,10 @@
   - 진행(2026-11-24, 브랜치 `docs/tech-02-contract`): 계약 초안 `docs/SIM-CONTRACT.md` 작성. 사용자 확인: 틱 50ms·정수 고정소수점·비율 반올림(환급은 SPEC 내림 유지). codex-main 테스트 전략(69개 케이스, `.codex-out/TECH-02-test-strategy.md`) 및 계약 리뷰: 원리뷰 C1~C5·재리뷰 1 RR1-F1~F3 반영, **재리뷰 2 통과**(@`02bb1b9`). 구현(claude-1, worktree `wt-tech-02-core`·브랜치 `feat/tech-02-core`): `src/game/core/sim/` 기초 모듈·ESLint 금지 규칙·장난감 리플레이 테스트, lint/typecheck/test(224 passed)/build exit 0. codex-main 구현 리뷰 I1·I2(보통) 수정 후 **재리뷰 1 통과**(@`f8f59b1`, `.codex-out/TECH-02-impl-review.md`). 전투 연결 케이스(T09·Q02)와 P1/P2(어댑터·기기)는 SIM-01/02 이후
 
 - [ ] **MAP-01 — StageMap·경로 예약 영역 계약과 후보**
-  - 담당: claude-main 조정, 구현 담당 미배정; 사용자 실제 맵 후보 승인
+  - 담당: claude-main 조정, 구현 claude-1(worktree `wt-map-01`, 브랜치 `feat/map-01`); 사용자 실제 맵 후보 승인
   - 선행: TECH-01, TECH-02
   - 범위: 18×10, waypoint, spawn/base, path width, reserved tile, 경계 접촉/클릭 귀속
+  - 사용자 결정(2026-11-24): 가로·세로 폭 1칸 경로, 경계 클릭은 오른쪽·아래 칸, ART-01 시안 기반 3개 맵 후보(Stage 2·3은 35칸 이상으로 연장) 승인. 기하 계약 `docs/SIM-CONTRACT.md` 10절
   - QA: MAPD-01~46, VAL-01~16, UI 좌표 검증
   - 완료 조건: 세 스테이지 모두 유효한 후보 데이터·검증 증거
 
