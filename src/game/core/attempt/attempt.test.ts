@@ -398,6 +398,6 @@ describe("재도전", () => {
 
 describe("코드 버전", () => {
   it("ATTEMPT_CODE_VERSION 은 리플레이 호환성 검사에 쓰는 고정 문자열", () => {
-    expect(ATTEMPT_CODE_VERSION).toBe("attempt-v1");
+    expect(ATTEMPT_CODE_VERSION).toBe("attempt-v2");
   });
 });

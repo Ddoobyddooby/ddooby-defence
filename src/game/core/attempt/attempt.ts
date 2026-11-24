@@ -21,7 +21,7 @@ import type {
   LedgerEntry,
 } from "./types";
 
-export const ATTEMPT_CODE_VERSION = "attempt-v1";
+export const ATTEMPT_CODE_VERSION = "attempt-v2";
 
 /** 생성 경로를 createAttempt 하나로 강제하는 모듈 비공개 토큰. */
 const CREATE_TOKEN: unique symbol = Symbol("AttemptCore.create");

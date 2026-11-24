@@ -52,11 +52,11 @@ function exactKeys(obj: Record<string, unknown>, keys: readonly string[], path: 
   }
 }
 
-function safeInt(v: unknown, path: string, min: number): number {
-  if (typeof v !== "number" || !Number.isSafeInteger(v) || v < min) {
-    throw new CommandStructureError(path, `${min} 이상의 안전 정수여야 함 (${String(v)})`);
+function safeInt(v: unknown, path: string, min: number | null): number {
+  if (typeof v !== "number" || !Number.isSafeInteger(v) || (min !== null && v < min)) {
+    throw new CommandStructureError(path, min === null ? `안전 정수여야 함 (${String(v)})` : `${min} 이상의 안전 정수여야 함 (${String(v)})`);
   }
-  return v;
+  return v + 0; // -0 → 0
 }
 
 /**
@@ -79,8 +79,8 @@ export function validateCommandInput(kind: unknown, payload: unknown, path = "co
       const tile = payload.tile;
       if (!isRecord(tile)) throw new CommandStructureError(`${p}.tile`, "tile은 일반 객체여야 함");
       exactKeys(tile, ["col", "row"], `${p}.tile`);
-      const col = safeInt(tile.col, `${p}.tile.col`, 0);
-      const row = safeInt(tile.row, `${p}.tile.row`, 0);
+      const col = safeInt(tile.col, `${p}.tile.col`, null);
+      const row = safeInt(tile.row, `${p}.tile.row`, null);
       return Object.freeze({
         kind: "build",
         payload: Object.freeze({ towerType: towerType as TowerType, tile: Object.freeze({ col, row }) }),

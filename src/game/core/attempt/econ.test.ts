@@ -106,6 +106,38 @@ describe("build", () => {
   });
 });
 
+describe("build 좌표 접수 범위(F1)", () => {
+  it("음수·거대 음수·격자 밖 좌표는 접수 후 outOfGrid, 거부 뒤 골드·타워·원장·소비 키·nextTowerId 불변", () => {
+    const cases: [number, number][] = [
+      [-1, 0],
+      [0, -1],
+      [-Number.MAX_SAFE_INTEGER, 0],
+      [0, -Number.MAX_SAFE_INTEGER],
+      [18, 0],
+      [0, 10],
+      [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER],
+    ];
+    for (const [col, row] of cases) {
+      const core = createAttempt(base(), STAGE2_ID, 1);
+      expect(core.submit("build", B(col, row))).toMatchObject({ ok: true, command: { seq: 1 } });
+      const ev = core.step();
+      expect(ev, `${col},${row}`).toEqual([{ eventSeq: 1, tick: 1, type: "commandRejected", kind: "build", reason: "outOfGrid", seq: 1 }]);
+      expect(core.snapshot()).toMatchObject({ gold: 350, towers: [], consumedEconomyEvents: [] });
+      expect(core.snapshot().counters).toMatchObject({ nextTowerId: 1, nextCommandSeq: 2, nextEventSeq: 2 });
+      expect(core.ledger()).toEqual([]);
+    }
+  });
+  it("null·boolean·문자열·소수·비안전 정수는 접수 구조 오류(seq 미소비)", () => {
+    const core = createAttempt(base(), STAGE2_ID, 1);
+    for (const bad of [null, true, "0", 1.5, Number.NaN, Number.POSITIVE_INFINITY, 9007199254740992, -9007199254740992]) {
+      expect(() => core.submit("build", { towerType: "archer", tile: { col: bad, row: 0 } })).toThrow(CommandStructureError);
+      expect(() => core.submit("build", { towerType: "archer", tile: { col: 0, row: bad } })).toThrow(CommandStructureError);
+    }
+    expect(core.snapshot().counters).toMatchObject({ nextCommandSeq: 1 });
+    expect(core.snapshot().queue).toEqual([]);
+  });
+});
+
 describe("upgrade", () => {
   it("Lv1→4 누적 actuallyPaid 100→250→500→900, 골드 0, Lv4 에서 maxLevel(골드 부족보다 먼저)", () => {
     const core = createAttempt(rich(900), STAGE2_ID, 1);

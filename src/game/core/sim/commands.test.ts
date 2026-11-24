@@ -120,7 +120,11 @@ describe("Q14: 구조 검사 (자동 보정·형변환 없음)", () => {
     ["build: towerType 숫자", "build", { towerType: 1, tile: { col: 1, row: 0 } }],
     ["build: 소수 col", "build", { towerType: "archer", tile: { col: 1.5, row: 0 } }],
     ["build: 문자열 row", "build", { towerType: "archer", tile: { col: 1, row: "0" } }],
-    ["build: 음수 col", "build", { towerType: "archer", tile: { col: -1, row: 0 } }],
+    ["build: null col", "build", { towerType: "archer", tile: { col: null, row: 0 } }],
+    ["build: boolean row", "build", { towerType: "archer", tile: { col: 1, row: true } }],
+    ["build: 비안전 정수 col", "build", { towerType: "archer", tile: { col: 9007199254740992, row: 0 } }],
+    ["build: 비안전 음수 row", "build", { towerType: "archer", tile: { col: 0, row: -9007199254740992 } }],
+    ["build: NaN col", "build", { towerType: "archer", tile: { col: Number.NaN, row: 0 } }],
     ["build: 알 수 없는 필드", "build", { towerType: "archer", tile: { col: 1, row: 0 }, extra: 1 }],
     ["sell: towerId 0", "sell", { towerId: 0 }],
     ["sell: towerId 문자열", "sell", { towerId: "1" }],
@@ -138,6 +142,15 @@ describe("Q14: 구조 검사 (자동 보정·형변환 없음)", () => {
       expect(q).toHaveLength(0);
     });
   }
+  it("build 좌표는 부호 있는 안전 정수로 접수된다(범위 판정은 적용 시 outOfGrid), towerId 하한은 유지", () => {
+    for (const [col, row] of [[-1, 0], [0, -1], [-Number.MAX_SAFE_INTEGER, 0], [0, -Number.MAX_SAFE_INTEGER], [18, 10], [Number.MAX_SAFE_INTEGER, 0]]) {
+      const c = createIdCounters();
+      const r = submitCommand([], c, "build", { towerType: "archer", tile: { col, row } }, ctx());
+      expect(r.ok && r.command.kind === "build" && r.command.payload.tile).toEqual({ col, row });
+      expect(c.nextCommandSeq).toBe(2);
+    }
+    expect(() => validateCommandInput("sell", { towerId: -1 })).toThrow(CommandStructureError);
+  });
   it("오류에는 필드 경로가 담긴다", () => {
     try {
       validateCommandInput("build", { towerType: "archer", tile: { col: 1.5, row: 0 } }, "commands[2]");
