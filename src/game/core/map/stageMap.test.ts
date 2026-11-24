@@ -20,7 +20,7 @@ const PICTURES: Record<string, string[]> = {
     "..###############B",
     "..................",
   ],
-  "stage-2-snow-canyon": [
+  "stage-2-snowfall-pass": [
     "..................",
     "S##############...",
     "..............#...",
@@ -32,7 +32,7 @@ const PICTURES: Record<string, string[]> = {
     "........#########B",
     "..................",
   ],
-  "stage-3-twilight-ruins": [
+  "stage-3-dusk-ruins": [
     "..................",
     "..######..........",
     "..#....#..........",
@@ -47,8 +47,8 @@ const PICTURES: Record<string, string[]> = {
 };
 const EXPECT: Record<string, { path: number; buildable: number; lengthMt: number }> = {
   "stage-1-meadow-outpost": { path: 50, buildable: 130, lengthMt: 49000 },
-  "stage-2-snow-canyon": { path: 37, buildable: 143, lengthMt: 36000 },
-  "stage-3-twilight-ruins": { path: 38, buildable: 142, lengthMt: 37000 },
+  "stage-2-snowfall-pass": { path: 37, buildable: 143, lengthMt: 36000 },
+  "stage-3-dusk-ruins": { path: 38, buildable: 142, lengthMt: 37000 },
 };
 
 describe("후보 맵 3종 (10.2)", () => {
@@ -163,6 +163,45 @@ describe("검증 오류 (각각 별도, 필드 경로 포함, 자동 보정 없�
     expect(fieldOf({ ...ok, waypoints: [w(0, 2), w(Number.NaN, 2)] })).toBe("waypoints[1].col");
     expect(fieldOf({ ...ok, waypoints: [w(0, 2), { col: "5", row: 2 }] })).toBe("waypoints[1].col");
     expect(fieldOf({ ...ok, waypoints: [w(0, 2), null] })).toBe("waypoints[1]");
+  });
+  describe("sparse 배열(hole)·undefined·null 거부, 입력 불변", () => {
+    const base = [w(0, 2), w(5, 2), w(5, 6)];
+    function holey(arr: unknown[], holeAt: number): unknown[] {
+      const copy = arr.slice();
+      delete copy[holeAt];
+      return copy;
+    }
+    it("waypoints 첫·중간·마지막 hole", () => {
+      expect(fieldOf({ ...ok, waypoints: holey(base, 0) })).toBe("waypoints[0]");
+      expect(fieldOf({ ...ok, waypoints: holey(base, 1) })).toBe("waypoints[1]");
+      expect(fieldOf({ ...ok, waypoints: holey(base, 2) })).toBe("waypoints[2]");
+    });
+    it("waypoints new Array(n)·명시적 undefined·null", () => {
+      expect(fieldOf({ ...ok, waypoints: new Array(3) })).toBe("waypoints[0]");
+      expect(fieldOf({ ...ok, waypoints: [w(0, 2), undefined, w(5, 2)] })).toBe("waypoints[1]");
+      expect(fieldOf({ ...ok, waypoints: [w(0, 2), w(5, 2), null] })).toBe("waypoints[2]");
+    });
+    it("reservedCells 첫·중간·마지막 hole", () => {
+      const r = [w(8, 8), w(9, 8), w(10, 8)];
+      expect(fieldOf({ ...ok, reservedCells: holey(r, 0) })).toBe("reservedCells[0]");
+      expect(fieldOf({ ...ok, reservedCells: holey(r, 1) })).toBe("reservedCells[1]");
+      expect(fieldOf({ ...ok, reservedCells: holey(r, 2) })).toBe("reservedCells[2]");
+    });
+    it("reservedCells new Array(1)·명시적 undefined·null", () => {
+      expect(fieldOf({ ...ok, reservedCells: new Array(1) })).toBe("reservedCells[0]");
+      expect(fieldOf({ ...ok, reservedCells: [w(8, 8), undefined] })).toBe("reservedCells[1]");
+      expect(fieldOf({ ...ok, reservedCells: [null] })).toBe("reservedCells[0]");
+    });
+    it("실패해도 입력은 바뀌지 않는다", () => {
+      const reserved = new Array(2);
+      reserved[1] = w(8, 8);
+      const input = { stageId: "t", waypoints: holey(base, 1), reservedCells: reserved };
+      const holes = (a: unknown[]) => Object.keys(a).join(",");
+      expect(() => compileStageMap(input)).toThrow(MapValidationError);
+      expect(input.waypoints.length).toBe(3);
+      expect(holes(input.waypoints)).toBe("0,2");
+      expect(holes(reserved)).toBe("1");
+    });
   });
   it("구조 오류: stageId·배열·객체", () => {
     expect(fieldOf({ ...ok, stageId: "" })).toBe("stageId");

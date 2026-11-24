@@ -11,12 +11,12 @@ export const STAGE_MAPS: readonly StageMap[] = [
     reservedCells: [],
   },
   {
-    stageId: "stage-2-snow-canyon",
+    stageId: "stage-2-snowfall-pass",
     waypoints: [w(0, 1), w(14, 1), w(14, 4), w(8, 4), w(8, 8), w(17, 8)],
     reservedCells: [],
   },
   {
-    stageId: "stage-3-twilight-ruins",
+    stageId: "stage-3-dusk-ruins",
     waypoints: [w(0, 8), w(2, 8), w(2, 1), w(7, 1), w(7, 7), w(12, 7), w(12, 3), w(15, 3), w(15, 6), w(17, 6)],
     reservedCells: [],
   },

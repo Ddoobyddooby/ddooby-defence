@@ -60,6 +60,16 @@ function parseCell(v: unknown, field: string): Cell {
   return { col: col + 0, row: row + 0 };
 }
 
+/** 0..length−1 을 직접 순회: 배열 hole(sparse)도 `name[i]` 필드 경로의 오류로 거부한다(필터·보정 없음). */
+function parseCells(arr: readonly unknown[], name: string): Cell[] {
+  const out: Cell[] = [];
+  for (let i = 0; i < arr.length; i++) {
+    if (!Object.prototype.hasOwnProperty.call(arr, i)) throw new MapValidationError(`${name}[${i}]`, "배열 구멍(요소 없음)");
+    out.push(parseCell(arr[i], `${name}[${i}]`));
+  }
+  return out;
+}
+
 function sign(n: number): number {
   return n > 0 ? 1 : n < 0 ? -1 : 0;
 }
@@ -73,7 +83,7 @@ export function compileStageMap(input: unknown): CompiledStageMap {
   const rawWp = input.waypoints;
   if (!Array.isArray(rawWp)) throw new MapValidationError("waypoints", "배열이 아님");
   if (rawWp.length < 2) throw new MapValidationError("waypoints", `2개 이상 필요 (${rawWp.length})`);
-  const waypoints = rawWp.map((w, i) => parseCell(w, `waypoints[${i}]`));
+  const waypoints = parseCells(rawWp, "waypoints");
 
   const start = waypoints[0];
   const onEdge = start.col === 0 || start.col === GRID_COLS - 1 || start.row === 0 || start.row === GRID_ROWS - 1;
@@ -122,7 +132,7 @@ export function compileStageMap(input: unknown): CompiledStageMap {
 
   const rawReserved = input.reservedCells;
   if (!Array.isArray(rawReserved)) throw new MapValidationError("reservedCells", "배열이 아님");
-  const reservedCells = rawReserved.map((c, i) => parseCell(c, `reservedCells[${i}]`));
+  const reservedCells = parseCells(rawReserved, "reservedCells");
   const blocked = new Set<number>(seen.keys());
   reservedCells.forEach((c, i) => {
     const idx = cellIndex(c);
