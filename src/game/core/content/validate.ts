@@ -66,6 +66,7 @@ const TOWER_EXTRA_FIELDS: Record<TowerType, readonly string[]> = {
   mage: ["aoeRadiusMt"],
   frost: ["slowBp", "slowDurationMs"],
 };
+const ALL_EXTRA_FIELDS: readonly string[] = [...TOWER_EXTRA_FIELDS.mage, ...TOWER_EXTRA_FIELDS.frost];
 const RANGE_ORDER: readonly TowerType[] = ["ballista", "archer", "mage", "frost"];
 
 function show(v: unknown): string {
@@ -258,19 +259,21 @@ function parseTower(item: unknown, path: string, errs: Errs): TowerParse {
 
   let levelsOut: TowerDef["levels"] | undefined;
   const lf = getField(rec, "levels", path, errs);
-  if (lf !== undefined && type !== undefined) {
-    const fields = [...COMMON_LEVEL_FIELDS, ...TOWER_EXTRA_FIELDS[type]];
+  if (lf !== undefined) {
+    // type 이 무효여도 levels 구조와 공통 필드는 검사한다. 종류 전용 필드 판정(요구·금지)만 생략하고, 있어도 조용히 무시한다.
+    const fields: readonly string[] = type === undefined ? COMMON_LEVEL_FIELDS : [...COMMON_LEVEL_FIELDS, ...TOWER_EXTRA_FIELDS[type]];
+    const allowedKeys: readonly string[] = type === undefined ? [...COMMON_LEVEL_FIELDS, ...ALL_EXTRA_FIELDS] : fields;
     const lp = `${path}.levels`;
     const lrec = readRec(lf.v, lp, errs, ["base", "increments"]);
     if (lrec !== undefined) {
-      const base = parseLevelBlock(lrec, "base", lp, errs, fields);
+      const base = parseLevelBlock(lrec, "base", lp, errs, fields, allowedKeys);
       let incs: (LevelFields | undefined)[] | undefined;
       const inf = getField(lrec, "increments", lp, errs);
       if (inf !== undefined) {
         const items = readItems(inf.v, `${lp}.increments`, errs);
         if (items !== undefined) {
           if (items.length !== 3) errs.push({ path: `${lp}.increments`, message: `정확히 3개여야 함 (${items.length}개)` });
-          incs = items.map((x, i) => (x === HOLE ? undefined : parseLevelRec(x, `${lp}.increments[${i}]`, errs, fields)));
+          incs = items.map((x, i) => (x === HOLE ? undefined : parseLevelRec(x, `${lp}.increments[${i}]`, errs, fields, allowedKeys)));
         }
       }
       // 레벨 결과값(Lv1~4)에 범위 적용 (11.2). 증분은 강화 1회마다 누적: Lv2 = base+inc[0], Lv3 = Lv2+inc[1], Lv4 = Lv3+inc[2].
@@ -306,15 +309,15 @@ function parseTower(item: unknown, path: string, errs: Errs): TowerParse {
 
 type LevelFields = Record<string, number | undefined>;
 
-function parseLevelBlock(parent: Rec, key: string, parentPath: string, errs: Errs, fields: readonly string[]): LevelFields | undefined {
+function parseLevelBlock(parent: Rec, key: string, parentPath: string, errs: Errs, fields: readonly string[], allowed: readonly string[]): LevelFields | undefined {
   const f = getField(parent, key, parentPath, errs);
   if (f === undefined) return undefined;
-  return parseLevelRec(f.v, `${parentPath}.${key}`, errs, fields);
+  return parseLevelRec(f.v, `${parentPath}.${key}`, errs, fields, allowed);
 }
 
 /** 레벨 블록의 정수 필드를 필드별로 읽는다(범위 검사는 누적 결과값에서). 틀린 필드만 undefined 이고 나머지는 유지한다. */
-function parseLevelRec(v: unknown, path: string, errs: Errs, fields: readonly string[]): LevelFields | undefined {
-  const rec = readRec(v, path, errs, fields);
+function parseLevelRec(v: unknown, path: string, errs: Errs, fields: readonly string[], allowed: readonly string[]): LevelFields | undefined {
+  const rec = readRec(v, path, errs, allowed);
   if (rec === undefined) return undefined;
   const out: LevelFields = {};
   for (const field of fields) out[field] = readInt(rec, field, path, errs, null);
@@ -481,6 +484,7 @@ function parseMapCells(v: unknown, path: string, errs: Errs): { col: number; row
 
 /** 맵: 필드·좌표 구조 오류를 모두 모은 뒤, 그것이 없을 때만 10절 기하 검증(compileStageMap)을 수행한다. */
 function parseMap(v: unknown, path: string, stageId: string | undefined, errs: Errs): StageDef["map"] | undefined {
+  const errCountBefore = errs.length; // 이 맵에서 난 오류만 센다(다른 스테이지 필드 오류는 기하 검증을 막지 않는다)
   const rec = readRec(v, path, errs, ["stageId", "waypoints", "reservedCells"]);
   if (rec === undefined) return undefined;
   const mapId = readNonEmptyString(rec, "stageId", path, errs);
@@ -491,8 +495,7 @@ function parseMap(v: unknown, path: string, stageId: string | undefined, errs: E
   const waypoints = wf === undefined ? undefined : parseMapCells(wf.v, `${path}.waypoints`, errs);
   const rf = getField(rec, "reservedCells", path, errs);
   const reservedCells = rf === undefined ? undefined : parseMapCells(rf.v, `${path}.reservedCells`, errs);
-  if (mapId === undefined || waypoints === undefined || reservedCells === undefined) return undefined;
-  if (stageId !== undefined && mapId !== stageId) return undefined;
+  if (errs.length !== errCountBefore || mapId === undefined || waypoints === undefined || reservedCells === undefined) return undefined;
   try {
     const compiled = compileStageMap({ stageId: mapId, waypoints, reservedCells });
     return { stageId: compiled.stageId, waypoints: compiled.waypoints, reservedCells: compiled.reservedCells };

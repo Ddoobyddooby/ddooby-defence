@@ -302,6 +302,67 @@ describe("F2 오류 수집 완전성", () => {
   });
 });
 
+describe("RR1-F2a type 무효여도 공통 레벨 필드 검사", () => {
+  it("type cannon + base.damage null + attackPeriodMs 75: type·누락 type·damage·누적 75 배수 오류, 전용 필드 연쇄 오류 없음", () => {
+    const b = withValues([["towers[0].type", "cannon"], ["towers[0].levels.base.damage", null], ["towers[0].levels.base.attackPeriodMs", 75]]);
+    expect(globalPaths(b).sort()).toEqual(
+      [
+        "towers",
+        "towers[0].type",
+        "towers[0].levels.base.damage",
+        "towers[0].levels.base.attackPeriodMs",
+        "towers[0].levels.increments[0].attackPeriodMs",
+        "towers[0].levels.increments[1].attackPeriodMs",
+        "towers[0].levels.increments[2].attackPeriodMs",
+      ].sort(),
+    );
+  });
+  it("전용 필드(aoeRadiusMt·slowBp·slowDurationMs)가 있거나 없어도 오류 없이 무시", () => {
+    const withExtras = withValues([
+      ["towers[0].type", "cannon"],
+      ["towers[0].levels.base.aoeRadiusMt", 1500],
+      ["towers[0].levels.base.slowBp", 99999],
+      ["towers[0].levels.increments[1].slowDurationMs", 7],
+    ]);
+    expect(globalPaths(withExtras).sort()).toEqual(["towers", "towers[0].type"]);
+    // 종류 전용 필드가 아닌 알 수 없는 필드는 여전히 오류
+    expect(globalPaths(withValues([["towers[0].type", "cannon"], ["towers[0].levels.base.bogus", 1]]))).toContain("towers[0].levels.base.bogus");
+  });
+  it("type 이 무효인 타워는 사거리 순서 검사에서 제외(공통 사거리 범위 검사는 수행)", () => {
+    const b = withValues([["towers[0].type", "cannon"], ["towers[0].levels.base.rangeMt", 99_999]]);
+    expect(globalPaths(b).sort()).toEqual(["towers", "towers[0].levels.base.rangeMt", "towers[0].levels.increments[0].rangeMt", "towers[0].levels.increments[1].rangeMt", "towers[0].levels.increments[2].rangeMt", "towers[0].type"].sort());
+    // 순서 오류(위치를 모르므로)는 어느 타워에도 보고되지 않는다
+    const lowRange = withValues([["towers[0].type", "cannon"], ["towers[0].levels.base.rangeMt", 1]]);
+    expect(globalPaths(lowRange).sort()).toEqual(["towers", "towers[0].type"]);
+  });
+});
+
+describe("RR1-F2b 맵 필드 오류가 있으면 기하 검증 생략", () => {
+  const DIAGONAL = { col: 3, row: 5 }; // (0,2)에서 대각
+  it("map.extra + 대각 → extra 오류만", () => {
+    const b = withValues([["stages[0].map.extra", 1], ["stages[0].map.waypoints[1]", DIAGONAL]]);
+    expect(stagePaths(b, 0)).toEqual(["stages[0].map.extra"]);
+  });
+  it("waypoints[0].extra + 대각 → extra 오류만", () => {
+    const b = withValues([["stages[0].map.waypoints[0].extra", 1], ["stages[0].map.waypoints[1]", DIAGONAL]]);
+    expect(stagePaths(b, 0)).toEqual(["stages[0].map.waypoints[0].extra"]);
+  });
+  it("reservedCells[0].extra + 대각 → extra 오류만", () => {
+    const b = withValues([["stages[0].map.reservedCells", [{ col: 0, row: 0, extra: 1 }]], ["stages[0].map.waypoints[1]", DIAGONAL]]);
+    expect(stagePaths(b, 0)).toEqual(["stages[0].map.reservedCells[0].extra"]);
+  });
+  it("map.stageId 불일치 + 대각 → 불일치 오류만", () => {
+    const b = withValues([["stages[0].map.stageId", "other"], ["stages[0].map.waypoints[1]", DIAGONAL]]);
+    expect(stagePaths(b, 0)).toEqual(["stages[0].map.stageId"]);
+  });
+  it("맵 밖 필드 오류(initialGold) + 대각은 두 오류 모두 보고", () => {
+    const b = withValues([["stages[0].initialGold", 0], ["stages[0].map.waypoints[1]", DIAGONAL]]);
+    expect(stagePaths(b, 0).sort()).toEqual(["stages[0].initialGold", "stages[0].map.waypoints[1]"]);
+    const c = withValues([["stages[0].waves[0].prepMs", 33], ["stages[0].map.extra", 1]]);
+    expect(stagePaths(c, 0).sort()).toEqual(["stages[0].map.extra", "stages[0].waves[0].prepMs"]);
+  });
+});
+
 describe("C1 스테이지 자리 격리", () => {
   it("hole·undefined·null·객체 아님은 같은 판정: 그 자리만 오류(stageId null), 다른 스테이지 진입 가능", () => {
     for (const make of [() => withDeleted("stages[1]"), () => withValue("stages[1]", undefined), () => withValue("stages[1]", null), () => withValue("stages[1]", 7), () => withValue("stages[1]", "x")]) {
