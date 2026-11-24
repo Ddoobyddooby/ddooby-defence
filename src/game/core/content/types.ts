@@ -14,30 +14,45 @@ export type WaveRole = (typeof WAVE_ROLES)[number];
 export const STAGE_COUNT = 3;
 export const WAVES_PER_STAGE = 5;
 
-/** 타워 레벨 필드. mage 는 aoeRadiusMt, frost 는 slowBp·slowDurationMs 가 추가로 필수이고 다른 종류에는 있으면 오류. */
-export interface TowerLevelStats {
+/** 모든 타워 공통 레벨 필드. base 와 각 증분이 모두 이 필드 전부를 가진다. */
+export interface CommonLevelFields {
   readonly damage: number;
   readonly attackPeriodMs: number;
   readonly rangeMt: number;
   readonly projectileSpeedMtPerSec: number;
   readonly projectileTtlMs: number;
-  readonly aoeRadiusMt?: number;
-  readonly slowBp?: number;
-  readonly slowDurationMs?: number;
 }
+export interface MageLevelFields extends CommonLevelFields {
+  readonly aoeRadiusMt: number;
+}
+export interface FrostLevelFields extends CommonLevelFields {
+  readonly slowBp: number;
+  readonly slowDurationMs: number;
+}
+/** 종류별 레벨 필드: mage 만 aoeRadiusMt, frost 만 slowBp·slowDurationMs 를 가진다(다른 종류에 있으면 검증 오류). */
+export type TowerLevelStats = CommonLevelFields | MageLevelFields | FrostLevelFields;
 
-export interface TowerDef {
-  readonly type: TowerType;
+interface TowerBase<T extends TowerType, L extends CommonLevelFields> {
+  readonly type: T;
   readonly buildCost: number;
-  /** [Lv2, Lv3, Lv4] 강화 비용. */
+  /** [Lv2, Lv3, Lv4] 강화 비용(엄격 증가). */
   readonly upgradeCosts: readonly [number, number, number];
   readonly levels: {
     /** Lv1 기본값. */
-    readonly base: TowerLevelStats;
-    /** [Lv2, Lv3, Lv4]: Lv1 과 같은 필드의 정수 차이(음수·0 허용). 레벨 N 값 = base + increments[N−2]. */
-    readonly increments: readonly [Partial<TowerLevelStats>, Partial<TowerLevelStats>, Partial<TowerLevelStats>];
+    readonly base: L;
+    /**
+     * [Lv2, Lv3, Lv4]: 강화 1회마다 누적되는 정수 차이(음수·0 허용), base 와 같은 필드 전부.
+     * Lv2 = base + increments[0], Lv3 = Lv2 + increments[1], Lv4 = Lv3 + increments[2].
+     */
+    readonly increments: readonly [L, L, L];
   };
 }
+
+export type TowerDef =
+  | TowerBase<"archer", CommonLevelFields>
+  | TowerBase<"ballista", CommonLevelFields>
+  | TowerBase<"mage", MageLevelFields>
+  | TowerBase<"frost", FrostLevelFields>;
 
 export interface EnemyDef {
   readonly type: EnemyType;

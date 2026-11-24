@@ -232,8 +232,10 @@ function parseTower(item: unknown, path: string, errs: Errs): TowerParse {
   let upgradeCosts: number[] | undefined;
   const uf = getField(rec, "upgradeCosts", path, errs);
   if (uf !== undefined) {
-    const items = readExactItems(uf.v, `${path}.upgradeCosts`, errs, 3);
-    if (items !== undefined && items.length === 3) {
+    const items = readItems(uf.v, `${path}.upgradeCosts`, errs);
+    if (items !== undefined) {
+      if (items.length !== 3) errs.push({ path: `${path}.upgradeCosts`, message: `정확히 3개여야 함 (${items.length}개)` });
+      // 길이 오류가 있어도 존재하는 항목은 각각 검사한다.
       const nums: (number | undefined)[] = items.map((x, i) => {
         const p = `${path}.upgradeCosts[${i}]`;
         if (x === HOLE) return undefined;
@@ -250,7 +252,7 @@ function parseTower(item: unknown, path: string, errs: Errs): TowerParse {
           errs.push({ path: `${path}.upgradeCosts[${i}]`, message: `강화 비용은 Lv${i + 1} < Lv${i + 2} 여야 함 (${a} → ${b})` });
         }
       }
-      if (nums.every((n) => n !== undefined)) upgradeCosts = nums as number[];
+      if (items.length === 3 && nums.every((n) => n !== undefined)) upgradeCosts = nums as number[];
     }
   }
 
@@ -262,37 +264,35 @@ function parseTower(item: unknown, path: string, errs: Errs): TowerParse {
     const lrec = readRec(lf.v, lp, errs, ["base", "increments"]);
     if (lrec !== undefined) {
       const base = parseLevelBlock(lrec, "base", lp, errs, fields);
-      let incs: (Record<string, number> | undefined)[] | undefined;
+      let incs: (LevelFields | undefined)[] | undefined;
       const inf = getField(lrec, "increments", lp, errs);
       if (inf !== undefined) {
-        const items = readExactItems(inf.v, `${lp}.increments`, errs, 3);
-        if (items !== undefined && items.length === 3) {
-          incs = items.map((x, i) => {
-            if (x === HOLE) return undefined;
-            return parseLevelRec(x, `${lp}.increments[${i}]`, errs, fields);
-          });
+        const items = readItems(inf.v, `${lp}.increments`, errs);
+        if (items !== undefined) {
+          if (items.length !== 3) errs.push({ path: `${lp}.increments`, message: `정확히 3개여야 함 (${items.length}개)` });
+          incs = items.map((x, i) => (x === HOLE ? undefined : parseLevelRec(x, `${lp}.increments[${i}]`, errs, fields)));
         }
       }
       // 레벨 결과값(Lv1~4)에 범위 적용 (11.2). 증분은 강화 1회마다 누적: Lv2 = base+inc[0], Lv3 = Lv2+inc[1], Lv4 = Lv3+inc[2].
+      // 필드별로 따로 누적한다: 값을 알 수 없는 필드(무효·누락)의 후속 레벨만 생략하고 다른 필드는 계속 검사한다.
       if (base !== undefined) {
-        let cur: Record<string, number> = { ...base };
-        for (let level = 1; level <= 4; level++) {
-          if (level > 1) {
-            const inc = incs?.[level - 2];
-            if (inc === undefined) break; // 누락된 증분 뒤의 레벨은 값을 알 수 없어 검사하지 않는다
-            const prev = cur;
-            cur = {};
-            for (const field of fields) cur[field] = prev[field] + inc[field];
-          }
-          for (const field of fields) {
+        for (const field of fields) {
+          let v = base[field];
+          for (let level = 1; level <= 4; level++) {
+            if (level > 1) {
+              const inc = incs?.[level - 2]?.[field];
+              v = v === undefined || inc === undefined ? undefined : v + inc;
+            }
+            if (v === undefined) break;
             const p = levelPath(path, level, field);
-            checkRange(cur[field], LEVEL_RANGE[field], p, errs, `Lv${level} 결과값 `);
-            if (field === "rangeMt") ranges[level - 1] = { value: cur[field], path: p };
+            checkRange(v, LEVEL_RANGE[field], p, errs, `Lv${level} 결과값 `);
+            if (field === "rangeMt") ranges[level - 1] = { value: v, path: p };
           }
         }
       }
-      if (base !== undefined && incs !== undefined && incs.every((x) => x !== undefined)) {
-        levelsOut = { base: base as unknown as TowerDef["levels"]["base"], increments: incs as unknown as TowerDef["levels"]["increments"] };
+      if (base !== undefined && incs !== undefined && incs.length === 3 && incs.every((x) => x !== undefined)) {
+        // 오류가 하나도 없을 때만 쓰이므로 모든 필드가 정수다.
+        levelsOut = { base, increments: incs } as unknown as TowerDef["levels"];
       }
     }
   }
@@ -304,24 +304,21 @@ function parseTower(item: unknown, path: string, errs: Errs): TowerParse {
   return { def, type, ranges };
 }
 
-function parseLevelBlock(parent: Rec, key: string, parentPath: string, errs: Errs, fields: readonly string[]): Record<string, number> | undefined {
+type LevelFields = Record<string, number | undefined>;
+
+function parseLevelBlock(parent: Rec, key: string, parentPath: string, errs: Errs, fields: readonly string[]): LevelFields | undefined {
   const f = getField(parent, key, parentPath, errs);
   if (f === undefined) return undefined;
   return parseLevelRec(f.v, `${parentPath}.${key}`, errs, fields);
 }
 
-/** 레벨 블록의 정수 필드를 읽는다(범위 검사는 결과값에서). 하나라도 틀리면 undefined. */
-function parseLevelRec(v: unknown, path: string, errs: Errs, fields: readonly string[]): Record<string, number> | undefined {
+/** 레벨 블록의 정수 필드를 필드별로 읽는다(범위 검사는 누적 결과값에서). 틀린 필드만 undefined 이고 나머지는 유지한다. */
+function parseLevelRec(v: unknown, path: string, errs: Errs, fields: readonly string[]): LevelFields | undefined {
   const rec = readRec(v, path, errs, fields);
   if (rec === undefined) return undefined;
-  const out: Record<string, number> = {};
-  let ok = true;
-  for (const field of fields) {
-    const n = readInt(rec, field, path, errs, null);
-    if (n === undefined) ok = false;
-    else out[field] = n;
-  }
-  return ok ? out : undefined;
+  const out: LevelFields = {};
+  for (const field of fields) out[field] = readInt(rec, field, path, errs, null);
+  return out;
 }
 
 // ───────── 적·특성·경제 ─────────
@@ -452,6 +449,60 @@ function parseWave(item: unknown, path: string, index: number, errs: Errs, use: 
     : undefined;
 }
 
+const GRID_COL: Range = { min: 0, max: 17 };
+const GRID_ROW: Range = { min: 0, max: 9 };
+
+/** 칸 배열을 필드별로 읽어 구조·좌표 오류를 모두 모은다. 하나라도 있으면 undefined. */
+function parseMapCells(v: unknown, path: string, errs: Errs): { col: number; row: number }[] | undefined {
+  const items = readItems(v, path, errs);
+  if (items === undefined) return undefined;
+  let ok = true;
+  const cells = items.map((item, i) => {
+    if (item === HOLE) {
+      ok = false;
+      return undefined;
+    }
+    const cp = `${path}[${i}]`;
+    const rec = readRec(item, cp, errs, ["col", "row"]);
+    if (rec === undefined) {
+      ok = false;
+      return undefined;
+    }
+    const col = readInt(rec, "col", cp, errs, GRID_COL);
+    const row = readInt(rec, "row", cp, errs, GRID_ROW);
+    if (col === undefined || row === undefined) {
+      ok = false;
+      return undefined;
+    }
+    return { col, row };
+  });
+  return ok ? (cells as { col: number; row: number }[]) : undefined;
+}
+
+/** 맵: 필드·좌표 구조 오류를 모두 모은 뒤, 그것이 없을 때만 10절 기하 검증(compileStageMap)을 수행한다. */
+function parseMap(v: unknown, path: string, stageId: string | undefined, errs: Errs): StageDef["map"] | undefined {
+  const rec = readRec(v, path, errs, ["stageId", "waypoints", "reservedCells"]);
+  if (rec === undefined) return undefined;
+  const mapId = readNonEmptyString(rec, "stageId", path, errs);
+  if (mapId !== undefined && stageId !== undefined && mapId !== stageId) {
+    errs.push({ path: `${path}.stageId`, message: `map.stageId(${mapId}) 가 stageId(${stageId}) 와 다름` });
+  }
+  const wf = getField(rec, "waypoints", path, errs);
+  const waypoints = wf === undefined ? undefined : parseMapCells(wf.v, `${path}.waypoints`, errs);
+  const rf = getField(rec, "reservedCells", path, errs);
+  const reservedCells = rf === undefined ? undefined : parseMapCells(rf.v, `${path}.reservedCells`, errs);
+  if (mapId === undefined || waypoints === undefined || reservedCells === undefined) return undefined;
+  if (stageId !== undefined && mapId !== stageId) return undefined;
+  try {
+    const compiled = compileStageMap({ stageId: mapId, waypoints, reservedCells });
+    return { stageId: compiled.stageId, waypoints: compiled.waypoints, reservedCells: compiled.reservedCells };
+  } catch (err) {
+    if (!(err instanceof MapValidationError)) throw err;
+    errs.push({ path: err.field === "map" ? path : `${path}.${err.field}`, message: err.message });
+    return undefined;
+  }
+}
+
 function parseStage(item: unknown, i: number, errs: Errs): StageDef | undefined {
   const path = `stages[${i}]`;
   const rec = readRec(item, path, errs, ["stageId", "initialGold", "map", "waves"]);
@@ -461,17 +512,7 @@ function parseStage(item: unknown, i: number, errs: Errs): StageDef | undefined 
 
   let map: StageDef["map"] | undefined;
   const mf = getField(rec, "map", path, errs);
-  if (mf !== undefined) {
-    try {
-      const compiled = compileStageMap(mf.v);
-      if (stageId !== undefined && compiled.stageId !== stageId) {
-        errs.push({ path: `${path}.map.stageId`, message: `map.stageId(${compiled.stageId}) 가 stageId(${stageId}) 와 다름` });
-      } else map = { stageId: compiled.stageId, waypoints: compiled.waypoints, reservedCells: compiled.reservedCells };
-    } catch (err) {
-      if (!(err instanceof MapValidationError)) throw err;
-      errs.push({ path: err.field === "map" ? `${path}.map` : `${path}.map.${err.field}`, message: err.message });
-    }
-  }
+  if (mf !== undefined) map = parseMap(mf.v, `${path}.map`, stageId, errs);
 
   const use: SegmentUse = { enemies: new Set(), traits: new Set() };
   let waves: WaveDef[] | undefined;
@@ -537,18 +578,22 @@ function parseAll(input: unknown): FullParse {
 
     const sf = getField(rec, "stages", "content", g);
     if (sf !== undefined) {
-      const items = readExactItems(sf.v, "stages", g, STAGE_COUNT);
-      if (items !== undefined) {
+      // 길이 ≠ 3 은 전역 오류. 각 자리(hole·undefined·null·객체 아님)는 그 자리 스테이지만의 오류로 격리한다(stageId = null).
+      if (!Array.isArray(sf.v)) g.push({ path: "stages", message: `배열이 아님 (${show(sf.v)})` });
+      else {
+        const arr = sf.v;
+        if (arr.length !== STAGE_COUNT) g.push({ path: "stages", message: `정확히 ${STAGE_COUNT}개여야 함 (${arr.length}개)` });
         const seen = new Map<string, number>();
-        items.forEach((item, i) => {
+        for (let i = 0; i < arr.length; i++) {
           const errs: Errs = [];
           stageErrs.push(errs);
-          if (item === HOLE) {
+          if (!has(arr, i)) {
             stageIds.push(null);
             stages.push(undefined);
             errs.push({ path: `stages[${i}]`, message: "배열 구멍(요소 없음)" });
-            return;
+            continue;
           }
+          const item = arr[i];
           const rawId = isRec(item) && typeof item.stageId === "string" ? item.stageId : null;
           stageIds.push(rawId);
           if (rawId !== null && rawId.length > 0) {
@@ -556,7 +601,7 @@ function parseAll(input: unknown): FullParse {
             else seen.set(rawId, i);
           }
           stages.push(parseStage(item, i, errs));
-        });
+        }
       }
     }
   }

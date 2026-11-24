@@ -226,6 +226,106 @@ describe("11.2 필드 범위(하한-1/하한/상한/상한+1)", () => {
   });
 });
 
+describe("F1 map 엄격 필드", () => {
+  it("map·waypoint·reservedCells 좌표의 알 수 없는 필드는 정확한 경로 오류, 그 스테이지만 격리", () => {
+    for (const [path, expected] of [
+      ["stages[1].map.extra", "stages[1].map.extra"],
+      ["stages[1].map.waypoints[0].extra", "stages[1].map.waypoints[0].extra"],
+    ] as const) {
+      const b = withValue(path, 1);
+      const v = validateContent(b);
+      expect(v.globalErrors).toEqual([]);
+      expect(paths(v.stages[1].errors)).toEqual([expected]);
+      expect([0, 1, 2].map((i) => isStagePlayable(v, i))).toEqual([true, false, true]);
+      expect(validateStageForEntry(b, "stage-2-snowfall-pass").ok).toBe(false);
+    }
+    const reserved = withValue("stages[1].map.reservedCells", [{ col: 0, row: 0, extra: 1 }]);
+    expect(stagePaths(reserved, 1)).toEqual(["stages[1].map.reservedCells[0].extra"]);
+    expect(stagePaths(reserved, 0)).toEqual([]);
+  });
+});
+
+describe("F2 오류 수집 완전성", () => {
+  it("base damage null + attackPeriodMs 75: 두 오류 모두", () => {
+    const b = withValues([["towers[0].levels.base.damage", null], ["towers[0].levels.base.attackPeriodMs", 75]]);
+    // 75 는 누적되어 Lv1~4 모두 50 의 배수 위반(4건) + damage 오류. damage 후속 레벨은 생략.
+    expect(globalPaths(b).sort()).toEqual([
+      "towers[0].levels.base.attackPeriodMs",
+      "towers[0].levels.base.damage",
+      "towers[0].levels.increments[0].attackPeriodMs",
+      "towers[0].levels.increments[1].attackPeriodMs",
+      "towers[0].levels.increments[2].attackPeriodMs",
+    ]);
+  });
+  it("increments[0] damage null + attackPeriodMs 25: Lv2 1025 배수 오류와 damage 오류", () => {
+    const b = withValues([["towers[0].levels.increments[0].damage", null], ["towers[0].levels.increments[0].attackPeriodMs", 25]]);
+    // 1025 는 Lv2~4 로 이어지므로 attackPeriodMs 오류 3건 + damage 오류 1건
+    expect(globalPaths(b).sort()).toEqual([
+      "towers[0].levels.increments[0].attackPeriodMs",
+      "towers[0].levels.increments[0].damage",
+      "towers[0].levels.increments[1].attackPeriodMs",
+      "towers[0].levels.increments[2].attackPeriodMs",
+    ]);
+    const e = validateContent(b).globalErrors.find((x) => x.path === "towers[0].levels.increments[0].attackPeriodMs");
+    expect(e?.message).toContain("Lv2");
+    expect(e?.message).toContain("1025");
+    // damage 가 무효여서 Lv2~4 damage 누적 검사만 생략된다: 같은 레벨의 다른 필드(rangeMt)는 계속 검사
+    const c = withValues([["towers[0].levels.increments[0].damage", null], ["towers[0].levels.increments[1].rangeMt", 30_000]]);
+    expect(globalPaths(c)).toContain("towers[0].levels.increments[1].rangeMt");
+  });
+  it("upgradeCosts [null, 0]: 길이 오류 + 각 항목 오류", () => {
+    const b = withValue("towers[0].upgradeCosts", [null, 0]);
+    expect(globalPaths(b).sort()).toEqual(["towers[0].upgradeCosts", "towers[0].upgradeCosts[0]", "towers[0].upgradeCosts[1]"]);
+  });
+  it("increments 가 2개여도 존재하는 항목은 각각 검사", () => {
+    const b = withValues([["towers[0].levels.increments", [{ damage: null }, { damage: 1 }]]]);
+    const ps = globalPaths(b);
+    expect(ps).toContain("towers[0].levels.increments");
+    expect(ps).toContain("towers[0].levels.increments[0].damage");
+    expect(ps).toContain("towers[0].levels.increments[0].attackPeriodMs"); // 누락 필드
+  });
+  it("waypoints[0].col null + waypoints[1].row null: 둘 다, 그 스테이지만", () => {
+    const b = withValues([["stages[1].map.waypoints[0].col", null], ["stages[1].map.waypoints[1].row", null]]);
+    expect(stagePaths(b, 1).sort()).toEqual(["stages[1].map.waypoints[0].col", "stages[1].map.waypoints[1].row"]);
+    expect(stagePaths(b, 0)).toEqual([]);
+  });
+  it("맵의 구조 오류가 있으면 기하 검증은 건너뛰고, 없을 때만 기하 오류를 보고", () => {
+    // 구조 오류(col null)와 기하 오류(대각)가 함께 있어도 구조 오류만
+    const both = withValues([["stages[0].map.waypoints[0].col", null], ["stages[0].map.waypoints[1]", { col: 3, row: 5 }]]);
+    expect(stagePaths(both, 0)).toEqual(["stages[0].map.waypoints[0].col"]);
+    // 구조가 맞으면 기하 오류 보고
+    expect(stagePaths(withValue("stages[0].map.waypoints[1]", { col: 3, row: 5 }), 0)).toEqual(["stages[0].map.waypoints[1]"]);
+  });
+  it("map.stageId 불일치와 좌표 오류를 함께 보고", () => {
+    const b = withValues([["stages[2].map.stageId", "other"], ["stages[2].map.waypoints[1].col", 99]]);
+    expect(stagePaths(b, 2).sort()).toEqual(["stages[2].map.stageId", "stages[2].map.waypoints[1].col"]);
+  });
+});
+
+describe("C1 스테이지 자리 격리", () => {
+  it("hole·undefined·null·객체 아님은 같은 판정: 그 자리만 오류(stageId null), 다른 스테이지 진입 가능", () => {
+    for (const make of [() => withDeleted("stages[1]"), () => withValue("stages[1]", undefined), () => withValue("stages[1]", null), () => withValue("stages[1]", 7), () => withValue("stages[1]", "x")]) {
+      const b = make();
+      const v = validateContent(b);
+      expect(v.globalErrors).toEqual([]);
+      expect(v.stages.map((s) => s.stageId)).toEqual(["stage-1-meadow-outpost", null, "stage-3-dusk-ruins"]);
+      expect(paths(v.stages[1].errors)).toEqual(["stages[1]"]);
+      expect([0, 1, 2].map((i) => isStagePlayable(v, i))).toEqual([true, false, true]);
+      expect(validateStageForEntry(b, "stage-1-meadow-outpost").ok).toBe(true);
+      expect(validateStageForEntry(b, "stage-3-dusk-ruins").ok).toBe(true);
+      expect(validateStageForEntry(b, "stage-2-snowfall-pass").ok).toBe(false);
+    }
+  });
+  it("길이 ≠ 3 은 전역 오류(모든 스테이지 차단), stages 가 배열이 아니어도 전역", () => {
+    const b = validBundle() as { stages: unknown[] };
+    for (const stages of [b.stages.slice(0, 2), [...b.stages, b.stages[0]], [], "x", null]) {
+      const bad = { ...b, stages };
+      expect(globalPaths(bad)).toContain("stages");
+      expect(validateStageForEntry(bad, "stage-1-meadow-outpost").ok).toBe(false);
+    }
+  });
+});
+
 describe("증분 누락 시 중복 오류 없음", () => {
   it("increments 가 없으면 그 오류와 Lv1 범위 오류만 보고하고 Lv2~4 결과 검사는 하지 않는다", () => {
     const b = withValue("towers[0].levels.base.damage", 1_000_001, withDeleted("towers[0].levels.increments"));
@@ -352,7 +452,7 @@ describe("11.4 오류 수집·격리", () => {
     expect(globalPaths(withDeleted("traits[0]"))).toContain("traits[0]");
     expect(globalPaths(withDeleted("towers[0].upgradeCosts[1]"))).toContain("towers[0].upgradeCosts[1]");
     expect(globalPaths(withDeleted("towers[0].levels.increments[2]"))).toContain("towers[0].levels.increments[2]");
-    expect(globalPaths(withDeleted("stages[1]"))).toContain("stages[1]");
+    expect(globalPaths(withDeleted("stages[1]"))).toEqual([]); // 스테이지 자리 hole 은 전역이 아니라 그 자리만의 오류(C1)
     expect(validateContent(withDeleted("stages[1]")).stages[1].errors.map((e) => e.path)).toEqual(["stages[1]"]);
     expect(stagePaths(withDeleted("stages[0].waves[3]"), 0)).toContain("stages[0].waves[3]");
     expect(stagePaths(withDeleted("stages[0].waves[0].segments[0]"), 0)).toContain("stages[0].waves[0].segments[0]");
