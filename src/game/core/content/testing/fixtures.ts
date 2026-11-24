@@ -1,4 +1,4 @@
-// TEST_ONLY — 검증기 시험용 최소 묶음. 아래 수치는 임의의 테스트 값이며 게임 밸런스 후보·승인값이 아니다(BAL-01 전까지 제품 데이터에 수치 없음).
+// TEST_ONLY (증분은 강화 1회마다 누적) — 검증기 시험용 최소 묶음. 아래 수치는 임의의 테스트 값이며 게임 밸런스 후보·승인값이 아니다(BAL-01 전까지 제품 데이터에 수치 없음).
 import { STAGE_MAPS } from "../../../content/stageMaps";
 import { WAVE_ROLES } from "../types";
 
@@ -19,7 +19,7 @@ function tower(type: string, buildCost: number, upgrade: number[], base: Plain, 
     type,
     buildCost,
     upgradeCosts: upgrade,
-    levels: { base: { ...COMMON, ...base }, increments: [inc(5, 500), inc(10, 1000), inc(15, 1500)] },
+    levels: { base: { ...COMMON, ...base }, increments: [inc(5, 500), inc(5, 500), inc(5, 500)] },
   };
 }
 

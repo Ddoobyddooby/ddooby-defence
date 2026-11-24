@@ -273,16 +273,21 @@ function parseTower(item: unknown, path: string, errs: Errs): TowerParse {
           });
         }
       }
-      // 레벨 결과값(Lv1~4)에 범위 적용 (11.2)
+      // 레벨 결과값(Lv1~4)에 범위 적용 (11.2). 증분은 강화 1회마다 누적: Lv2 = base+inc[0], Lv3 = Lv2+inc[1], Lv4 = Lv3+inc[2].
       if (base !== undefined) {
+        let cur: Record<string, number> = { ...base };
         for (let level = 1; level <= 4; level++) {
-          const inc = level === 1 ? undefined : incs?.[level - 2];
-          if (level > 1 && inc === undefined) continue;
+          if (level > 1) {
+            const inc = incs?.[level - 2];
+            if (inc === undefined) break; // 누락된 증분 뒤의 레벨은 값을 알 수 없어 검사하지 않는다
+            const prev = cur;
+            cur = {};
+            for (const field of fields) cur[field] = prev[field] + inc[field];
+          }
           for (const field of fields) {
-            const v = base[field] + (inc === undefined ? 0 : inc[field]);
             const p = levelPath(path, level, field);
-            checkRange(v, LEVEL_RANGE[field], p, errs, `Lv${level} 결과값 `);
-            if (field === "rangeMt") ranges[level - 1] = { value: v, path: p };
+            checkRange(cur[field], LEVEL_RANGE[field], p, errs, `Lv${level} 결과값 `);
+            if (field === "rangeMt") ranges[level - 1] = { value: cur[field], path: p };
           }
         }
       }
@@ -564,13 +569,24 @@ function parseAll(input: unknown): FullParse {
     traits !== undefined &&
     economy !== undefined;
   const global = globalOk
-    ? ({ contentVersion, towers, enemies, traits, economy } as unknown as GlobalContent)
+    ? ({
+        contentVersion,
+        towers: canonicalOrder(towers as TowerDef[], TOWER_TYPES),
+        enemies: canonicalOrder(enemies as EnemyDef[], ENEMY_TYPES),
+        traits: canonicalOrder(traits as TraitDef[], TRAIT_TYPES),
+        economy,
+      } as GlobalContent)
     : undefined;
   const validation: ContentValidation = {
     globalErrors: g,
     stages: stageErrs.map((errors, i) => ({ stageId: stageIds[i], errors }) as StageValidation),
   };
   return { validation, global, stages };
+}
+
+/** 타워·적·특성은 정규 type 순서로 정렬해 돌려준다(해시가 입력 순서에 의존하지 않도록). 오류 경로는 입력 인덱스를 쓴다. */
+function canonicalOrder<T extends { type: string }>(items: readonly T[], order: readonly string[]): T[] {
+  return [...items].sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type));
 }
 
 /** 같은 레벨끼리 ballista > archer > mage > frost (엄격). 위반은 더 짧아야 하는 쪽 타워의 해당 레벨 필드 경로에 보고한다. */

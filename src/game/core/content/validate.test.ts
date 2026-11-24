@@ -208,10 +208,14 @@ describe("11.2 필드 범위(하한-1/하한/상한/상한+1)", () => {
     const find = (b: unknown, path: string): ContentError | undefined => validateContent(b).globalErrors.find((e) => e.path === path);
     const lv3 = find(withValue("towers[0].levels.increments[1].damage", 1_000_000), "towers[0].levels.increments[1].damage");
     expect(lv3?.message).toContain("Lv3");
+    // 누적 고정: base 999800, 증분 [100,100,100] → Lv2 999900, Lv3 1000000(통과), Lv4 1000100(오류). 비누적이면 전부 통과한다.
+    const cum = withValues([["towers[0].levels.base.damage", 999_800], ["towers[0].levels.increments[0].damage", 100], ["towers[0].levels.increments[1].damage", 100], ["towers[0].levels.increments[2].damage", 100]]);
+    expect(globalPaths(cum).filter((p) => p.startsWith("towers[0]."))).toEqual(["towers[0].levels.increments[2].damage"]);
+    expect(find(cum, "towers[0].levels.increments[2].damage")?.message).toContain("1000100");
     // 하한: Lv1 damage 10 + (−10) = 0 → Lv2 오류, −9 → 1 통과
     expect(find(withValue("towers[0].levels.increments[0].damage", -10), "towers[0].levels.increments[0].damage")?.message).toContain("Lv2");
     expect(find(withValue("towers[0].levels.increments[0].damage", -9), "towers[0].levels.increments[0].damage")).toBeUndefined();
-    // 시간: 1000 + 25 → 50의 배수 위반(Lv4), 1000 + 50 통과
+    // 시간: 1000 + 0 + 0 + 25 → 50의 배수 위반(Lv4), 1000 + 50 통과
     expect(find(withValue("towers[0].levels.increments[2].attackPeriodMs", 25), "towers[0].levels.increments[2].attackPeriodMs")?.message).toContain("Lv4");
     expect(find(withValue("towers[0].levels.increments[2].attackPeriodMs", 50), "towers[0].levels.increments[2].attackPeriodMs")).toBeUndefined();
     // frost slowBp: 3000 + 500·… 증분 7000 → Lv2 10000 이면 오류, 6999 → 9999 통과
@@ -234,19 +238,19 @@ describe("11.3 교차 규칙", () => {
     // Lv1: ballista 7000 → archer 와 같게(동률) / 더 작게
     expectGlobalError(withValue("towers[1].levels.base.rangeMt", 5000), "towers[0].levels.base.rangeMt");
     expectGlobalError(withValue("towers[1].levels.base.rangeMt", 4000), "towers[0].levels.base.rangeMt");
-    // Lv3: archer Lv3 = 6000, ballista Lv3 = 7000 + (−1000) = 6000 동률
-    expectGlobalError(withValue("towers[1].levels.increments[1].rangeMt", -1000), "towers[0].levels.increments[1].rangeMt");
-    expectGlobalError(withValue("towers[1].levels.increments[1].rangeMt", -2000), "towers[0].levels.increments[1].rangeMt");
+    // Lv3(누적): archer = 5000+500+500 = 6000, ballista = 7000+500+(−1500) 에 앞선 Lv2 7500 → Lv3 6000 동률
+    expectGlobalError(withValue("towers[1].levels.increments[1].rangeMt", -1500), "towers[0].levels.increments[1].rangeMt");
+    expectGlobalError(withValue("towers[1].levels.increments[1].rangeMt", -2500), "towers[0].levels.increments[1].rangeMt");
     // 다른 쌍: archer>mage, mage>frost
     expectGlobalError(withValue("towers[2].levels.base.rangeMt", 5000), "towers[2].levels.base.rangeMt");
     expectGlobalError(withValue("towers[3].levels.base.rangeMt", 4000), "towers[3].levels.base.rangeMt");
-    expectGlobalError(withValue("towers[3].levels.increments[2].rangeMt", 1500 + 1000), "towers[3].levels.increments[2].rangeMt");
+    expectGlobalError(withValue("towers[3].levels.increments[2].rangeMt", 1500), "towers[3].levels.increments[2].rangeMt");
   });
   it("사거리: 다른 레벨끼리 역전은 허용", () => {
-    // archer Lv4 = 5000 + 3000 = 8000 > ballista Lv1(7000), 같은 레벨(Lv4 = 8500)에서는 ballista 가 더 길다
-    const b = withValue("towers[0].levels.increments[2].rangeMt", 3000);
+    // archer Lv4(누적) = 5000+500+500+2000 = 8000 > ballista Lv1(7000), 같은 레벨 Lv4 = 8500 에서는 ballista 가 더 길다
+    const b = withValue("towers[0].levels.increments[2].rangeMt", 2000);
     expect(globalPaths(b)).toEqual([]);
-    // 같은 타워의 Lv1 이 다른 타워의 Lv4 보다 짧아도 무관: frost Lv4 = 3000+1500 = 4500 > mage Lv1(4000) 이미 현재 fixture 에서 성립
+    // 같은 타워의 Lv1 이 다른 타워의 Lv4 보다 짧아도 무관: frost Lv4 = 3000+3×500 = 4500 > mage Lv1(4000) 이미 현재 fixture 에서 성립
     expect(globalPaths(validBundle())).toEqual([]);
   });
   it("강화 비용 Lv2<Lv3<Lv4 위반(동률 포함)", () => {

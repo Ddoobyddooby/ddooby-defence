@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { canonicalize } from "../sim/canonical";
 import type { StageContent } from "./types";
-import { stageContentHash, validateStageForEntry } from "./validate";
+import { stageContentHash, validateContent, validateStageForEntry } from "./validate";
 import { reverseKeys, validBundle, withValue } from "./testing/fixtures";
 
 const IDS = ["stage-1-meadow-outpost", "stage-2-snowfall-pass", "stage-3-dusk-ruins"];
@@ -34,6 +34,23 @@ describe("스테이지 콘텐츠 해시 (11.4)", () => {
     const base = hashes(validBundle());
     expect(hashes(reverseKeys(validBundle()))).toEqual(base);
     expect(hashes(validBundle())).toEqual(base);
+  });
+  it("타워·적·특성 입력 순서만 다른 묶음은 같은 해시, 결과는 정규 순서", () => {
+    const base = hashes(validBundle());
+    const b = validBundle() as Record<string, unknown[]>;
+    const shuffled = { ...b, towers: [...b.towers].reverse(), enemies: [b.enemies[2], b.enemies[0], b.enemies[3], b.enemies[1]], traits: [...b.traits].reverse() };
+    expect(hashes(shuffled)).toEqual(base);
+    const r = validateStageForEntry(shuffled, IDS[0]);
+    if (!r.ok) throw new Error("통과해야 함");
+    expect(r.content.global.towers.map((t) => t.type)).toEqual(["archer", "ballista", "mage", "frost"]);
+    expect(r.content.global.enemies.map((t) => t.type)).toEqual(["normal", "fast", "heavy", "swarm"]);
+    expect(r.content.global.traits.map((t) => t.type)).toEqual(["controlResistance", "hpBoost", "speedBoost"]);
+  });
+  it("순서가 바뀐 묶음의 오류 경로는 입력 인덱스를 유지한다", () => {
+    const b = validBundle() as Record<string, unknown[]>;
+    const rev = { ...b, towers: [...b.towers].reverse() }; // frost 가 towers[0]
+    const bad = withValue("towers[0].buildCost", 0, rev);
+    expect(validateContent(bad).globalErrors.map((e) => e.path)).toEqual(["towers[0].buildCost"]);
   });
   it("한 스테이지 값 변경 → 그 스테이지 해시만 변경", () => {
     const base = hashes(validBundle());
