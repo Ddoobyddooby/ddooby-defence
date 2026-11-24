@@ -21,25 +21,25 @@
 | REQ-MAP-01 | 18열×10행 정사각 논리 격자, 격자 밖 좌표 거부 | SPEC 1·2절 | TECH-01, MAP-01 | `src/game/core/grid.test.ts`, `map/stageMap.test.ts` | **통과**(`42b233d`, 격자 경계·3맵 격자 안 검증) |
 | REQ-MAP-02 | 스테이지별 독립 지도, 경로 = waypoint + 설치 불가 예약 격자 | SPEC 2절, SIM-CONTRACT 10절 | MAP-01, DATA-01 | `map/stageMap.test.ts`(3맵 그림 리터럴·칸 수·검증 오류), `content/stageMaps.ts`, `content/validate.test.ts`(맵 엄격 필드·스테이지 격리) | **통과**(`42b233d`·`ceded17`, 기하·후보 데이터·묶음 스키마) |
 | REQ-MAP-03 | 경로·spawn·base·예약 격자·점유 칸에는 설치 불가 | SPEC 2절 | MAP-01, ECON-01 | `map/stageMap.test.ts`(isBuildable), `attempt/econ.test.ts`(경로·출발·기지 notBuildable, 점유 occupied, 경로 칸 타워 없음 불변식) | **통과**(`cc4059a`) |
-| REQ-MAP-04 | 타워는 논리 1×1 점유, 스프라이트 돌출은 점유를 늘리지 않음 | SPEC 2절 | SIM-02, UI-01 | — | 설계됨 |
+| REQ-MAP-04 | 타워는 논리 1×1 점유, 스프라이트 돌출은 점유를 늘리지 않음 | SPEC 2절 | SIM-02, UI-01 | `attempt/combat.test.ts`(타워는 칸 중심 기준 1칸, 점유·사거리 중심 일치) | 부분 통과(`50b320b`, 코어 점유·발사 중심). 스프라이트 돌출은 UI-01 |
 | REQ-MAP-05 | 화면 → 맵 논리 격자 역변환, HUD·레터박스·맵 밖 입력은 설치 명령 생성 금지. 격자 경계 클릭은 오른쪽·아래 칸 | SPEC 2·9절, SIM-CONTRACT 10.1 | MAP-01, UI-01 | `map/pointToCell.test.ts`(소수 tile 경계 포함) | 부분 통과(`42b233d`, 좌표→칸 변환). 화면 축척·레터박스·HUD 입력 연결은 UI-01 |
 
 ### REQ-TOWER — 타워 역할·레벨·타깃·투사체 (게이트 CORE, QA BALD·INT)
 
 | ID | 요구 | 근거 | TASK | 테스트 위치 | 상태 |
 |---|---|---|---|---|---|
-| REQ-TOWER-01 | 4종 역할(궁수 연사·발리스타 장거리 단일·마법 광역·서리 둔화) | SPEC 3절 | SIM-02, BAL-01 | — | 설계됨 |
+| REQ-TOWER-01 | 4종 역할(궁수 연사·발리스타 장거리 단일·마법 광역·서리 둔화) | SPEC 3절 | SIM-02, BAL-01 | `attempt/combat.test.ts`(single·aoe·frost 둔화 경로) | 부분 통과(`50b320b`, 역할별 동작 구조). 역할 수치는 BAL-01 |
 | REQ-TOWER-02 | 사거리 엄격 순서 발리스타 > 궁수 > 마법 > 서리 | SPEC 3절(사용자 결정: 같은 레벨끼리), SIM-CONTRACT 11.3 | DATA-01(검증기), BAL-01 | `content/validate.test.ts`(같은 레벨 순서 Lv1~4, 동률 오류, 다른 레벨 역전 허용) | **통과**(`ceded17`, 검증기). 실제 값은 BAL-01 |
-| REQ-TOWER-03 | Lv1~4, 갈림길 없는 강화 3회, Lv1 기본값 + Lv2/3/4 증분 데이터 | SPEC 3절 | DATA-01, SIM-02 | `content/validate.test.ts`(base·증분 누적, 증분 결과 범위) | 부분 통과(`ceded17`, 데이터 형식·누적 검증). 강화 적용은 SIM-02 |
+| REQ-TOWER-03 | Lv1~4, 갈림길 없는 강화 3회, Lv1 기본값 + Lv2/3/4 증분 데이터 | SPEC 3절 | DATA-01, SIM-02 | `content/validate.test.ts`(base·증분 누적, 증분 결과 범위), `attempt/combat.test.ts`(강화 후 Lv2 능력치 적용) | 부분 통과(`50b320b`, 데이터 누적·강화 적용). 실제 수치는 BAL-01 |
 | REQ-TOWER-04 | 같은 타워 강화 비용 Lv2 < Lv3 < Lv4 | SPEC 3·8절 | DATA-01 | `content/validate.test.ts`(Lv2<Lv3<Lv4, 동률·역전 오류) | **통과**(`ceded17`, 검증기) |
-| REQ-TOWER-05 | 모든 타워가 모든 적에게 피해, 면역·하드카운터 없음 | SPEC 3절 | SIM-02, BAL-01 | — | 설계됨 |
-| REQ-TOWER-06 | 타깃 우선순위 선두(기본)·후미·가까운·강한 | SPEC 3절, SIM-CONTRACT 3.3 | SIM-02 | — | 설계됨 |
-| REQ-TOWER-07 | 동률은 경로 진행도 → 생성 순번 → 적 ID | SPEC 3절, SIM-CONTRACT 5절 | TECH-02, SIM-02 | `sim/time.test.ts` TECH-02/T08(적 ID = 생성 순서) | 부분 통과(`1d3c829`, ID 부여 순서만). 타깃 정렬은 SIM-02 |
-| REQ-TOWER-08 | 사거리 = 타워 중심~적 유클리드 거리, 경계 포함, LoS 없음 (정수 거리² 비교) | SPEC 3절, SIM-CONTRACT 3.3 | SIM-02 | — | 설계됨 |
-| REQ-TOWER-09 | 타깃 변경은 이후 발사에만 영향 | SPEC 3절 | SIM-02 | — | 설계됨 |
-| REQ-TOWER-10 | 단일 투사체: 발사 시 대상·스탯 고정, 사거리 밖도 추적, 대상 사망·기지 도달 시 게임플레이 투사체 취소 | SPEC 4절 | SIM-02 | — | 설계됨 |
-| REQ-TOWER-11 | 명중과 수명 만료가 같은 시각이면 명중 우선 | SPEC 4절 | SIM-02 | — | 의존성 차단(TTL 판정 단계 SIM-02 결정) |
-| REQ-TOWER-12 | 마법 광역은 고정 충돌 좌표에서 폭발, 반경 안이면 타워 사거리 밖 적도 피해 | SPEC 4절 | SIM-02 | — | 설계됨 |
+| REQ-TOWER-05 | 모든 타워가 모든 적에게 피해, 면역·하드카운터 없음 | SPEC 3절 | SIM-02, BAL-01 | `attempt/combat.test.ts`(모든 타워 피해에 면역 분기 없음) | 부분 통과(`50b320b`, 코어에 면역 규칙 없음). 수치 체감은 BAL-01 |
+| REQ-TOWER-06 | 타깃 우선순위 선두(기본)·후미·가까운·강한 | SPEC 3절, SIM-CONTRACT 3.3 | SIM-02 | `attempt/combat.test.ts` 타깃 모드 4종·pickTarget | **통과**(`50b320b`) |
+| REQ-TOWER-07 | 동률은 경로 진행도 → 생성 순번 → 적 ID | SPEC 3절, SIM-CONTRACT 5절 | TECH-02, SIM-02 | `sim/time.test.ts` TECH-02/T08, `attempt/combat.test.ts` 동률(first·last id, close·strong 진행도→id) | **통과**(`50b320b`) |
+| REQ-TOWER-08 | 사거리 = 타워 중심~적 유클리드 거리, 경계 포함, LoS 없음 (정수 거리² 비교) | SPEC 3절, SIM-CONTRACT 3.3 | SIM-02 | `attempt/combat.test.ts` 사거리 경계(거리² == range² 발사, range−1 미발사) | **통과**(`50b320b`) |
+| REQ-TOWER-09 | 타깃 변경은 이후 발사에만 영향 | SPEC 3절 | SIM-02 | `attempt/combat.test.ts`(투사체 targetEnemyId·스탯 발사 시 고정, 리플레이 중 setTargeting) | 부분 통과(`50b320b`). 발사 후 타깃 변경 전용 단언은 없음 — SIM-03 리플레이 회귀에서 보강 |
+| REQ-TOWER-10 | 단일 투사체: 발사 시 대상·스탯 고정, 사거리 밖도 추적, 대상 사망·기지 도달 시 게임플레이 투사체 취소 | SPEC 4절 | SIM-02 | `attempt/combat.test.ts` 취소·만료·추적(사거리 밖 추적, 대상 사망·기지 도달 취소) | **통과**(`50b320b`) |
+| REQ-TOWER-11 | 명중과 수명 만료가 같은 시각이면 명중 우선 | SPEC 4절 | SIM-02 | `attempt/combat.test.ts` 같은 틱 명중 == 만료 → 명중 | **통과**(`50b320b`, TTL 판정 = 이동·명중 후, SIM-CONTRACT 14.4) |
+| REQ-TOWER-12 | 마법 광역은 고정 충돌 좌표에서 폭발, 반경 안이면 타워 사거리 밖 적도 피해 | SPEC 4절 | SIM-02 | `attempt/combat.test.ts` aoe(고정 충돌점, 사거리 밖 피해, 반경 경계, 노린 적 소멸 후 폭발, 만료 시 미폭발) | **통과**(`50b320b`) |
 
 ### REQ-ENEMY — 적·특성·둔화 (게이트 CORE, QA ENMD)
 
@@ -47,11 +47,11 @@
 |---|---|---|---|---|---|
 | REQ-ENEMY-01 | 기본 적 4종, 유형별 HP·속도·기지 피해는 Stage 1~3 공통, 스테이지·웨이브 보정 없음 | SPEC 5절 | DATA-01 | `content/validate.test.ts`(적 4종 1회씩, 스테이지별 적 능력치 필드 없음) | **통과**(`ceded17`, 스키마) |
 | REQ-ENEMY-02 | 적 = 기본 유형 1 + 보조 특성 0~1 | SPEC 5절 | DATA-01 | `content/validate.test.ts`(Segment trait null 또는 1개) | **통과**(`ceded17`, 스키마) |
-| REQ-ENEMY-03 | 체력·속도 강화는 비율 보정(반올림, 최소 1), 생성 시 고정, 속도는 mt/틱 변환 후 적용 | SPEC 5절, SIM-CONTRACT 3.3 | TECH-02, SIM-02 | `sim/formulas.test.ts` TECH-02/N11·N14 | 부분 통과(`1d3c829`, 산식만). 생성 연결은 SIM-02 |
-| REQ-ENEMY-04 | 둔화: 같은 출처 갱신, 다른 출처 개별 유지, 가장 강한 하나만 적용, 만료 후 다음 효과 | SPEC 4절 | SIM-02 | `sim/time.test.ts` TECH-02/T09(만료 틱 산술) | 부분 통과(만료 산술만). 단계별 동작은 SIM-02 의존성 차단 |
-| REQ-ENEMY-05 | `effectiveSlow = baseSlow × (1 − controlResistance)` (bp, 반올림) | SPEC 4절, SIM-CONTRACT 3.3 | TECH-02, SIM-02 | `sim/formulas.test.ts` TECH-02/N12 | 부분 통과(`1d3c829`, 산식만) |
-| REQ-ENEMY-06 | 판매된 타워의 둔화는 만료까지 유지, 적 사망·기지 도달 시 제거 | SPEC 4절 | SIM-02 | — | 설계됨 |
-| REQ-ENEMY-07 | 경량 군집형은 데이터의 밀집 생성으로 표현, 사망 시 분열·추가 생성 없음, 중장형 방어력 없음 | SPEC 5절 | DATA-01, SIM-02 | `content/validate.test.ts`(분열·방어력 필드 없음, 밀집은 Segment로 표현) | 부분 통과(`ceded17`, 스키마). 사망 시 동작은 SIM-02 |
+| REQ-ENEMY-03 | 체력·속도 강화는 비율 보정(반올림, 최소 1), 생성 시 고정, 속도는 mt/틱 변환 후 적용 | SPEC 5절, SIM-CONTRACT 3.3 | TECH-02, SIM-02 | `sim/formulas.test.ts` TECH-02/N11·N14, `attempt/attempt.test.ts`(생성 시 고정) | 부분 통과(산식·생성 연결 SIM-01). 실제 특성 배율은 BAL-01 |
+| REQ-ENEMY-04 | 둔화: 같은 출처 갱신, 다른 출처 개별 유지, 가장 강한 하나만 적용, 만료 후 다음 효과 | SPEC 4절 | SIM-02 | `sim/time.test.ts` TECH-02/T09, `attempt/combat.test.ts` 둔화(같은 출처 교체·다른 출처 공존·최대 1개·만료 경계) | **통과**(`50b320b`) |
+| REQ-ENEMY-05 | `effectiveSlow = baseSlow × (1 − controlResistance)` (bp, 반올림) | SPEC 4절, SIM-CONTRACT 3.3 | TECH-02, SIM-02 | `sim/formulas.test.ts` TECH-02/N12, `attempt/combat.test.ts` 저항 반영 | **통과**(`50b320b`) |
+| REQ-ENEMY-06 | 판매된 타워의 둔화는 만료까지 유지, 적 사망·기지 도달 시 제거 | SPEC 4절 | SIM-02 | `attempt/combat.test.ts`(적 제거 시 둔화 소멸, 둔화가 타워 존재를 참조하지 않음) | 부분 통과(`50b320b`). 판매 타워 둔화 유지는 판매가 준비 단계 전용이라 정상 입력으로 도달 불가(codex 리뷰 확인) |
+| REQ-ENEMY-07 | 경량 군집형은 데이터의 밀집 생성으로 표현, 사망 시 분열·추가 생성 없음, 중장형 방어력 없음 | SPEC 5절 | DATA-01, SIM-02 | `content/validate.test.ts`, `attempt/combat.test.ts`(사망 시 제거만, 추가 생성 없음) | 부분 통과(`50b320b`). 밀집 생성 데이터는 BAL-01 |
 | REQ-ENEMY-08 | 처치 보상에 특성 영향을 줄지 | SPEC 5·8절, TBD-ECON | BAL-01 | — | 의존성 차단(사용자 결정 필요) |
 
 ### REQ-WAVE — 3×5 웨이브·생성·완료 (게이트 DATA·STATE, QA WAVD·WBL)
@@ -87,7 +87,7 @@
 | ID | 요구 | 근거 | TASK | 테스트 위치 | 상태 |
 |---|---|---|---|---|---|
 | REQ-STATE-01 | 논리 틱 8단계 순서 고정 | SPEC 7절 | SIM-01 | `attempt/attempt.test.ts`·`attempt/attempt.hooks.test.ts`(단계·훅 호출 순서) | **통과**(`3ff5742`, 8단계 순서·확장 지점). 2·4단계 내용은 SIM-02 |
-| REQ-STATE-02 | 같은 틱에 생성된 적도 공격 대상 | SPEC 7절 | SIM-02 | — | 설계됨 |
+| REQ-STATE-02 | 같은 틱에 생성된 적도 공격 대상 | SPEC 7절 | SIM-02 | `attempt/combat.test.ts` 틱 41 생성 적을 같은 틱 발사 | **통과**(`50b320b`) |
 | REQ-STATE-03 | 1단계 명령은 같은 틱 5단계 처치 골드를 쓸 수 없음 | SPEC 7절 | SIM-01, ECON-01 | `attempt/attempt.test.ts`(1단계 명령이 같은 틱 처치 골드 사용 불가) | **통과**(`3ff5742`) |
 | REQ-STATE-04 | 기지 파괴와 웨이브 완료가 같은 틱이면 패배 우선, 보상 없음 | SPEC 7절 | SIM-01 | `attempt/attempt.test.ts`(기지 파괴+웨이브 완료 같은 틱 → defeat·보상 없음) | **통과**(`3ff5742`) |
 | REQ-STATE-05 | 마지막 웨이브 정상 완료 시 보상 한 번 후 승리 | SPEC 7절 | SIM-01, ECON-01 | `attempt/attempt.test.ts`(마지막 웨이브 보상 1회 후 victory) | **통과**(`3ff5742`) |
@@ -149,7 +149,7 @@
 | MAP-01 | MAP-01·02·03·05 | 완료 |
 | DATA-01 | MAP-02, TOWER-02·03·04, ENEMY-01·02·07, WAVE-01·02·03·07, ECON-11 | 완료 |
 | SIM-01 | STATE-01·03·04·05·06·08·11·12, WAVE-03·04·05·06, ECON-06·09·10 | 완료 |
-| SIM-02 | TOWER-01·03·05~12, ENEMY-03~07, MAP-04, STATE-02 | 미착수 |
+| SIM-02 | TOWER-01·03·05~12, ENEMY-03~07, MAP-04, STATE-02 | 완료(`50b320b`, codex 리뷰 통과). 남은 부분은 BAL-01·UI-01·SIM-03 |
 | ECON-01 | ECON-01~11, MAP-03, STATE-03·05, WAVE-06 | 완료 |
 | SIM-03 | STATE-09, QA-06 | 미착수 |
 | UI-01 | UI-01~11, MAP-04·05, ECON-07, STATE-06·11·14·16, WAVE-07 | 미착수 |

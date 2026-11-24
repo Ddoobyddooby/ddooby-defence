@@ -8,14 +8,14 @@
 
 > 다른 PC·새 세션에서는 이 섹션부터 읽는다. 세션을 마칠 때 claude-main이 갱신한다.
 
-- **최종 갱신:** 2026-11-24, `main` 기준
+- **최종 갱신:** 2026-11-25, `main` 기준
 - **완료:** DOC-01, DOC-02(추적표 골격), TECH-02, MAP-01, DATA-01, SIM-01, ECON-01(결정성 계약·기초 모듈), ART-01 시안 선택(Stage 1 v2·Stage 2·Stage 3), TECH-01 스캐폴딩(Next.js 16 + TS + Phaser 4, 검증 명령은 `README.md`), 전체 문서 탭 이름 통일
 - **사용자 결정:** TECH-01은 codex-main 독립 리뷰 없이 `main` 반영으로 마무리(2026-11-24)
 - **다음 작업 순서 (2026-11-24 사용자 확정):**
   1. ~~DOC-01~~ 완료(2026-11-24, 재리뷰 1 통과). 문서 상호검증: 스택 확정 후 남은 "미정·확인 필요" 문구 정리 + codex-main 문서 QA (ART-01·TECH-01이 DOC-01 선행 없이 진행된 점 보완)
   2. ~~TECH-02~~ 완료(2026-11-24). 계약 `docs/SIM-CONTRACT.md`(재리뷰 2 통과) + 기초 모듈 `src/game/core/sim/`(claude-1 구현, 재리뷰 1 통과)
   3. ~~DOC-02~~ 완료(2026-11-24). 추적표 `docs/TRACE.md`, 태스크 반영 때마다 해당 행 갱신
-  4. ~~MAP-01~~ 완료(2026-11-24, 3맵 후보·기하 모듈). ~~DATA-01~~ 완료(2026-11-24, 스키마·검증기). ~~SIM-01~~·~~ECON-01~~ 완료(2026-11-24). **SIM-02 진행 중**(타워 발사·타깃·투사체·둔화): 계약 `docs/SIM-CONTRACT.md` 14절(브랜치 `feat/sim-02`, 사용자 결정 3건 반영), claude-1 구현·테스트 커밋(`96bb353`·`50b320b`, worktree `../ddooby-defence-sim-02`, 미push). **다음 세션: claude-1 완료 보고 확인 → codex-main에 코드 리뷰 요청**(사용자 지시 2026-11-24) → 통과 시 `main` 병합 확인
+  4. ~~MAP-01~~ 완료(2026-11-24, 3맵 후보·기하 모듈). ~~DATA-01~~ 완료(2026-11-24, 스키마·검증기). ~~SIM-01~~·~~ECON-01~~ 완료(2026-11-24). ~~SIM-02~~ 완료(2026-11-25, 계약 14절, codex-main 리뷰 통과). 다음 **SIM-03**(결정적 리플레이·실패 주입·회귀 기반)
 - **운영 흐름:** 사용자는 claude-main 탭에서 지시 → 코딩 claude-1/2, QA·리뷰 codex-main, 디자인 codex-design (WORKFLOW 2~4절). `main` 반영·push는 claude-main 탭에서 사용자 직접 확인 후
 - **저장소 경로(2026-11-24 변경):** `~/Desktop/Ddooby/projects/ddooby-defence` (이전 `.../ddooby-defence/ddooby-defence` 이중 폴더 정리, 사용자 요청)
 - **구현 탭 작업 방식:** claude-1/2는 공유 폴더가 아닌 전용 git worktree와 작업 브랜치에서 작업한다. worktree는 형제 폴더 `../ddooby-defence-<task>`(예: `ddooby-defence-sim-02`)에 만들고, 병합 후 worktree·브랜치 삭제(사용자 결정 2026-11-24)
@@ -104,12 +104,13 @@
   - 완료 조건: 동일 틱 동시 이벤트·패배 우선·재도전 초기화 테스트 통과
   - 결과: `src/game/core/attempt/`(createAttempt·8단계 틱·확장 지점 훅·리플레이 연결), 스테이지 `baseHp` 필드 추가. lint/typecheck/test(419 passed)/build exit 0. codex-main 리뷰 F1~F4(훅 수명·step 중 pause·명령 롤백·생성 경로) 수정 → **재리뷰 1 통과**(@`3ff5742`, `.codex-out/SIM-01-review.md`). 남은 연결: 타워·투사체·둔화 상태와 스냅샷 필드는 SIM-02·ECON-01에서 코어에 추가
 
-- [ ] **SIM-02 — 타워·적·타깃·투사체·둔화**
-  - 담당: 구현 담당 claude-main 배정
+- [x] **SIM-02 — 타워·적·타깃·투사체·둔화** (2026-11-25 `main` 반영)
+  - 담당: claude-main 계약(`docs/SIM-CONTRACT.md` 14절), 구현 claude-1(worktree `../ddooby-defence-sim-02`, 브랜치 `feat/sim-02`). 사용자 결정(2026-11-24): 설치 틱 즉시 발사 가능, 4단계 HP 0 적 즉시 사망 취급, 강화 시 남은 대기 유지
   - 선행: SIM-01, DATA-01
   - 범위: 4타워·3강화·4적·3특성, 타깃 4종, ST·AoE 발사/명중, slow source 상태
   - QA: BALD-01~10, ENMD-01~18, INT-01~15, BALX-03~08
   - 완료 조건: 타워 역할·발사 스냅샷·저항·중첩·만료·VFX/게임 상태 분리 검증
+  - 결과: 코어가 2·4·6·8단계 전투 직접 처리(투사체·발사·타깃·둔화), `content/levelStats.ts`, 이벤트 6종, `expireSlows`·`enemySpeed` 훅 제거(`fire`는 TEST_ONLY), `ATTEMPT_CODE_VERSION` attempt-v3. lint/typecheck/test(472 passed)/build exit 0(claude-main 재실행). codex-main 독립 리뷰 **통과**(@`50b320b`, `.codex-out/SIM-02-review.md`, 롤백·저장 순서 교란·Lv4 누적 보강 검증 포함). 남은 부분: 실제 수치 BAL-01, VFX 잔상 UI-01, 발사 후 타깃 변경 전용 회귀 SIM-03
 
 - [x] **ECON-01 — 원자적 경제 거래와 보상** (2026-11-24 `main` 반영)
   - 담당: claude-main 계약(`docs/SIM-CONTRACT.md` 13절), 구현 claude-1(worktree `wt-econ-01`, 브랜치 `feat/econ-01`). 사용자 결정(2026-11-24): 설치·강화는 준비·전투 모두, 판매는 준비만

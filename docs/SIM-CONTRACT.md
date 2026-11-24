@@ -35,7 +35,7 @@
 - **조기 시작:** `startWave`가 틱 T의 1단계에서 적용되면 그 틱에 전투로 바뀌고 `waveStartTick = T`.
 - **Segment 생성 틱** = `waveStartTick + (startMs + i × intervalMs) / 50`, 해당 틱 3단계에서 생성.
 - **둔화:** 틱 T의 4단계 명중 시 `expireTick = T + durationTicks`. 틱 T..`expireTick − 1`의 6단계 이동에 적용되고 `expireTick` 틱의 2단계에서 제거된다.
-- **공격 주기:** 타워는 `nextFireTick`을 가지며 4단계에서 `tick >= nextFireTick`이고 타깃이 있으면 발사, `nextFireTick = T + 주기 틱`. 설치 직후 첫 발사 가능 틱은 SIM-02.
+- **공격 주기:** 타워는 `nextFireTick`을 가지며 4단계에서 `tick >= nextFireTick`이고 타깃이 있으면 발사, `nextFireTick = T + 주기 틱`. 설치한 틱부터 발사 가능, 강화는 `nextFireTick`을 바꾸지 않음(14절, 사용자 결정 2026-11-24).
 - **결과 단계:** 7단계에서 승패가 정해지면 그 틱 R의 8단계에서 결과 단계로 바뀐다. 결과 단계에서 `step()`은 **오류**(상태·`completedTick` 불변)이며 어댑터는 더 호출하지 않는다. 따라서 결과가 난 시도의 마지막 `completedTick`은 R이다.
 
 ## 3. 숫자 단위와 연산
@@ -70,7 +70,7 @@
 | 둔화 적용 속도 | `speedPerTick = max(1, applyBp(boostedSpeedPerTick, 10000 − 가장 큰 effectiveSlowBp))`. 둔화 bp < 10000은 데이터 검증 |
 | **환급 (SPEC 8절 예외)** | `refund = floor(actuallyPaid × refundRateBp / 10000)` — SPEC 확정 규칙인 **내림 한 번** 유지. 반올림 아님 |
 | 사거리 판정 | `dx² + dy² ≤ range²` (정수, 제곱근 없음, 경계 포함) |
-| 투사체 이동 | 남은 거리² ≤ step²이면 이번 틱 명중. 아니면 `d = isqrt(dx²+dy²)`, 위치 += `(roundDiv(dx×step, d), roundDiv(dy×step, d))`. 양자화로 실제 이동 길이가 step과 다를 수 있음(허용, 결정적) — 정밀도 정책은 SIM-02에서 재검토 |
+| 투사체 이동 | 남은 거리² ≤ step²이면 이번 틱 명중. 아니면 `d = isqrt(dx²+dy²)`, 위치 += `(roundDiv(dx×step, d), roundDiv(dy×step, d))`. 양자화로 실제 이동 길이가 step과 다를 수 있음(허용, 결정적). `d ≥ step`이므로 목표를 지나치지 않는다(14.4절에서 유지 확정) |
 | 경로 위 위치 | waypoint 구간에서 `pathProgress`로 선형 보간(`roundDiv`) |
 | 타깃 정렬 | **선두·후미**는 `pathProgress`, **가까운**은 타워 중심~보간 위치의 거리²(SPEC 3절 유클리드), **강한**은 현재 HP. 동률은 SPEC대로 경로 진행도 → 생성 순번 → 적 ID |
 
@@ -143,11 +143,12 @@
 ## 8. 이 계약에서 정하지 않는 것
 
 - 게임 수치 전부(TBD-TOWER/ENEMY/ECON/WAVE/PROJECTILE) → BAL-01 및 사용자 승인. 필드 형식·기술 상한은 11절(DATA-01).
-- 같은 틱에 이미 HP 0이 된 적에게 다른 투사체가 명중하는 경우, 설치 직후 첫 발사 틱, 투사체 TTL 판정 단계, 투사체 이동 양자화 정밀도 → SIM-02.
+- ~~같은 틱에 이미 HP 0이 된 적에게 다른 투사체가 명중하는 경우, 설치 직후 첫 발사 틱, 투사체 TTL 판정 단계, 투사체 이동 양자화 정밀도 → SIM-02~~ 14절에서 확정.
 - ~~경로 폭·대각 구간 허용 여부·격자 경계 클릭 귀속 → MAP-01~~ 10절에서 확정.
 - 이벤트·거부 사유는 기초 모듈(`src/game/core/sim/events.ts`)에서 아래로 고정했다(TECH-02 구현). SIM-01/02에서 추가·변경하면 해시가 바뀌므로 이 목록을 함께 갱신한다.
   - 이벤트: `towerBuilt` `towerSold` `targetingChanged` `waveStarted`{trigger: command|timer, waveIndex, waveStartTick[, seq]} `prepEntered`{waveIndex, prepTicks} `resultReached`{outcome} `economySettled`{key, delta, goldAfter, +enemyId|waveIndex} `commandRejected`
   - SIM-01 추가: `enemySpawned`{enemyId, enemyType, trait, maxHp, speedPerTick, segmentIndex} `enemyKilled`{enemyId, reward} `enemyReachedBase`{enemyId, baseDamage, baseHpAfter} `waveCleared`{waveIndex, reward}
+  - SIM-02 추가: `projectileFired`{projectileId, towerId, kind, targetEnemyId, impact} `projectileCancelled`{projectileId, reason:"targetGone"} `projectileExpired`{projectileId} `projectileExploded`{projectileId, x, y} `enemyDamaged`{enemyId, projectileId, towerId, damage, hpAfter} `slowApplied`{enemyId, sourceTowerId, slowBp, expireTick}
   - 적용 시 거부(seq·eventSeq 소비): `insufficientGold` `occupied` `outOfGrid` `towerNotFound` `wrongPhase` `unsupportedKind` `alreadySettled`
   - 접수 즉시 거부(seq 없음): `paused` `resultPhase`. 구조가 잘못된 명령은 접수 시 예외(seq 미소비)
   - 명령 payload(toy 수준): build `{tile:{col,row}}`, upgrade·sell `{towerId}`, setTargeting `{towerId, mode: first|last|close|strong}`, startWave `{}`
@@ -293,11 +294,11 @@ Stage 1                Stage 2                Stage 3
 ### 12.3 틱 8단계 (SPEC 7절, 순서 고정)
 
 1. **명령:** 4절대로 seq 순 적용. SIM-01이 처리하는 명령은 `startWave`. `build`·`upgrade`·`sell`은 ECON-01, `setTargeting`은 SIM-02가 채우기 전까지 `unsupportedKind`로 거부.
-2. **둔화 만료:** 확장 지점(SIM-02). SIM-01은 아무것도 하지 않음.
+2. **둔화 만료:** 14.3절(SIM-02, 코어 처리).
 3. **생성:** `combat`이고 이번 웨이브의 전개 일정(11.5, `waveStartTick` 기준)에 이 틱 항목이 있으면 그 순서대로 생성. 적 상태: `enemyId`(카운터), `enemyType`, `trait`, `maxHp = hp`(3.3절 체력 강화 반영), `speedPerTick`(3.3절 변환·속도 강화 반영, 둔화 전), `pathProgress = 0`, `baseDamage`, `killReward`(= 유형 `killReward` + 특성 `killRewardBonus`, 특성 없으면 유형 값). 이벤트 `enemySpawned`.
-4. **발사·충돌:** 확장 지점(SIM-02). 이 단계는 적 HP만 줄일 수 있고 제거는 하지 않는다. 같은 틱에 생성된 적도 대상이 될 수 있다.
+4. **발사·충돌:** 14.4절(SIM-02, 코어 처리). 이 단계는 적 HP만 줄일 수 있고 제거는 하지 않는다. 같은 틱에 생성된 적도 대상이 될 수 있다.
 5. **사망·처치 골드:** `hp ≤ 0`인 적을 `enemyId` 순으로 제거하고 경제 이벤트 `kill:e{enemyId}`로 `killReward`를 **정확히 한 번** 지급. 이벤트 `enemyKilled`·`economySettled`.
-6. **이동·기지 도달:** 남은 적을 `enemyId` 순으로 `pathProgress += 현재 속도`(SIM-01에서는 둔화 없음, 확장 지점). `pathProgress ≥ pathLengthMt`이면 제거하고 `baseHp -= baseDamage`(0 미만이면 0), 처치 골드 없음. 이벤트 `enemyReachedBase`.
+6. **이동·기지 도달:** 남은 적을 `enemyId` 순으로 `pathProgress += 현재 속도`(둔화 반영, 14.5절). `pathProgress ≥ pathLengthMt`이면 제거하고 `baseHp -= baseDamage`(0 미만이면 0), 처치 골드 없음. 이벤트 `enemyReachedBase`.
 7. **결과 판정(패배 우선):** `baseHp == 0`이면 `defeat`(이번 틱의 웨이브 완료 보상 없음). 아니면 `combat`에서 이번 웨이브 예약 생성이 모두 끝났고 살아 있는 적이 0이면 웨이브 완료: 경제 이벤트 `waveClear:w{waveIndex}`로 `clearReward` 한 번 지급, 이벤트 `waveCleared`. 마지막(5번) 웨이브면 보상 후 `victory`.
 8. **정리·전환:** 결과면 `resultReached{outcome}`. 웨이브 완료(비최종)면 `waveIndex + 1`, `preparation`, 그 웨이브의 `prepTicksRemaining`, `prepEntered`(진입 틱은 타이머를 소비하지 않음, 2.1절). 준비 단계였다면 타이머 감소·만료 시 다음 틱부터 전투(2.1절, `waveStarted{trigger:"timer"}`는 실제 전투가 시작되는 틱 1단계에서 기록).
 
@@ -306,7 +307,7 @@ Stage 1                Stage 2                Stage 3
 
 ### 12.4 확장 지점 (SIM-02·ECON-01 연결용)
 
-- 코어는 단계 2·4·6(속도)의 처리기를 **주입 가능한 순수 함수**로 둔다. 기본값은 위의 SIM-01 동작(없음/없음/둔화 없음). (SIM-01에 있던 1단계 명령 훅은 ECON-01에서 5개 명령을 모두 코어가 직접 처리하게 되어 **제거**했다, 13절.)
+- ~~코어는 단계 2·4·6(속도)의 처리기를 주입 가능한 순수 함수로 둔다.~~ SIM-02에서 2·4·6단계 전투를 **코어가 직접 처리**하고 `expireSlows`·`enemySpeed` 훅은 제거했다. 남은 `fire` 훅은 **TEST_ONLY 주입 전용**(14.7절). (SIM-01에 있던 1단계 명령 훅은 ECON-01에서 5개 명령을 모두 코어가 직접 처리하게 되어 **제거**했다, 13절.)
 - 주입 함수는 상태를 정해진 범위로만 바꿀 수 있다: 4단계는 적 HP 감소와 자기 상태(투사체 등)만, 2단계는 둔화 상태만. 제거·골드·결과 판정은 항상 SIM-01 단계가 한다.
 - 테스트는 TEST_ONLY 주입 함수(예: "이 틱에 이 적 HP를 0으로")로 동시 사건을 만든다.
 - **훅은 동기 함수다.** Promise를 반환하면 프로토콜 오류로 step 전체를 실패(롤백)시킨다.
@@ -349,3 +350,96 @@ Stage 1                Stage 2                Stage 3
 - 골드 ≥ 0, 안전 정수. `gold == initialGold + Σ 원장 delta`.
 - 타워마다 `actuallyPaid == buildCost + Σ(성공한 강화 가격)`. 같은 칸 타워 최대 1개, 경로·예약 칸에 타워 없음.
 - 경제 키는 시도 안에서 한 번만 소비(5절). 거부된 명령은 키·골드·타워를 남기지 않는다(12.4).
+
+## 14. 전투: 발사·타깃·투사체·둔화 (SIM-02)
+
+> SPEC 3·4·5·7절을 시도 코어에 구체화한다. 전투 상태(발사 대기·투사체·둔화)는 리플레이·해시 대상이므로 **코어 소유 상태**로 두고 2·4·6단계를 코어가 직접 처리한다(12.4절의 훅 대체). 수치는 정하지 않는다(테스트는 TEST_ONLY 묶음).
+> 사용자 결정(2026-11-24): **설치한 틱부터 발사 가능**, 4단계 안에서 **HP 0이 된 적은 즉시 사망 취급**(이후 타깃·명중 대상 아님), **강화해도 남은 발사 대기 유지**.
+
+### 14.1 레벨 능력치
+
+- 타워 Lv N의 능력치 = 11.1절 누적 규칙(`base + inc[0] + … + inc[N−2]`). 발사 시점의 현재 레벨 값을 읽는다.
+- 틱 변환: `periodTicks = attackPeriodMs/50`, `ttlTicks = projectileTtlMs/50`, `slowDurationTicks = slowDurationMs/50`, `projectileSpeedPerTick = projectileSpeedMtPerSec/20` (모두 데이터 검증으로 정수·≥1 보장, 2·3.1절).
+- 타워 중심 = 칸 중심 `(col×1000+500, row×1000+500)`. 적 위치 = `progressToPosition(map, pathProgress)`(10.1절).
+
+### 14.2 상태 추가 (스냅샷 대상, 7.1절)
+
+| 대상 | 추가 필드 |
+|---|---|
+| 타워 | `nextFireTick` — 설치 성공 시 **그 틱 T**(같은 틱 4단계에서 발사 가능). 강화는 바꾸지 않는다. 발사하면 `T + periodTicks`(발사한 레벨의 주기) |
+| 적 | `slows: [{ sourceTowerId, slowBp, expireTick }]` — `sourceTowerId` 오름차순. `slowBp`는 **저항 반영 후** 실효값 |
+| 시도 | `projectiles: [...]` — `projectileId` 오름차순 |
+
+투사체 필드(모든 필드 항상 존재, 해당 없으면 `null`):
+
+```text
+{ projectileId, towerId, kind: "single" | "aoe",
+  targetEnemyId,        // single: 대상 적 ID / aoe: null
+  pos: {x, y},          // 현재 위치(mt), 발사 시 타워 중심
+  impact: {x, y}|null,  // aoe: 발사 시 대상의 위치로 고정 / single: null
+  speedPerTick, damage, expireTick,       // expireTick = 발사 틱 + ttlTicks
+  aoeRadiusMt|null, slowBp|null, slowDurationTicks|null }
+```
+
+- `kind`는 `mage`면 `aoe`, 그 밖은 `single`. `slowBp`·`slowDurationTicks`는 `frost`만(저항 적용 전 기본값). 모든 공격 수치는 **발사 시 고정**하며 이후 강화·판매·타깃 변경의 영향을 받지 않는다(SPEC 3·4절). 판매된 타워의 투사체도 그대로 진행한다.
+
+### 14.3 2단계 — 둔화 만료
+
+- 모든 적의 `slows`에서 `T ≥ expireTick`인 항목을 제거한다(2.1절: 틱 T 명중 → T..expireTick−1 이동에 적용 → expireTick 2단계 제거). 이벤트 없음(상태로 비교).
+
+### 14.4 4단계 — 투사체 진행 후 발사
+
+순서 고정: **(a) 기존 투사체를 `projectileId` 순으로 처리 → (b) 타워를 `towerId` 순으로 발사.** (b)에서 만든 투사체는 다음 틱 (a)부터 움직인다(발사 틱 명중 없음).
+
+**살아 있는 적** = 상태에 있고 `hp > 0`. 4단계 안에서 HP가 0이 되면 그 즉시 살아 있지 않다(사용자 결정). 제거 자체는 5단계.
+
+**(a) 투사체 1개 처리 (틱 T):**
+1. `single`이고 대상이 살아 있지 않으면 **취소**: 제거, `projectileCancelled{projectileId, reason:"targetGone"}`. 끝.
+2. 목표점 = `single`은 대상의 **현재** 위치(추적, 사거리 밖이어도 계속), `aoe`는 `impact`.
+3. 남은 거리² ≤ `speedPerTick²`이면 **명중**: `pos = 목표점` 후 4번. 아니면 3.3절 규칙으로 이동(`d ≥ speedPerTick`이라 지나치지 않음, 양자화 유지 확정)하고 5번.
+4. 명중 처리 후 제거:
+   - `single`: 대상에 `damage` 적용 → `enemyDamaged`. `frost`면 둔화 적용(14.5) → `slowApplied`.
+   - `aoe`: `projectileExploded{projectileId, x, y}` 후, 그 순간 **살아 있는 적** 중 위치와 `impact`의 거리² ≤ `aoeRadiusMt²`(경계 포함)인 적에게 `enemyId` 순으로 `damage` 적용 → 각각 `enemyDamaged`. 타워 사거리·처음 노린 적의 생사와 무관(SPEC 4절). 대상 0명이어도 폭발 이벤트는 남는다.
+5. 명중하지 않았고 `T ≥ expireTick`이면 **수명 만료**: 제거, `projectileExpired{projectileId}`. aoe도 폭발하지 않는다. 같은 틱이면 3번의 명중이 먼저이므로 **명중 우선**(SPEC 4절).
+
+**피해:** `hp = max(0, hp − damage)`. `enemyDamaged{enemyId, projectileId, towerId, damage, hpAfter}`.
+
+**(b) 타워 1개 발사 (틱 T):**
+1. `T < nextFireTick`이면 넘어간다.
+2. 후보 = 살아 있는 적 중 타워 중심~적 위치 거리² ≤ `rangeMt²`(경계 포함, LoS 없음). 같은 틱 3단계에 생성된 적 포함(SPEC 7절). 후보가 없으면 발사하지 않고 `nextFireTick` 유지(준비된 채 대기).
+3. `targetingMode`로 대상 1명 선택(14.6). 투사체 생성(`projectileId` 소비, 14.2 필드), `nextFireTick = T + periodTicks`. 이벤트 `projectileFired{projectileId, towerId, kind, targetEnemyId, impact}`(single은 `impact: null`, aoe는 `targetEnemyId`에 노린 적 ID를 기록하되 상태의 투사체에는 `null`).
+
+### 14.5 둔화 적용·이동 속도
+
+- 명중 시 대상 적의 저항: 특성이 `controlResistance`면 그 `resistBp`, 아니면 0. 실효 `slowBp = effectiveSlowBp(투사체 slowBp, resist)`(3.3절).
+- `slows`에 같은 `sourceTowerId`(=투사체의 `towerId`)가 있으면 **새 효과로 교체**(강도·만료 모두 새 값, 약해져도 교체). 없으면 추가. `expireTick = T + slowDurationTicks`. 이벤트 `slowApplied{enemyId, sourceTowerId, slowBp, expireTick}`. 실효 0이어도 기록한다. 피해로 HP가 0이 된 적에게도 기록하며 5단계에서 적과 함께 사라진다.
+- **6단계 속도** = 활성 둔화가 없으면 `speedPerTick`, 있으면 `slowedSpeedPerTick(speedPerTick, 가장 큰 slowBp)`(3.3절, 최소 1). 가장 강한 하나만 적용하고 나머지는 유지되어 만료 후 드러난다(SPEC 4절).
+- 판매된 타워의 둔화는 만료까지 유지(출처 ID만 남음). 적이 5단계 사망·6단계 기지 도달로 제거되면 그 적의 둔화도 함께 사라진다.
+
+### 14.6 타깃 선택
+
+| 모드 | 1차 기준 | 동률 |
+|---|---|---|
+| `first` 선두(기본) | `pathProgress` 최대 | `enemyId` 작은 쪽 |
+| `last` 후미 | `pathProgress` 최소 | `enemyId` 작은 쪽 |
+| `close` 가까운 | 타워 중심~적 위치 거리² 최소 | `pathProgress` 큰 쪽 → `enemyId` 작은 쪽 |
+| `strong` 강한 | 현재 `hp` 최대 | `pathProgress` 큰 쪽 → `enemyId` 작은 쪽 |
+
+- SPEC 3절 동률 순서 "경로 진행도 → 생성 순번 → 적 ID"에서 생성 순번 = `enemyId`(5절)이므로 두 단계로 줄어든다. 진행도 동률은 **더 앞선 적(큰 쪽)**, 순번은 **먼저 생성된 적(작은 쪽)** 우선.
+- 비교는 모두 정수. 후보 배열의 저장 순서에 의존하지 않는다.
+
+### 14.7 정리·훅·이벤트
+
+- **8단계 추가 정리:** 대상 적이 상태에 없는 `single` 투사체를 `projectileId` 순으로 제거하고 `projectileCancelled{reason:"targetGone"}`(5단계 사망·6단계 기지 도달 대상). 따라서 틱 종료 시 모든 `single` 투사체의 대상은 존재한다. `aoe` 투사체는 웨이브 완료·준비 단계에서도 남아 수명까지 진행할 수 있으며 웨이브 완료 판정을 막지 않는다.
+- 결과 단계 이후에는 틱이 없으므로 남은 투사체·둔화는 마지막 스냅샷에 그대로 남는다.
+- **훅:** `expireSlows`·`enemySpeed` 제거. `fire`는 TEST_ONLY 주입 전용으로 남기고 코어 4단계 (b) **뒤**에 실행한다(12.4의 lease·동기·HP 감소만 규칙 유지). 제품 코드는 훅을 넘기지 않는다.
+- **새 이벤트:** `projectileFired` `projectileCancelled` `projectileExpired` `projectileExploded` `enemyDamaged` `slowApplied`. 이벤트 순서는 위 처리 순서 그대로이며 모두 `eventSeq`를 받는다.
+- `ATTEMPT_CODE_VERSION`을 `attempt-v3`로 올린다(7.3절: 스냅샷 형식·틱 규칙 변경).
+- **렌더/VFX 분리:** 코어 상태에는 VFX 전용 필드(보간 위치·잔상·VFX TTL)를 두지 않는다. 취소·만료된 투사체의 시각 잔상은 렌더 쪽이 이벤트로 처리한다(UI-01).
+
+### 14.8 불변식 (테스트·리플레이로 감시)
+
+- 틱 종료 시: 모든 `single` 투사체의 대상이 존재. 모든 `slows` 항목 `expireTick > T`, 적마다 `sourceTowerId` 중복 없음. 투사체 `expireTick ≥ T`.
+- 한 투사체는 명중·폭발·취소·만료 중 **정확히 하나**로 끝난다. 타워는 한 틱에 최대 1발.
+- 4단계에서 HP가 0이 된 적은 같은 틱의 이후 발사 대상·명중·폭발 피해 대상이 아니다.
+- 같은 입력이면 전투 상태 포함 틱별 해시가 같다(7.4절). 13.3절 경제 불변식은 그대로 유지.
