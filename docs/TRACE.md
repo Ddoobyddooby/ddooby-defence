@@ -131,7 +131,7 @@
 | ID | 요구 | 근거 | TASK | 증거 위치 | 상태 |
 |---|---|---|---|---|---|
 | REQ-QA-01 | 6개 운영 문서 존재·상호 충돌 없음·미정 의존성 기록 | TASKS DOC-01 | DOC-01 | `.codex-out/DOC-01-review.md` | **통과**(재리뷰 1, `0525041`) |
-| REQ-QA-02 | 요구사항 ↔ QA ↔ TASK 추적, 잘못된 ID 참조 없음 | TASKS DOC-02 | DOC-02 | 이 문서 | 설계됨(codex-main 리뷰 대기) |
+| REQ-QA-02 | 요구사항 ↔ QA ↔ TASK 추적, 잘못된 ID 참조 없음 | TASKS DOC-02 | DOC-02 | 이 문서, `.codex-out/DOC-02-review.md` | **통과**(골격, 재리뷰 1 `141d0ff`). 태스크별 갱신은 계속 |
 | REQ-QA-03 | Codex 리뷰 결과 첫 줄 판정·심각도·파일:줄·수정 제안, 재리뷰 최대 2회 | CLAUDE.md 5절 | QA-01 | `.codex-out/TECH-02-test-strategy.md`, `.codex-out/TECH-02-impl-review.md` | 운영 중(태스크별 기록) |
 | REQ-QA-04 | 치명적·높음 결함·결정성 오류 시 반영 보류, 예외는 사용자 승인 | CLAUDE.md 3절, WORKFLOW 8절 | QA-01, REL-01 | — | 운영 중(현재 보류 0건) |
 | REQ-QA-05 | 실행 증거 없는 통과 금지, 테스트 상태 6종 구분 | CLAUDE.md 5절 | 전체 | 이 문서 1절 | 운영 중 |
@@ -156,7 +156,7 @@
 | SAVE-01 | STATE-12~16, UI-09·10 | 미착수 |
 | BAL-01 | BALANCE-01·02, TOWER-01·02·05, WAVE-02, ENEMY-08 | 미착수 |
 | DOC-01 | QA-01 | 완료 |
-| DOC-02 | QA-02 | 진행 중 |
+| DOC-02 | QA-02 | 완료(골격) |
 | QA-01 | QA-03·04 | 운영 중 |
 | REL-01 | QA-04·07 | 미착수 |
 

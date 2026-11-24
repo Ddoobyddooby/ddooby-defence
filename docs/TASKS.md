@@ -9,12 +9,12 @@
 > 다른 PC·새 세션에서는 이 섹션부터 읽는다. 세션을 마칠 때 claude-main이 갱신한다.
 
 - **최종 갱신:** 2026-11-24, `main` 기준
-- **완료:** DOC-01, TECH-02(결정성 계약·기초 모듈), ART-01 시안 선택(Stage 1 v2·Stage 2·Stage 3), TECH-01 스캐폴딩(Next.js 16 + TS + Phaser 4, 검증 명령은 `README.md`), 전체 문서 탭 이름 통일
+- **완료:** DOC-01, DOC-02(추적표 골격), TECH-02(결정성 계약·기초 모듈), ART-01 시안 선택(Stage 1 v2·Stage 2·Stage 3), TECH-01 스캐폴딩(Next.js 16 + TS + Phaser 4, 검증 명령은 `README.md`), 전체 문서 탭 이름 통일
 - **사용자 결정:** TECH-01은 codex-main 독립 리뷰 없이 `main` 반영으로 마무리(2026-11-24)
 - **다음 작업 순서 (2026-11-24 사용자 확정):**
   1. ~~DOC-01~~ 완료(2026-11-24, 재리뷰 1 통과). 문서 상호검증: 스택 확정 후 남은 "미정·확인 필요" 문구 정리 + codex-main 문서 QA (ART-01·TECH-01이 DOC-01 선행 없이 진행된 점 보완)
   2. ~~TECH-02~~ 완료(2026-11-24). 계약 `docs/SIM-CONTRACT.md`(재리뷰 2 통과) + 기초 모듈 `src/game/core/sim/`(claude-1 구현, 재리뷰 1 통과)
-  3. **DOC-02 진행 중** 추적표 골격 `docs/TRACE.md` (브랜치 `docs/doc-02-trace`, codex-main 리뷰 요청), 이후 태스크마다 채움
+  3. ~~DOC-02~~ 완료(2026-11-24). 추적표 `docs/TRACE.md`, 태스크 반영 때마다 해당 행 갱신
   4. MAP-01·DATA-01부터 claude-1/2에 지시서로 위임
 - **운영 흐름:** 사용자는 claude-main 탭에서 지시 → 코딩 claude-1/2, QA·리뷰 codex-main, 디자인 codex-design (WORKFLOW 2~4절). `main` 반영·push는 claude-main 탭에서 사용자 직접 확인 후
 - **구현 탭 작업 방식:** claude-1/2는 공유 폴더가 아닌 전용 git worktree(`../wt-<task>`)와 작업 브랜치에서 작업, 병합 후 worktree·브랜치 삭제
@@ -39,13 +39,13 @@
   - **현재:** 문서 작성 작업과 별개로 실제 실행 QA·시각 검증은 아직 미실행
   - **진행(2026-11-24, 브랜치 `docs/doc-01-crosscheck`):** claude-main 1차 대조 완료. 링크·앵커 전부 유효. 스택(TECH-01)·아트 방향(ART-01) 확정 이후 남은 "미정·확인 필요" 표기 20곳을 6개 문서에서 갱신. codex-main 리뷰(`.codex-out/DOC-01-review.md`) 지적 있음 F1(보통)·F2(낮음) → `1012b86` 반영 → 재리뷰 1 **통과**
 
-- [ ] **DOC-02 — 요구사항 ↔ QA ↔ TASK 세부 추적 매트릭스 확정**
+- [x] **DOC-02 — 요구사항 ↔ QA ↔ TASK 세부 추적 매트릭스 확정** (2026-11-24 골격 v0.1, 이후 태스크마다 갱신)
   - 담당: claude-main / codex-main
   - 선행: DOC-01
   - 결과: SPEC의 요구사항 범주 ID를 개별 테스트·태스크까지 연결하는 표(위치 claude-main 확정)
   - QA: GATE-01~12, DOCQ-05~08, FINQ-08
   - 완료 조건: 핵심 경로 누락 없음, 잘못된 ID 참조 없음, 중복/유사 테스트 책임 구분
-  - 진행(2026-11-24, 브랜치 `docs/doc-02-trace`): `docs/TRACE.md` 골격 v0.1 — SPEC 규칙을 개별 REQ 79행으로 분해, TASK·QA 시리즈·실제 테스트 위치·상태 연결, TASK 역추적, 테스트 책임 구분. TECH-02 테스트 연결 채움. codex-main 문서 QA 요청
+  - 진행(2026-11-24, 브랜치 `docs/doc-02-trace`): `docs/TRACE.md` 골격 v0.1 — SPEC 규칙을 개별 REQ 79행으로 분해, TASK·QA 시리즈·실제 테스트 위치·상태 연결, TASK 역추적, 테스트 책임 구분. TECH-02 테스트 연결 채움. codex-main 리뷰 F1~F4(보통2·낮음2) 반영 → **재리뷰 1 통과**(@`141d0ff`, `.codex-out/DOC-02-review.md`)
 
 ## 2. 디자인 시안 (v0.1 문서 이후)
 
