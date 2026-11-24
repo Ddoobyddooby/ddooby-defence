@@ -301,8 +301,14 @@ describe("확장 지점(12.4)", () => {
         log.push("command");
         return "unsupportedKind" as const;
       },
-      expireSlows: (ctx: { enemies: readonly unknown[] }) => log.push(`slow:${ctx.enemies.length}`),
-      fire: (ctx: { enemies: readonly unknown[] }) => log.push(`fire:${ctx.enemies.length}`),
+      expireSlows: (ctx: { enemies: readonly unknown[] }) => {
+        log.push(`slow:${ctx.enemies.length}`);
+        return undefined;
+      },
+      fire: (ctx: { enemies: readonly unknown[] }) => {
+        log.push(`fire:${ctx.enemies.length}`);
+        return undefined;
+      },
       enemySpeed: () => {
         log.push("speed");
         return 5000;
@@ -324,7 +330,12 @@ describe("확장 지점(12.4)", () => {
     expect(() => createAttempt(uniformStage2(ONE_NORMAL), STAGE2_ID, 1, { enemySpeed: () => 0 }).step()).not.toThrow(); // 전투 전에는 질의 안 함
   });
   it("훅 오류 시 step() 은 원자적: 상태·큐·completedTick 불변", () => {
-    const core = createAttempt(uniformStage2(ONE_NORMAL), STAGE2_ID, 1, { fire: (ctx) => ctx.damage(99, 1) });
+    const core = createAttempt(uniformStage2(ONE_NORMAL), STAGE2_ID, 1, {
+      fire: (ctx) => {
+        ctx.damage(99, 1);
+        return undefined;
+      },
+    });
     core.submit("startWave", {});
     const before = core.snapshot();
     expect(() => core.step()).toThrow(RangeError);
@@ -411,4 +422,3 @@ describe("코드 버전", () => {
     expect(ATTEMPT_CODE_VERSION).toBe("attempt-v1");
   });
 });
-

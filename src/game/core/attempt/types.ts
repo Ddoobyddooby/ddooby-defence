@@ -63,10 +63,11 @@ export interface FireHookContext {
 export interface AttemptHooks {
   /** build·upgrade·sell·setTargeting 처리. 거부 사유를 돌려주거나 null(처리 완료). 기본: unsupportedKind. */
   handleCommand?(ctx: CommandHookContext, command: Command): RejectReason | null;
+  // 모든 훅은 동기 함수다(Promise 반환은 프로토콜 오류). 쓰기 함수(emit·settle·damage)는 그 훅 호출 동안만 유효하다.
   /** 2단계. */
-  expireSlows?(ctx: SlowHookContext): void;
+  expireSlows?(ctx: SlowHookContext): undefined;
   /** 4단계. */
-  fire?(ctx: FireHookContext): void;
+  fire?(ctx: FireHookContext): undefined;
   /** 6단계 이동 속도(mt/틱, ≥ 1 안전 정수). 기본: 적의 speedPerTick. */
   enemySpeed?(enemy: EnemyView): number;
 }

@@ -23,6 +23,9 @@ import type {
 
 export const ATTEMPT_CODE_VERSION = "attempt-v1";
 
+/** 생성 경로를 createAttempt 하나로 강제하는 모듈 비공개 토큰. */
+const CREATE_TOKEN: unique symbol = Symbol("AttemptCore.create");
+
 /** 진입 재검증(11.4)이 실패해 시도를 만들 수 없다. */
 export class AttemptCreateError extends Error {
   readonly errors: readonly ContentError[];
@@ -73,6 +76,40 @@ interface Work {
   readonly out: AttemptEvent[];
 }
 
+/** 훅 호출 하나 동안만 유효한 쓰기 권한. 호출이 끝나면(정상·예외 모두) 폐기된다. */
+interface Lease {
+  active: boolean;
+}
+
+function guard<A extends unknown[], R>(lease: Lease, name: string, fn: (...args: A) => R): (...args: A) => R {
+  return (...args: A): R => {
+    if (!lease.active) throw new SimStateError(`${name}: 훅 호출이 끝난 뒤(또는 다른 단계·틱·결과 이후)에는 쓸 수 없음`);
+    return fn(...args);
+  };
+}
+
+/** 훅은 동기 함수다. Promise(thenable)를 반환하면 프로토콜 오류(미처리 거부는 삼킨다). */
+function assertSync(name: string, result: unknown): void {
+  if ((typeof result === "object" || typeof result === "function") && result !== null && typeof (result as { then?: unknown }).then === "function") {
+    try {
+      (result as PromiseLike<unknown>).then(undefined, () => undefined);
+    } catch {
+      /* 무시: 어차피 오류로 끝난다 */
+    }
+    throw new SimStateError(`${name}: 훅은 동기 함수여야 함(Promise 반환 금지)`);
+  }
+}
+
+/** lease 를 만들어 fn 을 실행하고 finally 에서 폐기한다. */
+function withLease<R>(fn: (lease: Lease) => R): R {
+  const lease: Lease = { active: true };
+  try {
+    return fn(lease);
+  } finally {
+    lease.active = false;
+  }
+}
+
 function view(e: EnemyState): EnemyView {
   return Object.freeze({ ...e });
 }
@@ -85,7 +122,9 @@ export class AttemptCore {
   private readonly hooks: AttemptHooks;
   readonly contentHash: string;
 
-  constructor(stage: StageContent, contentHash: string, attemptId: number, hooks: AttemptHooks = {}) {
+  /** 외부에서 직접 만들 수 없다(검증·복사·동결 경계 우회 방지). `createAttempt` 를 쓴다. */
+  constructor(token: symbol, stage: StageContent, contentHash: string, attemptId: number, hooks: AttemptHooks = {}) {
+    if (token !== CREATE_TOKEN) throw new SimStateError("AttemptCore 는 createAttempt 로만 만들 수 있음");
     assertSafeInteger(attemptId, "attemptId");
     if (attemptId < 1) throw new RangeError(`attemptId: 1 이상이어야 함 (${attemptId})`);
     this.stage = stage;
@@ -139,10 +178,12 @@ export class AttemptCore {
 
   /** 일시정지는 틱 밖 조작이다. 결과 단계에서는 오류. */
   pause(): void {
+    if (this.stepping) throw new SimStateError("step() 실행 중에는 pause() 불가");
     if (this.isResult()) throw new SimStateError("결과 단계에서는 pause() 불가");
     this.s.paused = true;
   }
   resume(): void {
+    if (this.stepping) throw new SimStateError("step() 실행 중에는 resume() 불가");
     this.s.paused = false;
   }
 
@@ -239,21 +280,38 @@ export class AttemptCore {
     // build·upgrade·sell·setTargeting: ECON-01/SIM-02 처리기. 없으면 unsupportedKind.
     const handler = this.hooks.handleCommand;
     if (handler === undefined) return reject(REJECT_REASON.unsupportedKind);
-    const ctx: CommandHookContext = {
-      tick: k.T,
-      phase: w.phase,
+    // 명령 단위 원자성: 거부되면 이 명령 처리 중 훅이 만든 변경(골드·소비 키·원장·이벤트·카운터)을 되돌린다.
+    const checkpoint = {
       gold: w.gold,
-      stage: this.stage,
-      emit: (type, fields) => {
-        this.emit(k, type, fields);
-      },
-      settle: (localKey, delta, type, fields) => this.settle(k, type, localKey, delta, fields),
+      consumed: [...w.consumed],
+      ledgerLength: w.ledger.length,
+      counters: { ...w.counters },
+      outLength: k.out.length,
     };
-    const reason = handler(ctx, c);
+    const reason = withLease((lease) => {
+      const ctx: CommandHookContext = {
+        tick: k.T,
+        phase: w.phase,
+        gold: w.gold,
+        stage: this.stage,
+        emit: guard(lease, "emit", (type, fields) => {
+          this.emit(k, type, fields);
+        }),
+        settle: guard(lease, "settle", (localKey, delta, type, fields) => this.settle(k, type, localKey, delta, fields)),
+      };
+      const r = handler(ctx, c);
+      assertSync("handleCommand", r);
+      return r;
+    });
     if (reason === null) return;
     if (!(Object.values(REJECT_REASON) as string[]).includes(reason)) {
       throw new SimStateError(`handleCommand 가 알 수 없는 거부 사유를 돌려줌 (${String(reason)})`);
     }
+    w.gold = checkpoint.gold;
+    w.consumed = checkpoint.consumed;
+    w.ledger.length = checkpoint.ledgerLength;
+    w.counters = checkpoint.counters;
+    k.out.length = checkpoint.outLength;
     reject(reason);
   }
 
@@ -272,7 +330,9 @@ export class AttemptCore {
 
   /** 2단계: 둔화 만료 확장 지점(SIM-02). SIM-01 은 바꿀 상태가 없다. */
   private stage2Slows(k: Work): void {
-    this.hooks.expireSlows?.({ tick: k.T, enemies: Object.freeze(sortByNumber(k.w.enemies, (e) => e.id).map(view)) });
+    const hook = this.hooks.expireSlows;
+    if (hook === undefined) return;
+    assertSync("expireSlows", hook({ tick: k.T, enemies: Object.freeze(sortByNumber(k.w.enemies, (e) => e.id).map(view)) }));
   }
 
   /** 3단계: 이번 틱 일정 항목을 (틱, Segment 원본 순서, 순번) 순서대로 생성. 같은 틱 적은 4단계 대상이 된다. */
@@ -326,16 +386,21 @@ export class AttemptCore {
     const fire = this.hooks.fire;
     if (fire === undefined) return;
     const { w } = k;
-    fire({
-      tick: k.T,
-      enemies: Object.freeze(sortByNumber(w.enemies, (e) => e.id).map(view)),
-      damage: (enemyId, amount) => {
-        assertSafeInteger(amount, "damage.amount");
-        if (amount < 0) throw new RangeError(`damage.amount: 음수 불가 (${amount})`);
-        const enemy = w.enemies.find((e) => e.id === enemyId);
-        if (enemy === undefined) throw new RangeError(`damage: 살아 있는 적이 아님 (enemyId ${enemyId})`);
-        enemy.hp = Math.max(0, enemy.hp - amount);
-      },
+    withLease((lease) => {
+      assertSync(
+        "fire",
+        fire({
+          tick: k.T,
+          enemies: Object.freeze(sortByNumber(w.enemies, (e) => e.id).map(view)),
+          damage: guard(lease, "damage", (enemyId: number, amount: number) => {
+            assertSafeInteger(amount, "damage.amount");
+            if (amount < 0) throw new RangeError(`damage.amount: 음수 불가 (${amount})`);
+            const enemy = w.enemies.find((e) => e.id === enemyId);
+            if (enemy === undefined) throw new RangeError(`damage: 살아 있는 적이 아님 (enemyId ${enemyId})`);
+            enemy.hp = Math.max(0, enemy.hp - amount);
+          }),
+        }),
+      );
     });
   }
 
@@ -357,7 +422,12 @@ export class AttemptCore {
   private stage6Move(k: Work): void {
     const { w } = k;
     for (const e of sortByNumber(w.enemies, (x) => x.id)) {
-      const speed = this.hooks.enemySpeed ? this.hooks.enemySpeed(view(e)) : e.speedPerTick;
+      let speed = e.speedPerTick;
+      if (this.hooks.enemySpeed) {
+        const r: unknown = this.hooks.enemySpeed(view(e));
+        assertSync("enemySpeed", r);
+        speed = r as number;
+      }
       assertSafeInteger(speed, "enemySpeed");
       if (speed < 1) throw new RangeError(`enemySpeed: 1 이상이어야 함 (${speed})`);
       e.pathProgress = addSafe(e.pathProgress, speed);
@@ -436,5 +506,5 @@ export class AttemptCore {
 export function createAttempt(bundle: unknown, stageId: string, attemptId: number, hooks: AttemptHooks = {}): AttemptCore {
   const entry = validateStageForEntry(bundle, stageId);
   if (!entry.ok) throw new AttemptCreateError(entry.errors);
-  return new AttemptCore(entry.content, entry.contentHash, attemptId, hooks);
+  return new AttemptCore(CREATE_TOKEN, entry.content, entry.contentHash, attemptId, hooks);
 }

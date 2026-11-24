@@ -85,7 +85,7 @@ function parentOf(root: unknown, path: string): { parent: Record<Step, unknown>;
 export function withValue(path: string, value: unknown, base: unknown = validBundle()): unknown {
   const root = structuredClone(base);
   const { parent, key } = parentOf(root, path);
-  parent[key] = value;
+  parent[key] = structuredClone(value); // 호출자가 넘긴 객체와 참조를 공유하지 않는다(공유 상수 오염 방지)
   return root;
 }
 
