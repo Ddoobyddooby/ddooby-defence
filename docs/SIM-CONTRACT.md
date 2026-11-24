@@ -144,7 +144,12 @@
 - 게임 수치 전부(TBD-TOWER/ENEMY/ECON/WAVE/PROJECTILE), 각 필드 상한 값 → DATA-01 및 사용자 승인.
 - 같은 틱에 이미 HP 0이 된 적에게 다른 투사체가 명중하는 경우, 설치 직후 첫 발사 틱, 투사체 TTL 판정 단계, 투사체 이동 양자화 정밀도 → SIM-02.
 - 경로 폭·대각 구간 허용 여부·격자 경계 클릭 귀속 → MAP-01.
-- 이벤트 이름·거부 사유 문자열 목록 → 기초 모듈 구현 시 고정하고 이 문서에 추가.
+- 이벤트·거부 사유는 기초 모듈(`src/game/core/sim/events.ts`)에서 아래로 고정했다(TECH-02 구현). SIM-01/02에서 추가·변경하면 해시가 바뀌므로 이 목록을 함께 갱신한다.
+  - 이벤트: `towerBuilt` `towerSold` `targetingChanged` `waveStarted`(trigger: command|timer) `prepEntered` `resultReached` `economySettled` `commandRejected`
+  - 적용 시 거부(seq·eventSeq 소비): `insufficientGold` `occupied` `outOfGrid` `towerNotFound` `wrongPhase` `unsupportedKind` `alreadySettled`
+  - 접수 즉시 거부(seq 없음): `paused` `resultPhase`. 구조가 잘못된 명령은 접수 시 예외(seq 미소비)
+  - 명령 payload(toy 수준): build `{tile:{col,row}}`, upgrade·sell `{towerId}`, setTargeting `{towerId, mode: first|last|close|strong}`, startWave `{}`
+  - ID 카운터 최대 발급값은 `MAX_SAFE_INTEGER − 1`(다음 값도 안전 정수로 유지)
 
 ## 9. 완료 증거 (TASKS TECH-02)
 

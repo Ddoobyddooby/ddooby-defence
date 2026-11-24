@@ -9,14 +9,15 @@
 > 다른 PC·새 세션에서는 이 섹션부터 읽는다. 세션을 마칠 때 claude-main이 갱신한다.
 
 - **최종 갱신:** 2026-11-24, `main` 기준
-- **완료:** ART-01 시안 선택(Stage 1 v2·Stage 2·Stage 3), TECH-01 스캐폴딩(Next.js 16 + TS + Phaser 4, 검증 명령은 `README.md`), 전체 문서 탭 이름 통일
+- **완료:** DOC-01, TECH-02(결정성 계약·기초 모듈), ART-01 시안 선택(Stage 1 v2·Stage 2·Stage 3), TECH-01 스캐폴딩(Next.js 16 + TS + Phaser 4, 검증 명령은 `README.md`), 전체 문서 탭 이름 통일
 - **사용자 결정:** TECH-01은 codex-main 독립 리뷰 없이 `main` 반영으로 마무리(2026-11-24)
 - **다음 작업 순서 (2026-11-24 사용자 확정):**
   1. ~~DOC-01~~ 완료(2026-11-24, 재리뷰 1 통과). 문서 상호검증: 스택 확정 후 남은 "미정·확인 필요" 문구 정리 + codex-main 문서 QA (ART-01·TECH-01이 DOC-01 선행 없이 진행된 점 보완)
-  2. **TECH-02 진행 중** 결정적 tick·시간 정밀도·명령 순서 계약 (claude-main 설계 초안 `docs/SIM-CONTRACT.md`, 계약 재리뷰 2 통과, 다음은 기초 모듈 구현 위임, 브랜치 `docs/tech-02-contract`)
+  2. ~~TECH-02~~ 완료(2026-11-24). 계약 `docs/SIM-CONTRACT.md`(재리뷰 2 통과) + 기초 모듈 `src/game/core/sim/`(claude-1 구현, 재리뷰 1 통과)
   3. DOC-02 요구사항↔QA↔TASK 추적표 골격 작성, 이후 태스크마다 채움 (QA-01 리뷰 근거)
   4. MAP-01·DATA-01부터 claude-1/2에 지시서로 위임
 - **운영 흐름:** 사용자는 claude-main 탭에서 지시 → 코딩 claude-1/2, QA·리뷰 codex-main, 디자인 codex-design (WORKFLOW 2~4절). `main` 반영·push는 claude-main 탭에서 사용자 직접 확인 후
+- **구현 탭 작업 방식:** claude-1/2는 공유 폴더가 아닌 전용 git worktree(`../wt-<task>`)와 작업 브랜치에서 작업, 병합 후 worktree·브랜치 삭제
 - **브랜치 정리:** `chore/tech-01-scaffold`·`docs/doc-01-crosscheck` 로컬·원격 삭제 완료(2026-11-24, 사용자 승인)
 - **저장소 밖 자료:** 선택 전 Stage 1 구판 PNG와 `.omc/`는 원래 PC에만 있음(의도적 미포함)
 
@@ -65,13 +66,13 @@
   - QA: COREG-01, TSTR-01, GATE-05
   - 완료 조건: 결정/제안 구분, 설치·빌드·테스트 명령을 실제 실행해 확인
 
-- [ ] **TECH-02 — 결정적 수치·시계·명령 순서 계약**
+- [x] **TECH-02 — 결정적 수치·시계·명령 순서 계약** (2026-11-24 `main` 반영)
   - 담당: claude-main 설계; codex-main 테스트 전략
   - 선행: TECH-01
   - 범위: tick 길이, 시각 비교/라운딩, 동일 tick 다중 명령 순서, 적 ID·명령 ID·경제 이벤트 키, HP 비율 보정 반올림, 직렬화·해시
   - QA: DATA-01~15, INT-01~15, TSTR-05~12
   - 완료 조건: 결정적 테스트 케이스로 동일 입력 동일 상태 확인
-  - 진행(2026-11-24, 브랜치 `docs/tech-02-contract`): 계약 초안 `docs/SIM-CONTRACT.md` 작성. 사용자 확인: 틱 50ms·정수 고정소수점·비율 반올림(환급은 SPEC 내림 유지). codex-main 테스트 전략(69개 케이스, `.codex-out/TECH-02-test-strategy.md`) 및 계약 리뷰: 원리뷰 C1~C5·재리뷰 1 RR1-F1~F3 반영, **재리뷰 2 통과**(@`02bb1b9`). 남은 일: 기초 모듈·결정성 테스트 구현(claude-1 배정 예정)
+  - 진행(2026-11-24, 브랜치 `docs/tech-02-contract`): 계약 초안 `docs/SIM-CONTRACT.md` 작성. 사용자 확인: 틱 50ms·정수 고정소수점·비율 반올림(환급은 SPEC 내림 유지). codex-main 테스트 전략(69개 케이스, `.codex-out/TECH-02-test-strategy.md`) 및 계약 리뷰: 원리뷰 C1~C5·재리뷰 1 RR1-F1~F3 반영, **재리뷰 2 통과**(@`02bb1b9`). 구현(claude-1, worktree `wt-tech-02-core`·브랜치 `feat/tech-02-core`): `src/game/core/sim/` 기초 모듈·ESLint 금지 규칙·장난감 리플레이 테스트, lint/typecheck/test(224 passed)/build exit 0. codex-main 구현 리뷰 I1·I2(보통) 수정 후 **재리뷰 1 통과**(@`f8f59b1`, `.codex-out/TECH-02-impl-review.md`). 전투 연결 케이스(T09·Q02)와 P1/P2(어댑터·기기)는 SIM-01/02 이후
 
 - [ ] **MAP-01 — StageMap·경로 예약 영역 계약과 후보**
   - 담당: claude-main 조정, 구현 담당 미배정; 사용자 실제 맵 후보 승인
