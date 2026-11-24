@@ -15,7 +15,7 @@
   1. ~~DOC-01~~ 완료(2026-11-24, 재리뷰 1 통과). 문서 상호검증: 스택 확정 후 남은 "미정·확인 필요" 문구 정리 + codex-main 문서 QA (ART-01·TECH-01이 DOC-01 선행 없이 진행된 점 보완)
   2. ~~TECH-02~~ 완료(2026-11-24). 계약 `docs/SIM-CONTRACT.md`(재리뷰 2 통과) + 기초 모듈 `src/game/core/sim/`(claude-1 구현, 재리뷰 1 통과)
   3. ~~DOC-02~~ 완료(2026-11-24). 추적표 `docs/TRACE.md`, 태스크 반영 때마다 해당 행 갱신
-  4. ~~MAP-01~~ 완료(2026-11-24, 3맵 후보·기하 모듈). ~~DATA-01~~ 완료(2026-11-24, 스키마·검증기). ~~SIM-01~~·~~ECON-01~~ 완료(2026-11-24). 다음 **SIM-02**(타워 발사·타깃·투사체·둔화) — SIM-01 훅(expireSlows·fire·enemySpeed)과 ECON-01 타워 상태에 연결, 테스트는 TEST_ONLY
+  4. ~~MAP-01~~ 완료(2026-11-24, 3맵 후보·기하 모듈). ~~DATA-01~~ 완료(2026-11-24, 스키마·검증기). ~~SIM-01~~·~~ECON-01~~ 완료(2026-11-24). **SIM-02 진행 중**(타워 발사·타깃·투사체·둔화): 계약 `docs/SIM-CONTRACT.md` 14절(브랜치 `feat/sim-02`, 사용자 결정 3건 반영), claude-1 구현·테스트 커밋(`96bb353`·`50b320b`, worktree `../ddooby-defence-sim-02`, 미push). **다음 세션: claude-1 완료 보고 확인 → codex-main에 코드 리뷰 요청**(사용자 지시 2026-11-24) → 통과 시 `main` 병합 확인
 - **운영 흐름:** 사용자는 claude-main 탭에서 지시 → 코딩 claude-1/2, QA·리뷰 codex-main, 디자인 codex-design (WORKFLOW 2~4절). `main` 반영·push는 claude-main 탭에서 사용자 직접 확인 후
 - **저장소 경로(2026-11-24 변경):** `~/Desktop/Ddooby/projects/ddooby-defence` (이전 `.../ddooby-defence/ddooby-defence` 이중 폴더 정리, 사용자 요청)
 - **구현 탭 작업 방식:** claude-1/2는 공유 폴더가 아닌 전용 git worktree와 작업 브랜치에서 작업한다. worktree는 형제 폴더 `../ddooby-defence-<task>`(예: `ddooby-defence-sim-02`)에 만들고, 병합 후 worktree·브랜치 삭제(사용자 결정 2026-11-24)
