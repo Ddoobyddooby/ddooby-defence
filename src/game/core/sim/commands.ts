@@ -1,5 +1,6 @@
 // SIM-CONTRACT 4절: 명령 접수(seq·applyTick 부여, payload 복사·동결)와 1단계 소비(seq 숫자순).
 // 순차 재검증·적용은 시뮬레이션(toySim, 이후 SIM-01)이 맡는다.
+import { TOWER_TYPES, type TowerType } from "../content/types";
 import { SUBMIT_REJECT, type SubmitRejectReason } from "./events";
 import { SimStateError } from "./errors";
 import { takeId, type IdCounters } from "./ids";
@@ -18,7 +19,7 @@ export interface TilePayload {
 }
 
 export type CommandInput =
-  | { readonly kind: "build"; readonly payload: { readonly tile: TilePayload } }
+  | { readonly kind: "build"; readonly payload: { readonly towerType: TowerType; readonly tile: TilePayload } }
   | { readonly kind: "upgrade"; readonly payload: { readonly towerId: number } }
   | { readonly kind: "sell"; readonly payload: { readonly towerId: number } }
   | { readonly kind: "setTargeting"; readonly payload: { readonly towerId: number; readonly mode: TargetingMode } }
@@ -70,13 +71,20 @@ export function validateCommandInput(kind: unknown, payload: unknown, path = "co
   const p = `${path}.payload`;
   switch (kind as CommandKind) {
     case "build": {
-      exactKeys(payload, ["tile"], p);
+      exactKeys(payload, ["tile", "towerType"], p);
+      const towerType = payload.towerType;
+      if (typeof towerType !== "string" || !(TOWER_TYPES as readonly string[]).includes(towerType)) {
+        throw new CommandStructureError(`${p}.towerType`, `알 수 없는 towerType (${String(towerType)})`);
+      }
       const tile = payload.tile;
       if (!isRecord(tile)) throw new CommandStructureError(`${p}.tile`, "tile은 일반 객체여야 함");
       exactKeys(tile, ["col", "row"], `${p}.tile`);
       const col = safeInt(tile.col, `${p}.tile.col`, 0);
       const row = safeInt(tile.row, `${p}.tile.row`, 0);
-      return Object.freeze({ kind: "build", payload: Object.freeze({ tile: Object.freeze({ col, row }) }) });
+      return Object.freeze({
+        kind: "build",
+        payload: Object.freeze({ towerType: towerType as TowerType, tile: Object.freeze({ col, row }) }),
+      });
     }
     case "upgrade":
     case "sell": {

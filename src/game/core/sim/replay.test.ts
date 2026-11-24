@@ -49,10 +49,10 @@ const GOLDEN: [string, string][] = [
 
 const t = (col: number, row = 0) => ({ col, row });
 const BASE_COMMANDS = [
-  { applyTick: 1, seq: 1, kind: "build", payload: { tile: t(0) } },
-  { applyTick: 1, seq: 2, kind: "build", payload: { tile: t(1) } },
+  { applyTick: 1, seq: 1, kind: "build", payload: { towerType: "archer", tile: t(0) } },
+  { applyTick: 1, seq: 2, kind: "build", payload: { towerType: "archer", tile: t(1) } },
   { applyTick: 2, seq: 3, kind: "sell", payload: { towerId: 1 } },
-  { applyTick: 2, seq: 4, kind: "build", payload: { tile: t(1) } },
+  { applyTick: 2, seq: 4, kind: "build", payload: { towerType: "archer", tile: t(1) } },
   { applyTick: 3, seq: 5, kind: "setTargeting", payload: { towerId: 1, mode: "strong" } },
 ];
 
@@ -114,7 +114,7 @@ describe("R01: 7.1 기록을 새 코어 2개로 실행 — 틱 0..4 전부 비�
 describe("R03: 명령 하나를 바꾸면 그 틱이 첫 불일치", () => {
   it("tick2 seq4 payload tile1→tile2: tick 0·1 동일, 첫 불일치 tick 2, state.towers[0].tile.col 기대 1 / 실제 2", () => {
     const commands = structuredClone(BASE_COMMANDS);
-    commands[3].payload = { tile: t(2) };
+    commands[3].payload = { towerType: "archer", tile: t(2) };
     const m = firstMismatch(run(record()), run(record({ commands })))!;
     expect(m).toMatchObject({ tick: 2, kind: "state", path: "state.towers[0].tile.col", expected: 1, actual: 2 });
     expect(m.message).toBe("tick 2: state.towers[0].tile.col 기대 1 / 실제 2");
@@ -168,10 +168,10 @@ describe("R05: 컬렉션 저장 순서 오염에도 모든 틱이 동일", () =>
   // 타워 11개 이상 → ID [1,2,10,11], 소비 키 build:c1,c10,c11,c2... 로 문자열/숫자 정렬이 갈리는 구성.
   const big = { ...TOY_CONTENT, initialGold: 1000 };
   const commands = [
-    ...Array.from({ length: 11 }, (_, i) => ({ applyTick: 1, seq: i + 1, kind: "build", payload: { tile: t(i) } })),
+    ...Array.from({ length: 11 }, (_, i) => ({ applyTick: 1, seq: i + 1, kind: "build", payload: { towerType: "archer", tile: t(i) } })),
     { applyTick: 2, seq: 12, kind: "sell", payload: { towerId: 3 } },
     { applyTick: 2, seq: 13, kind: "setTargeting", payload: { towerId: 10, mode: "last" } },
-    { applyTick: 2, seq: 14, kind: "build", payload: { tile: t(3) } },
+    { applyTick: 2, seq: 14, kind: "build", payload: { towerType: "archer", tile: t(3) } },
   ];
   const expectBig: ReplayExpectation = { ...EXPECT, contentHash: contentHashOf(big) };
   const bigInitialHash = initialStateHashOf(new ToySim(big, TOY_STAGE_ID, 1).snapshot());
@@ -190,14 +190,14 @@ describe("R05: 컬렉션 저장 순서 오염에도 모든 틱이 동일", () =>
   it("큐에 명령이 남은 중간 스냅샷도 저장 순서와 무관하게 seq 순", () => {
     const a = new ToySim(big, TOY_STAGE_ID, 1);
     const b = new ToySim(big, TOY_STAGE_ID, 1, { storageOrder: "reversed" });
-    for (const sim of [a, b]) for (let i = 0; i < 12; i += 1) sim.submit("build", { tile: t(i) });
+    for (const sim of [a, b]) for (let i = 0; i < 12; i += 1) sim.submit("build", { towerType: "archer", tile: t(i) });
     const qa = (a.snapshot() as { queue: { seq: number }[] }).queue.map((c) => c.seq);
     expect(qa).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
     expect(JSON.stringify(a.snapshot())).toBe(JSON.stringify(b.snapshot()));
   });
   it("명령 seq를 바꾼 것은 오염이 아니라 다른 입력이므로 검출된다", () => {
     const swapped = structuredClone(commands);
-    swapped[0].payload = { tile: t(5) };
+    swapped[0].payload = { towerType: "archer", tile: t(5) };
     const other = runReplay(rec(swapped), expectBig, toyFactory(big));
     const base = runReplay(rec(), expectBig, toyFactory(big));
     expect(firstMismatch(base, other)).toMatchObject({ tick: 1 });
@@ -207,19 +207,19 @@ describe("R05: 컬렉션 저장 순서 오염에도 모든 틱이 동일", () =>
 describe("R06: 이전 시도·코어 상태 재사용 차단", () => {
   it("이미 진행된 코어(큐·소비 키·카운터 보유)를 factory가 돌려주면 거부", () => {
     const dirty = new ToySim(TOY_CONTENT, TOY_STAGE_ID, 1);
-    dirty.submit("build", { tile: t(0) });
+    dirty.submit("build", { towerType: "archer", tile: t(0) });
     dirty.step();
-    dirty.submit("build", { tile: t(3) });
+    dirty.submit("build", { towerType: "archer", tile: t(3) });
     expect(() => run(record(), () => dirty)).toThrow(ReplayStructureError); // completedTick != 0
   });
   it("틱은 0이지만 큐·카운터가 남은 코어는 초기 상태 해시 불일치로 거부", () => {
     const dirty = new ToySim(TOY_CONTENT, TOY_STAGE_ID, 1);
-    dirty.submit("build", { tile: t(0) });
+    dirty.submit("build", { towerType: "archer", tile: t(0) });
     expect(() => run(record(), () => dirty)).toThrow(ReplayInitialStateError);
   });
   it("같은 세션에서 먼저 시도를 돌린 뒤에도 같은 기록의 재생은 fresh와 동일", () => {
     const live = new ToySim(TOY_CONTENT, TOY_STAGE_ID, 1);
-    live.submit("build", { tile: t(0) });
+    live.submit("build", { towerType: "archer", tile: t(0) });
     live.step();
     const replayed = run(record());
     expect(firstMismatch(replayed, run(record()))).toBeNull();
@@ -392,7 +392,7 @@ describe("R09 / Q14: 구조 오류 — 실행 전 거부, 자동 보정 없음",
     ["applyTick 감소", { commands: cmds((c) => (c[3].applyTick = 1)) }, "record.commands[3].applyTick"],
     ["applyTick > endTick", { endTick: 2 }, "record.commands[4].applyTick"],
     ["알 수 없는 kind", { commands: cmds((c) => (c[0].kind = "teleport")) }, "record.commands[0].kind"],
-    ["잘못된 payload", { commands: cmds((c) => (c[0].payload = { tile: { col: 0.5, row: 0 } })) }, "record.commands[0].payload.tile.col"],
+    ["잘못된 payload", { commands: cmds((c) => (c[0].payload = { towerType: "archer", tile: { col: 0.5, row: 0 } })) }, "record.commands[0].payload.tile.col"],
     ["명령 필드 누락", { commands: cmds((c) => delete (c[0] as Partial<(typeof c)[0]>).payload) }, "record.commands[0].payload"],
     ["명령에 알 수 없는 필드", { commands: cmds((c) => ((c[0] as Record<string, unknown>).extra = 1)) }, "record.commands[0].extra"],
     ["attemptId 0", { attemptId: 0 }, "record.attemptId"],

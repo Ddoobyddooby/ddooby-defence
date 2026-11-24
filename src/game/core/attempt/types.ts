@@ -1,7 +1,7 @@
 // SIM-01 — 시도 코어 공개 타입 (SIM-CONTRACT 12절). 12.4 확장 지점은 SIM-02·ECON-01이 채운다.
-import type { StageContent, EnemyType, TraitType } from "../content/types";
-import type { Command } from "../sim/commands";
-import type { EventType, RejectReason } from "../sim/events";
+import type { EnemyType, TowerType, TraitType } from "../content/types";
+import type { TargetingMode } from "../sim/commands";
+import type { EventType } from "../sim/events";
 
 export type AttemptPhase = "preparation" | "combat" | "victory" | "defeat";
 export type AttemptOutcome = "victory" | "defeat";
@@ -34,18 +34,6 @@ export interface LedgerEntry {
   readonly goldAfter: number;
 }
 
-/** 1단계 명령 처리기가 쓰는 문맥. 상태는 emit·settle 로만 바꾼다. */
-export interface CommandHookContext {
-  readonly tick: number;
-  readonly phase: AttemptPhase;
-  readonly gold: number;
-  readonly stage: StageContent;
-  /** 이벤트를 남긴다(eventSeq 소비). */
-  emit(type: EventType, fields: Readonly<Record<string, unknown>>): void;
-  /** 경제 정산: 키 `localKey`가 이미 소비됐으면 false(아무것도 하지 않음). 정산 뒤 골드가 음수면 RangeError. */
-  settle(localKey: string, delta: number, type: EventType, fields: Readonly<Record<string, unknown>>): boolean;
-}
-
 /** 2단계(둔화 만료) 문맥 — SIM-01에는 바꿀 상태가 없다. */
 export interface SlowHookContext {
   readonly tick: number;
@@ -61,13 +49,21 @@ export interface FireHookContext {
 }
 
 export interface AttemptHooks {
-  /** build·upgrade·sell·setTargeting 처리. 거부 사유를 돌려주거나 null(처리 완료). 기본: unsupportedKind. */
-  handleCommand?(ctx: CommandHookContext, command: Command): RejectReason | null;
-  // 모든 훅은 동기 함수다(Promise 반환은 프로토콜 오류). 쓰기 함수(emit·settle·damage)는 그 훅 호출 동안만 유효하다.
+  // 모든 훅은 동기 함수다(Promise 반환은 프로토콜 오류). 쓰기 함수(damage)는 그 훅 호출 동안만 유효하다.
   /** 2단계. */
   expireSlows?(ctx: SlowHookContext): undefined;
   /** 4단계. */
   fire?(ctx: FireHookContext): undefined;
   /** 6단계 이동 속도(mt/틱, ≥ 1 안전 정수). 기본: 적의 speedPerTick. */
   enemySpeed?(enemy: EnemyView): number;
+}
+
+/** 스냅샷 `towers` 항목과 같은 모양(13.1). */
+export interface TowerView {
+  readonly towerId: number;
+  readonly type: TowerType;
+  readonly cell: { readonly col: number; readonly row: number };
+  readonly level: number;
+  readonly targetingMode: TargetingMode;
+  readonly actuallyPaid: number;
 }

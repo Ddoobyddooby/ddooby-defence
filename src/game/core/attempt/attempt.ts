@@ -1,14 +1,15 @@
 // SIM-01 — 시도 상태 머신·8단계 틱 (SIM-CONTRACT 12절). 순수 코어: 벽시계·난수 없음, 안전 정수만 상태에 둔다.
-// 실제 발사·명중·둔화(SIM-02), 설치·강화·판매(ECON-01)는 12.4 확장 지점(AttemptHooks)으로 연결한다.
-import { compileStageMap } from "../map/stageMap";
+// 설치·강화·판매·타깃 설정(ECON-01, 13절)은 코어가 직접 처리한다. 발사·명중·둔화(SIM-02)는 12.4 확장 지점(AttemptHooks).
+import { isInsideGrid } from "../grid";
+import { compileStageMap, isBuildable, type CompiledStageMap } from "../map/stageMap";
 import { expandWave, type ExpandedSpawn } from "../content/expandWave";
-import type { ContentError, EnemyDef, StageContent, TraitDef } from "../content/types";
+import type { ContentError, EnemyDef, StageContent, TowerDef, TowerType, TraitDef } from "../content/types";
 import { validateStageForEntry } from "../content/validate";
 import { cloneCanonical, sortByNumber, sortCodeUnit } from "../sim/canonical";
-import { drainCommands, submitCommand, type Command, type SubmitResult } from "../sim/commands";
+import { drainCommands, submitCommand, type Command, type SubmitResult, type TargetingMode } from "../sim/commands";
 import { SimStateError } from "../sim/errors";
 import { EVENT_TYPE, REJECT_REASON, type EventType, type RejectReason } from "../sim/events";
-import { baseSpeedPerTick, boostedMaxHp, boostedSpeedPerTick } from "../sim/formulas";
+import { baseSpeedPerTick, boostedMaxHp, boostedSpeedPerTick, refundFor } from "../sim/formulas";
 import { createIdCounters, takeId, type IdCounters } from "../sim/ids";
 import { addSafe, assertSafeInteger } from "../sim/intmath";
 import type {
@@ -16,7 +17,6 @@ import type {
   AttemptHooks,
   AttemptOutcome,
   AttemptPhase,
-  CommandHookContext,
   EnemyView,
   LedgerEntry,
 } from "./types";
@@ -48,6 +48,19 @@ interface EnemyState {
   killReward: number;
 }
 
+interface TowerState {
+  towerId: number;
+  type: TowerType;
+  cell: { col: number; row: number };
+  level: number;
+  targetingMode: TargetingMode;
+  /** 설치 비용 + 성공한 강화 가격의 합(환급 기준, SPEC 8절). */
+  actuallyPaid: number;
+}
+
+const NO_OCCUPIED: ReadonlySet<number> = new Set();
+const MAX_LEVEL = 4;
+
 interface State {
   attemptId: number;
   stageId: string;
@@ -65,6 +78,7 @@ interface State {
   baseHp: number;
   counters: IdCounters;
   enemies: EnemyState[];
+  towers: TowerState[];
   queue: Command[];
   consumed: string[];
   ledger: LedgerEntry[];
@@ -118,6 +132,7 @@ export class AttemptCore {
   private s: State;
   private stepping = false;
   private readonly stage: StageContent;
+  private readonly map: CompiledStageMap;
   private readonly pathLengthMt: number;
   private readonly hooks: AttemptHooks;
   readonly contentHash: string;
@@ -130,7 +145,8 @@ export class AttemptCore {
     this.stage = stage;
     this.contentHash = contentHash;
     this.hooks = hooks;
-    this.pathLengthMt = compileStageMap(stage.stage.map).pathLengthMt;
+    this.map = compileStageMap(stage.stage.map);
+    this.pathLengthMt = this.map.pathLengthMt;
     this.s = {
       attemptId,
       stageId: stage.stage.stageId,
@@ -147,6 +163,7 @@ export class AttemptCore {
       baseHp: stage.stage.baseHp,
       counters: createIdCounters(),
       enemies: [],
+      towers: [],
       queue: [],
       consumed: [],
       ledger: [],
@@ -219,6 +236,14 @@ export class AttemptCore {
         })),
         stageId: s.stageId,
         tick: s.tick,
+        towers: sortByNumber(s.towers, (t) => t.towerId).map((t) => ({
+          actuallyPaid: t.actuallyPaid,
+          cell: { col: t.cell.col, row: t.cell.row },
+          level: t.level,
+          targetingMode: t.targetingMode,
+          towerId: t.towerId,
+          type: t.type,
+        })),
         waveIndex: s.waveIndex,
         waveSpawnCursor: s.waveSpawnCursor,
         waveStartTick: s.waveStartTick,
@@ -277,42 +302,78 @@ export class AttemptCore {
       this.beginWave(k, "command", c.seq);
       return;
     }
-    // build·upgrade·sell·setTargeting: ECON-01/SIM-02 처리기. 없으면 unsupportedKind.
-    const handler = this.hooks.handleCommand;
-    if (handler === undefined) return reject(REJECT_REASON.unsupportedKind);
-    // 명령 단위 원자성: 거부되면 이 명령 처리 중 훅이 만든 변경(골드·소비 키·원장·이벤트·카운터)을 되돌린다.
-    const checkpoint = {
-      gold: w.gold,
-      consumed: [...w.consumed],
-      ledgerLength: w.ledger.length,
-      counters: { ...w.counters },
-      outLength: k.out.length,
-    };
-    const reason = withLease((lease) => {
-      const ctx: CommandHookContext = {
-        tick: k.T,
-        phase: w.phase,
-        gold: w.gold,
-        stage: this.stage,
-        emit: guard(lease, "emit", (type, fields) => {
-          this.emit(k, type, fields);
-        }),
-        settle: guard(lease, "settle", (localKey, delta, type, fields) => this.settle(k, type, localKey, delta, fields)),
-      };
-      const r = handler(ctx, c);
-      assertSync("handleCommand", r);
-      return r;
-    });
-    if (reason === null) return;
-    if (!(Object.values(REJECT_REASON) as string[]).includes(reason)) {
-      throw new SimStateError(`handleCommand 가 알 수 없는 거부 사유를 돌려줌 (${String(reason)})`);
+    // build·upgrade·sell·setTargeting: ECON-01(13절). 모든 검사는 변경 전에 끝내므로 거부된 명령은 상태를 바꾸지 않는다.
+    switch (c.kind) {
+      case "build":
+        return this.applyBuild(k, c, reject);
+      case "upgrade":
+        return this.applyUpgrade(k, c, reject);
+      case "sell":
+        return this.applySell(k, c, reject);
+      case "setTargeting":
+        return this.applySetTargeting(k, c, reject);
     }
-    w.gold = checkpoint.gold;
-    w.consumed = checkpoint.consumed;
-    w.ledger.length = checkpoint.ledgerLength;
-    w.counters = checkpoint.counters;
-    k.out.length = checkpoint.outLength;
-    reject(reason);
+  }
+
+  private towerDef(type: TowerType): TowerDef {
+    const def = this.stage.global.towers.find((t) => t.type === type);
+    if (def === undefined) throw new SimStateError(`콘텐츠에 없는 타워 종류 (${type})`);
+    return def;
+  }
+
+  /** 검사 순서(13.2): 격자 밖 → 설치 불가 칸 → 타워 있음 → 골드 부족. 골드는 앞 명령까지 반영된 현재 값. */
+  private applyBuild(k: Work, c: Extract<Command, { kind: "build" }>, reject: (r: RejectReason) => void): void {
+    const { w } = k;
+    const { towerType, tile } = c.payload;
+    if (!isInsideGrid(tile)) return reject(REJECT_REASON.outOfGrid);
+    if (!isBuildable(this.map, tile, NO_OCCUPIED)) return reject(REJECT_REASON.notBuildable);
+    if (w.towers.some((t) => t.cell.col === tile.col && t.cell.row === tile.row)) return reject(REJECT_REASON.occupied);
+    const cost = this.towerDef(towerType).buildCost;
+    if (w.gold < cost) return reject(REJECT_REASON.insufficientGold);
+    const towerId = takeId(w.counters, "tower");
+    w.towers.push({ towerId, type: towerType, cell: { col: tile.col, row: tile.row }, level: 1, targetingMode: "first", actuallyPaid: cost });
+    this.emit(k, EVENT_TYPE.towerBuilt, { cell: { col: tile.col, row: tile.row }, cost, towerId, towerType });
+    this.mustSettle(k, `build:c${c.seq}`, -cost, { seq: c.seq, towerId });
+  }
+
+  /** 검사 순서: 타워 없음 → 이미 Lv4 → 골드 부족. 가격은 `upgradeCosts[현재 레벨 − 1]`(Lv1→2 는 [0]). */
+  private applyUpgrade(k: Work, c: Extract<Command, { kind: "upgrade" }>, reject: (r: RejectReason) => void): void {
+    const tower = k.w.towers.find((t) => t.towerId === c.payload.towerId);
+    if (tower === undefined) return reject(REJECT_REASON.towerNotFound);
+    if (tower.level >= MAX_LEVEL) return reject(REJECT_REASON.maxLevel);
+    const cost = this.towerDef(tower.type).upgradeCosts[tower.level - 1];
+    if (k.w.gold < cost) return reject(REJECT_REASON.insufficientGold);
+    tower.level = addSafe(tower.level, 1);
+    tower.actuallyPaid = addSafe(tower.actuallyPaid, cost);
+    this.emit(k, EVENT_TYPE.towerUpgraded, { cost, level: tower.level, towerId: tower.towerId });
+    this.mustSettle(k, `upgrade:c${c.seq}`, -cost, { seq: c.seq, towerId: tower.towerId });
+  }
+
+  /** 준비 단계에서만. 환급 = floor(actuallyPaid × refundRateBp / 10000) 한 번(3.3절), 0 이어도 정산 기록. */
+  private applySell(k: Work, c: Extract<Command, { kind: "sell" }>, reject: (r: RejectReason) => void): void {
+    const { w } = k;
+    if (w.phase !== "preparation") return reject(REJECT_REASON.wrongPhase);
+    const index = w.towers.findIndex((t) => t.towerId === c.payload.towerId);
+    if (index < 0) return reject(REJECT_REASON.towerNotFound);
+    const tower = w.towers[index];
+    const refund = refundFor(tower.actuallyPaid, this.stage.global.economy.refundRateBp);
+    w.towers.splice(index, 1);
+    this.emit(k, EVENT_TYPE.towerSold, { refund, towerId: tower.towerId });
+    this.mustSettle(k, `sell:t${tower.towerId}`, refund, { seq: c.seq, towerId: tower.towerId });
+  }
+
+  private applySetTargeting(k: Work, c: Extract<Command, { kind: "setTargeting" }>, reject: (r: RejectReason) => void): void {
+    const tower = k.w.towers.find((t) => t.towerId === c.payload.towerId);
+    if (tower === undefined) return reject(REJECT_REASON.towerNotFound);
+    tower.targetingMode = c.payload.mode;
+    this.emit(k, EVENT_TYPE.targetingChanged, { mode: c.payload.mode, towerId: tower.towerId });
+  }
+
+  /** 정산 키는 거래마다 고유하다(seq·towerId 는 재사용되지 않음). 이미 소비된 키면 불변식 위반. */
+  private mustSettle(k: Work, localKey: string, delta: number, fields: Readonly<Record<string, unknown>>): void {
+    if (!this.settle(k, EVENT_TYPE.economySettled, localKey, delta, fields)) {
+      throw new SimStateError(`경제 키 중복 정산(불변식 위반): ${localKey}`);
+    }
   }
 
   /** 준비 → 전투. waveStartTick = 이 틱 T(조기 시작 또는 타이머 만료 다음 틱), 전개 일정을 만든다. */

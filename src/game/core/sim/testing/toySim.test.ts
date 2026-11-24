@@ -8,7 +8,7 @@ import { ToySim, type ToyContent, type ToyEvent } from "./toySim";
 const M = Number.MAX_SAFE_INTEGER;
 const mk = (over: Partial<ToyContent> = {}, attemptId = 1, options = {}) =>
   new ToySim({ ...TOY_CONTENT, ...over }, TOY_STAGE_ID, attemptId, options);
-const build = (sim: ToySim, col: number) => sim.submit("build", { tile: tile(col) });
+const build = (sim: ToySim, col: number) => sim.submit("build", { towerType: "archer", tile: tile(col) });
 const sell = (sim: ToySim, towerId: number) => sim.submit("sell", { towerId });
 const state = (sim: ToySim) => sim.snapshot() as {
   gold: number;
@@ -53,8 +53,8 @@ describe("Q05: 같은 타일 build 2개", () => {
   });
   it("격자 밖 타일은 outOfGrid 거부 (골드·타워 불변)", () => {
     const sim = mk();
-    sim.submit("build", { tile: { col: 18, row: 0 } });
-    sim.submit("build", { tile: { col: 0, row: 10 } });
+    sim.submit("build", { towerType: "archer", tile: { col: 18, row: 0 } });
+    sim.submit("build", { towerType: "archer", tile: { col: 0, row: 10 } });
     const events = sim.step();
     expect(events.map((e) => e.reason)).toEqual(["outOfGrid", "outOfGrid"]);
     expect([state(sim).gold, state(sim).towers.length]).toEqual([100, 0]);

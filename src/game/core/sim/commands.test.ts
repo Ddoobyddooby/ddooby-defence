@@ -19,7 +19,7 @@ const ctx = (over: Partial<SubmitContext> = {}): SubmitContext => ({
   stepping: false,
   ...over,
 });
-const build = (col: number) => ({ tile: { col, row: 0 } });
+const build = (col: number) => ({ towerType: "archer", tile: { col, row: 0 } });
 
 describe("접수: seq·applyTick (4절, 2.1절)", () => {
   it("seq는 1부터 단조 증가, applyTick = completedTick + 1", () => {
@@ -88,7 +88,7 @@ describe("Q12: seq 카운터 한계", () => {
 describe("Q13: payload 복사·동결", () => {
   it("접수 후 호출자가 원본 객체를 바꿔도 큐의 명령은 그대로", () => {
     const q: Command[] = [];
-    const payload = { tile: { col: 3, row: 4 } };
+    const payload = { towerType: "archer", tile: { col: 3, row: 4 } };
     const r = submitCommand(q, createIdCounters(), "build", payload, ctx());
     payload.tile.col = 99;
     expect(r.ok && r.command.kind === "build" && r.command.payload.tile).toEqual({ col: 3, row: 4 });
@@ -114,11 +114,14 @@ describe("Q14: 구조 검사 (자동 보정·형변환 없음)", () => {
     ["kind가 문자열이 아님", 5, {}],
     ["payload null", "sell", null],
     ["payload 배열", "sell", []],
-    ["build: tile 누락", "build", {}],
-    ["build: 소수 col", "build", { tile: { col: 1.5, row: 0 } }],
-    ["build: 문자열 row", "build", { tile: { col: 1, row: "0" } }],
-    ["build: 음수 col", "build", { tile: { col: -1, row: 0 } }],
-    ["build: 알 수 없는 필드", "build", { tile: { col: 1, row: 0 }, extra: 1 }],
+    ["build: tile 누락", "build", { towerType: "archer" }],
+    ["build: towerType 누락", "build", { tile: { col: 1, row: 0 } }],
+    ["build: 알 수 없는 towerType", "build", { towerType: "cannon", tile: { col: 1, row: 0 } }],
+    ["build: towerType 숫자", "build", { towerType: 1, tile: { col: 1, row: 0 } }],
+    ["build: 소수 col", "build", { towerType: "archer", tile: { col: 1.5, row: 0 } }],
+    ["build: 문자열 row", "build", { towerType: "archer", tile: { col: 1, row: "0" } }],
+    ["build: 음수 col", "build", { towerType: "archer", tile: { col: -1, row: 0 } }],
+    ["build: 알 수 없는 필드", "build", { towerType: "archer", tile: { col: 1, row: 0 }, extra: 1 }],
     ["sell: towerId 0", "sell", { towerId: 0 }],
     ["sell: towerId 문자열", "sell", { towerId: "1" }],
     ["upgrade: towerId 누락", "upgrade", {}],
@@ -137,7 +140,7 @@ describe("Q14: 구조 검사 (자동 보정·형변환 없음)", () => {
   }
   it("오류에는 필드 경로가 담긴다", () => {
     try {
-      validateCommandInput("build", { tile: { col: 1.5, row: 0 } }, "commands[2]");
+      validateCommandInput("build", { towerType: "archer", tile: { col: 1.5, row: 0 } }, "commands[2]");
       expect.unreachable();
     } catch (e) {
       expect((e as CommandStructureError).path).toBe("commands[2].payload.tile.col");

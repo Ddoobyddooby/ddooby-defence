@@ -5,7 +5,7 @@
 //   prepMs 150 = 3틱, 100ms = 2틱.
 import { describe, expect, it } from "vitest";
 import { createAttempt, AttemptCreateError, ATTEMPT_CODE_VERSION } from "./attempt";
-import { combineHooks, costlyBuild, killAt } from "./testing/inject";
+import { killAt } from "./testing/inject";
 import { STAGE1_ID, STAGE2_ID, seg, stage2Bundle, uniformStage2, validBundle, withValue } from "./testing/bundles";
 import { SimStateError } from "../sim/errors";
 
@@ -30,6 +30,7 @@ describe("초기 상태·생성(12.1)", () => {
       queue: [],
       stageId: "stage-2-snowfall-pass",
       tick: 0,
+      towers: [],
       waveIndex: 1,
       waveSpawnCursor: 0,
       waveStartTick: null,
@@ -277,30 +278,24 @@ describe("동시 사건(12.3 단계 5~7, 패배 우선)", () => {
     expect(types(ev)).toEqual(["waveStarted", "enemySpawned", "enemyKilled", "economySettled", "economySettled", "waveCleared", "prepEntered"]);
     expect(core.snapshot()).toMatchObject({ gold: 375, enemies: [], waveIndex: 2, tick: 1 });
   });
-  it("(e) 1단계 명령은 같은 틱 처치 골드를 쓸 수 없다(골드 시점: 명령 처리 시 350 < 비용 354)", () => {
-    const hooks = combineHooks(killAt({ tick: 1, enemyId: 1 }), costlyBuild(354));
-    const core = createAttempt(uniformStage2(ONE_NORMAL), STAGE2_ID, 1, hooks);
+  it("(e) 1단계 명령은 같은 틱 처치·완료 골드를 쓸 수 없다(archer 비용 360: 틱 1 골드 350 → 거부, 틱 2 골드 375 → 성공)", () => {
+    const core = createAttempt(withValue("towers[0].buildCost", 360, uniformStage2(ONE_NORMAL)), STAGE2_ID, 1, killAt({ tick: 1, enemyId: 1 }));
     core.submit("startWave", {});
-    core.submit("build", { tile: { col: 0, row: 0 } });
+    core.submit("build", { towerType: "archer", tile: { col: 0, row: 0 } });
     const ev = core.step();
-    const rejected = ev.find((e) => e.type === "commandRejected");
-    expect(rejected).toMatchObject({ kind: "build", reason: "insufficientGold", seq: 2 });
-    expect(core.snapshot().gold).toBe(375); // 350 + kill 5 + clear 20, 설치 안 됨
-    // 다음 틱 명령은 그 골드를 쓸 수 있다(비용 354 ≤ 375)
-    core.submit("build", { tile: { col: 0, row: 0 } });
+    expect(ev.find((e) => e.type === "commandRejected")).toMatchObject({ kind: "build", reason: "insufficientGold", seq: 2 });
+    expect(core.snapshot()).toMatchObject({ gold: 375, towers: [] });
+    core.submit("build", { towerType: "archer", tile: { col: 0, row: 0 } });
     const ev2 = core.step();
-    expect(ev2.find((e) => e.type === "towerBuilt")).toMatchObject({ delta: -354, goldAfter: 21, key: "a1:build:c3" });
+    expect(ev2.find((e) => e.type === "economySettled")).toMatchObject({ delta: -360, goldAfter: 15, key: "a1:build:c3" });
+    expect(core.snapshot().towers).toHaveLength(1);
   });
 });
 
 describe("확장 지점(12.4)", () => {
-  it("단계 순서: 명령 → 둔화 만료 → (생성) → 발사 → 이동속도 질의, 4단계는 같은 틱 생성 적을 본다", () => {
+  it("단계 순서: 둔화 만료 → (생성) → 발사 → 이동속도 질의, 4단계는 같은 틱 생성 적을 본다", () => {
     const log: string[] = [];
     const hooks = {
-      handleCommand: () => {
-        log.push("command");
-        return "unsupportedKind" as const;
-      },
       expireSlows: (ctx: { enemies: readonly unknown[] }) => {
         log.push(`slow:${ctx.enemies.length}`);
         return undefined;
@@ -315,10 +310,9 @@ describe("확장 지점(12.4)", () => {
       },
     };
     const core = createAttempt(uniformStage2(ONE_NORMAL), STAGE2_ID, 1, hooks);
-    core.submit("build", { tile: { col: 0, row: 0 } });
     core.submit("startWave", {});
     core.step();
-    expect(log).toEqual(["command", "slow:0", "fire:1", "speed"]);
+    expect(log).toEqual(["slow:0", "fire:1", "speed"]);
   });
   it("enemySpeed 훅: 반으로 줄이면 도달이 늦어진다(2500/틱 → 15번째 이동 37500 ≥ 36000, 틱 15)", () => {
     const core = createAttempt(uniformStage2(ONE_NORMAL), STAGE2_ID, 1, { enemySpeed: () => 2500 });
@@ -342,21 +336,6 @@ describe("확장 지점(12.4)", () => {
     expect(core.completedTick).toBe(0);
     expect(core.snapshot()).toEqual(before);
     expect(core.snapshot().queue).toHaveLength(1);
-  });
-  it("미지원 명령: build·upgrade·sell·setTargeting → unsupportedKind(seq·eventSeq 소비)", () => {
-    const core = createAttempt(uniformStage2(ONE_NORMAL), STAGE2_ID, 1);
-    core.submit("build", { tile: { col: 0, row: 0 } });
-    core.submit("upgrade", { towerId: 1 });
-    core.submit("sell", { towerId: 1 });
-    core.submit("setTargeting", { towerId: 1, mode: "first" });
-    const ev = core.step();
-    expect(ev).toEqual([
-      { eventSeq: 1, tick: 1, type: "commandRejected", kind: "build", reason: "unsupportedKind", seq: 1 },
-      { eventSeq: 2, tick: 1, type: "commandRejected", kind: "upgrade", reason: "unsupportedKind", seq: 2 },
-      { eventSeq: 3, tick: 1, type: "commandRejected", kind: "sell", reason: "unsupportedKind", seq: 3 },
-      { eventSeq: 4, tick: 1, type: "commandRejected", kind: "setTargeting", reason: "unsupportedKind", seq: 4 },
-    ]);
-    expect(core.snapshot()).toMatchObject({ gold: 350, enemies: [] });
   });
 });
 

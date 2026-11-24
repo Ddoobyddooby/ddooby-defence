@@ -5,6 +5,8 @@
 export const EVENT_TYPE = {
   /** 설치 성공(경제 이벤트 `build:c{seq}`). */
   towerBuilt: "towerBuilt",
+  /** 강화 성공(경제 이벤트 `upgrade:c{seq}`, ECON-01). */
+  towerUpgraded: "towerUpgraded",
   /** 판매 성공(경제 이벤트 `sell:t{towerId}`). */
   towerSold: "towerSold",
   /** 타깃 우선순위 변경 성공. */
@@ -37,7 +39,11 @@ export const REJECT_REASON = {
   outOfGrid: "outOfGrid",
   towerNotFound: "towerNotFound",
   wrongPhase: "wrongPhase",
-  /** toy 시뮬이 구현하지 않은 명령 종류(upgrade). */
+  /** 경로·예약 칸 등 설치 불가 칸(ECON-01). */
+  notBuildable: "notBuildable",
+  /** 이미 Lv4(ECON-01). */
+  maxLevel: "maxLevel",
+  /** 처리기가 없는 명령 종류. */
   unsupportedKind: "unsupportedKind",
   /** 같은 경제 이벤트 키가 이미 정산됨(정확히 한 번 정책). */
   alreadySettled: "alreadySettled",
