@@ -375,6 +375,28 @@ describe("Q12: 카운터 한계에서 원자성 (부분 변경 없음)", () => {
   });
 });
 
+describe("I2: 콘텐츠 깊은 사본 소유", () => {
+  it("생성·접수 뒤 원본 content(중첩 settlement 포함)를 바꿔도 상태·이벤트 불변", () => {
+    const content = {
+      ...TOY_CONTENT,
+      script: { settlements: [{ tick: 1, attemptId: 1, key: "kill:e1", delta: 5 }] },
+    };
+    const sim = new ToySim(content, TOY_STAGE_ID, 1);
+    build(sim, 0);
+    (content as { buildCost: number }).buildCost = 1;
+    (content as { refundRateBp: number }).refundRateBp = 10000;
+    content.script.settlements[0].delta = 999;
+    content.script.settlements.push({ tick: 1, attemptId: 1, key: "kill:e2", delta: 50 });
+    const events = sim.step();
+    expect(events[0]).toMatchObject({ type: "towerBuilt", delta: -60 });
+    expect(state(sim).gold).toBe(45); // 100 - 60 + 5
+    expect(state(sim).towers[0].actuallyPaid).toBe(60);
+    sell(sim, 1);
+    expect(sim.step()[0]).toMatchObject({ delta: 30 });
+    expect(Object.isFrozen(content)).toBe(false);
+  });
+});
+
 describe("기타", () => {
   it("setTargeting 성공 이벤트와 상태 반영", () => {
     const sim = mk();

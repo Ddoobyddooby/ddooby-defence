@@ -205,11 +205,16 @@ describe("R05: 컬렉션 저장 순서 오염에도 모든 틱이 동일", () =>
 });
 
 describe("R06: 이전 시도·코어 상태 재사용 차단", () => {
-  it("이미 진행된 코어(큐·소비 키·카운터 보유)를 factory가 돌려주면 초기 상태 불일치 오류", () => {
+  it("이미 진행된 코어(큐·소비 키·카운터 보유)를 factory가 돌려주면 거부", () => {
     const dirty = new ToySim(TOY_CONTENT, TOY_STAGE_ID, 1);
     dirty.submit("build", { tile: t(0) });
     dirty.step();
     dirty.submit("build", { tile: t(3) });
+    expect(() => run(record(), () => dirty)).toThrow(ReplayStructureError); // completedTick != 0
+  });
+  it("틱은 0이지만 큐·카운터가 남은 코어는 초기 상태 해시 불일치로 거부", () => {
+    const dirty = new ToySim(TOY_CONTENT, TOY_STAGE_ID, 1);
+    dirty.submit("build", { tile: t(0) });
     expect(() => run(record(), () => dirty)).toThrow(ReplayInitialStateError);
   });
   it("같은 세션에서 먼저 시도를 돌린 뒤에도 같은 기록의 재생은 fresh와 동일", () => {
@@ -288,6 +293,38 @@ describe("R08: 종료 틱 정책", () => {
     const { stat, factory } = counted();
     run(record(), factory);
     expect(stat.steps).toBe(4);
+  });
+  it("I1: 마지막 step이 completedTick을 올리지 않거나 두 번 올리면 재생 오류 (중간 step은 정상)", () => {
+    for (const delta of [0, 2]) {
+      let calls = 0;
+      const factory = (rec: ReplayRecord): ReplayCore => {
+        const core = new ToySim(TOY_CONTENT, rec.stageId, rec.attemptId);
+        let skew = 0;
+        return {
+          get completedTick() {
+            return core.completedTick + skew;
+          },
+          isResult: () => core.isResult(),
+          submit: (k, p) => core.submit(k, p),
+          snapshot: () => core.snapshot(),
+          step: () => {
+            calls += 1;
+            const ev = core.step();
+            if (calls === 4) skew = delta === 0 ? -1 : 1; // 마지막(endTick 4) step만 어긋남
+            return ev;
+          },
+        };
+      };
+      expect(() => run(record(), factory), `delta ${delta}`).toThrow(ReplayStructureError);
+      expect(calls).toBe(4);
+    }
+  });
+  it("I1: 새 코어의 completedTick이 0이 아니면 오류", () => {
+    const factory = (rec: ReplayRecord): ReplayCore => {
+      const core = new ToySim(TOY_CONTENT, rec.stageId, rec.attemptId);
+      return { completedTick: 1, isResult: () => false, submit: (k, p) => core.submit(k, p), snapshot: () => core.snapshot(), step: () => core.step() };
+    };
+    expect(() => run(record({ commands: [], endTick: 0 }), factory)).toThrow(ReplayStructureError);
   });
   it("endTick 0: step 0회, 스냅샷 0 하나만 검증", () => {
     const { stat, factory } = counted();

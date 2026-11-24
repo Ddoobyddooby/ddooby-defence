@@ -209,6 +209,9 @@ export function runReplay(
 ): ReplayTrace {
   const record = validateReplayRecord(raw, expected);
   const core = createCore(record);
+  if (core.completedTick !== 0) {
+    throw new ReplayStructureError("core", `새 코어의 completedTick이 0이어야 함 (${core.completedTick})`);
+  }
   const first = makeTrace(0, core.snapshot(), []);
   if (first.hash !== record.initialStateHash) throw new ReplayInitialStateError(record.initialStateHash, first.hash);
   const ticks: TickTrace[] = [first];
@@ -229,6 +232,9 @@ export function runReplay(
       next += 1;
     }
     const events = core.step();
+    if (core.completedTick !== T) {
+      throw new ReplayStructureError("core", `step() 뒤 completedTick이 ${T}이어야 함 (${core.completedTick})`);
+    }
     ticks.push(makeTrace(T, core.snapshot(), events));
     if (core.isResult() && T < record.endTick) throw new ReplayEndMismatchError(T, record.endTick);
   }

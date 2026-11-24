@@ -101,7 +101,9 @@ export class ToySim {
   private readonly prepTicks: number;
   private readonly reversed: boolean;
 
-  constructor(content: ToyContent, stageId: string, attemptId: number, options: ToyOptions = {}) {
+  constructor(source: ToyContent, stageId: string, attemptId: number, options: ToyOptions = {}) {
+    // 호출자 객체와 참조를 공유하지 않도록 깊은 사본을 소유하고, 검증도 그 사본에 한다.
+    const content = structuredClone(source);
     this.prepTicks = validateContent(content);
     assertSafeInteger(attemptId, "attemptId");
     if (attemptId < 1) throw new RangeError(`attemptId: 1 이상이어야 함 (${attemptId})`);
