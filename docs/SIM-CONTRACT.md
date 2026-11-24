@@ -253,6 +253,9 @@ Stage 1                Stage 2                Stage 3
   - `globalErrors`: `contentVersion`·`towers`·`enemies`·`traits`·`economy`·스테이지 개수·`stageId` 중복 오류. 하나라도 있으면 **모든 스테이지 플레이 불가**.
   - 스테이지별 `errors`: 그 스테이지의 `initialGold`·`map`·`waves` 오류. 해당 스테이지만 **콘텐츠 오류로 격리**하고 다른 정상 스테이지는 그대로 사용 가능.
   - Stage 1 등장 조건 위반은 Stage 1의 오류.
+  - **스테이지 항목 자체가 잘못된 경우:** `stages` 배열 길이가 3이 아니면 전역 오류. 길이가 3이면 각 자리의 hole·`undefined`·`null`·객체 아님은 **그 자리 스테이지만의 오류**(격리, 다른 스테이지는 사용 가능). 그 자리의 `stageId`를 알 수 없으므로 결과의 `stageId`는 `null`.
+- **수집 범위:** 한 필드의 오류가 다른 필드의 판정을 막지 않는다. 배열 길이 오류가 있어도 존재하는 항목은 각각 검사한다. 생략은 **그 값에 의존하는 계산만**(예: Lv2 `damage`가 무효면 Lv3·Lv4 `damage` 누적 결과 검사만 생략, 같은 레벨의 다른 필드는 계속 검사). 맵은 구조·필드·좌표 오류를 모두 모은 뒤, 그것이 없을 때만 기하 검증(10절)을 수행한다.
+- **엄격 필드 범위:** 묶음의 모든 객체(맵·waypoint·reservedCells 좌표 포함)에 적용한다.
 - **진입 재검증:** 스테이지 시작 직전에 전역 항목 + 그 스테이지를 같은 검증기로 다시 검사. 실패하면 시작하지 않는다.
 - **검증 통과 결과물**은 깊은 복사 후 동결한 객체로 반환하고, 시도는 그 사본만 읽는다(TECH-02 리뷰 I2와 같은 원칙).
 - **정규 순서:** 통과 결과에서 `towers`는 `archer`·`ballista`·`mage`·`frost`, `enemies`는 `normal`·`fast`·`heavy`·`swarm`, `traits`는 `controlResistance`·`hpBoost`·`speedBoost` 순으로 정렬한다(입력 배열 순서는 의미 없음). `stages`·`waves`·`segments`는 입력 순서가 의미이므로 유지한다. 오류 경로는 **입력** 인덱스를 쓴다.
