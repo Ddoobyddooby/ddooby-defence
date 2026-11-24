@@ -8,7 +8,7 @@
 
 - **요구사항 ID:** `REQ-<범주>-<번호>`. 범주는 SPEC 11절의 9개(MAP·TOWER·ENEMY·WAVE·ECON·STATE·UI·BALANCE·QA). 번호는 이 문서에서 처음 부여하며 재사용·재번호하지 않는다(삭제 시 `폐기` 표기).
 - **QA 시리즈:** SPEC 11절의 번호 범위(MAPD-01~46 등)는 **예약 범위**다. 범위 안 개별 케이스 원문은 저장소에 없으므로, 실제 케이스는 각 태스크의 테스트 전략에서 `<TASK>/<케이스ID>`로 정의한다(예: `TECH-02/N09` = `.codex-out/TECH-02-test-strategy.md`의 N09). 시리즈 칸은 "어느 QA 영역 게이트에 속하는가"만 뜻한다.
-- **테스트 위치:** 실제 존재하는 테스트 파일(`sim/…`은 `src/game/core/sim/…`)과 케이스 ID. 없으면 `—`. 케이스 ID는 테스트의 `describe`/`it` 이름에 들어 있다.
+- **테스트 위치:** 실제 존재하는 테스트 파일(`sim/…`·`map/…`은 `src/game/core/` 아래, `content/…`는 `src/game/content/` 아래)과 케이스 ID. 없으면 `—`. 케이스 ID는 테스트의 `describe`/`it` 이름에 들어 있다.
 - **상태**(CLAUDE.md 5절): `설계됨` / `실행 대기` / `의존성 차단` / `통과` / `실패` / `해당 없음`. `통과`는 기록된 커밋에서 실제 실행 증거가 있을 때만. 기초 수준만 검증되고 제품 통합이 남았으면 `부분 통과`라고 쓰고 남은 범위를 적는다.
 - **게이트:** CORE / ECON / DATA / STATE / UI (CLAUDE.md 5절).
 
@@ -18,11 +18,11 @@
 
 | ID | 요구 | 근거 | TASK | 테스트 위치 | 상태 |
 |---|---|---|---|---|---|
-| REQ-MAP-01 | 18열×10행 정사각 논리 격자, 격자 밖 좌표 거부 | SPEC 1·2절 | TECH-01, MAP-01 | `src/game/core/grid.test.ts` | 부분 통과(`a3dab66`, 격자 경계만). 맵 데이터 연결은 MAP-01 |
-| REQ-MAP-02 | 스테이지별 독립 지도, 경로 = waypoint + 설치 불가 예약 격자 | SPEC 2절 | MAP-01, DATA-01 | — | 설계됨 |
-| REQ-MAP-03 | 경로·spawn·base·예약 격자·점유 칸에는 설치 불가 | SPEC 2절 | MAP-01, ECON-01 | — (toy 점유 거부는 REQ-ECON-02) | 설계됨 |
+| REQ-MAP-01 | 18열×10행 정사각 논리 격자, 격자 밖 좌표 거부 | SPEC 1·2절 | TECH-01, MAP-01 | `src/game/core/grid.test.ts`, `map/stageMap.test.ts` | **통과**(`42b233d`, 격자 경계·3맵 격자 안 검증) |
+| REQ-MAP-02 | 스테이지별 독립 지도, 경로 = waypoint + 설치 불가 예약 격자 | SPEC 2절, SIM-CONTRACT 10절 | MAP-01, DATA-01 | `map/stageMap.test.ts`(3맵 그림 리터럴·칸 수·검증 오류), `content/stageMaps.ts` | **통과**(`42b233d`, 기하·후보 데이터). 스테이지 묶음 스키마는 DATA-01 |
+| REQ-MAP-03 | 경로·spawn·base·예약 격자·점유 칸에는 설치 불가 | SPEC 2절 | MAP-01, ECON-01 | `map/stageMap.test.ts`(isBuildable 전 칸 대조) | 부분 통과(`42b233d`, 판정 함수). 실제 설치 명령 연결은 ECON-01 |
 | REQ-MAP-04 | 타워는 논리 1×1 점유, 스프라이트 돌출은 점유를 늘리지 않음 | SPEC 2절 | SIM-02, UI-01 | — | 설계됨 |
-| REQ-MAP-05 | 화면 → 맵 논리 격자 역변환, HUD·레터박스·맵 밖 입력은 설치 명령 생성 금지. 격자 경계 클릭 귀속 | SPEC 2·9절, TBD-MAP·TBD-UI | MAP-01, UI-01 | — | 의존성 차단(경계 귀속 규칙 미정) |
+| REQ-MAP-05 | 화면 → 맵 논리 격자 역변환, HUD·레터박스·맵 밖 입력은 설치 명령 생성 금지. 격자 경계 클릭은 오른쪽·아래 칸 | SPEC 2·9절, SIM-CONTRACT 10.1 | MAP-01, UI-01 | `map/pointToCell.test.ts`(소수 tile 경계 포함) | 부분 통과(`42b233d`, 좌표→칸 변환). 화면 축척·레터박스·HUD 입력 연결은 UI-01 |
 
 ### REQ-TOWER — 타워 역할·레벨·타깃·투사체 (게이트 CORE, QA BALD·INT)
 
@@ -146,7 +146,7 @@
 |---|---|---|
 | TECH-01 | MAP-01(격자) | 완료 |
 | TECH-02 | STATE-07·08·09·10, TOWER-07, ENEMY-03·05, WAVE-03·04·06, ECON-02·04·05·06·07·08·09·10, STATE-06·11 (기초·toy 수준) | 완료. 표의 `부분 통과` 행은 후속 태스크가 이어서 채움 |
-| MAP-01 | MAP-01·02·03·05 | 미착수 |
+| MAP-01 | MAP-01·02·03·05 | 완료 |
 | DATA-01 | MAP-02, TOWER-02·03·04, ENEMY-01·02·07, WAVE-01·02·03·07, ECON-11 | 미착수 |
 | SIM-01 | STATE-01·03·04·05·06·08·11·12, WAVE-03·04·05·06, ECON-06·09·10 | 미착수 |
 | SIM-02 | TOWER-01·03·05~12, ENEMY-03~07, MAP-04, STATE-02 | 미착수 |

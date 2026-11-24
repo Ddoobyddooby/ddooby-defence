@@ -9,13 +9,13 @@
 > 다른 PC·새 세션에서는 이 섹션부터 읽는다. 세션을 마칠 때 claude-main이 갱신한다.
 
 - **최종 갱신:** 2026-11-24, `main` 기준
-- **완료:** DOC-01, DOC-02(추적표 골격), TECH-02(결정성 계약·기초 모듈), ART-01 시안 선택(Stage 1 v2·Stage 2·Stage 3), TECH-01 스캐폴딩(Next.js 16 + TS + Phaser 4, 검증 명령은 `README.md`), 전체 문서 탭 이름 통일
+- **완료:** DOC-01, DOC-02(추적표 골격), TECH-02, MAP-01(결정성 계약·기초 모듈), ART-01 시안 선택(Stage 1 v2·Stage 2·Stage 3), TECH-01 스캐폴딩(Next.js 16 + TS + Phaser 4, 검증 명령은 `README.md`), 전체 문서 탭 이름 통일
 - **사용자 결정:** TECH-01은 codex-main 독립 리뷰 없이 `main` 반영으로 마무리(2026-11-24)
 - **다음 작업 순서 (2026-11-24 사용자 확정):**
   1. ~~DOC-01~~ 완료(2026-11-24, 재리뷰 1 통과). 문서 상호검증: 스택 확정 후 남은 "미정·확인 필요" 문구 정리 + codex-main 문서 QA (ART-01·TECH-01이 DOC-01 선행 없이 진행된 점 보완)
   2. ~~TECH-02~~ 완료(2026-11-24). 계약 `docs/SIM-CONTRACT.md`(재리뷰 2 통과) + 기초 모듈 `src/game/core/sim/`(claude-1 구현, 재리뷰 1 통과)
   3. ~~DOC-02~~ 완료(2026-11-24). 추적표 `docs/TRACE.md`, 태스크 반영 때마다 해당 행 갱신
-  4. MAP-01·DATA-01부터 claude-1/2에 지시서로 위임
+  4. ~~MAP-01~~ 완료(2026-11-24, 3맵 후보·기하 모듈). 다음 **DATA-01**(타워·적·특성·경제·웨이브 스키마와 15웨이브 검증기, 맵은 `src/game/content/stageMaps.ts` 연결)
 - **운영 흐름:** 사용자는 claude-main 탭에서 지시 → 코딩 claude-1/2, QA·리뷰 codex-main, 디자인 codex-design (WORKFLOW 2~4절). `main` 반영·push는 claude-main 탭에서 사용자 직접 확인 후
 - **구현 탭 작업 방식:** claude-1/2는 공유 폴더가 아닌 전용 git worktree(`../wt-<task>`)와 작업 브랜치에서 작업, 병합 후 worktree·브랜치 삭제
 - **브랜치 정리:** `chore/tech-01-scaffold`·`docs/doc-01-crosscheck` 로컬·원격 삭제 완료(2026-11-24, 사용자 승인)
@@ -75,11 +75,12 @@
   - 완료 조건: 결정적 테스트 케이스로 동일 입력 동일 상태 확인
   - 진행(2026-11-24, 브랜치 `docs/tech-02-contract`): 계약 초안 `docs/SIM-CONTRACT.md` 작성. 사용자 확인: 틱 50ms·정수 고정소수점·비율 반올림(환급은 SPEC 내림 유지). codex-main 테스트 전략(69개 케이스, `.codex-out/TECH-02-test-strategy.md`) 및 계약 리뷰: 원리뷰 C1~C5·재리뷰 1 RR1-F1~F3 반영, **재리뷰 2 통과**(@`02bb1b9`). 구현(claude-1, worktree `wt-tech-02-core`·브랜치 `feat/tech-02-core`): `src/game/core/sim/` 기초 모듈·ESLint 금지 규칙·장난감 리플레이 테스트, lint/typecheck/test(224 passed)/build exit 0. codex-main 구현 리뷰 I1·I2(보통) 수정 후 **재리뷰 1 통과**(@`f8f59b1`, `.codex-out/TECH-02-impl-review.md`). 전투 연결 케이스(T09·Q02)와 P1/P2(어댑터·기기)는 SIM-01/02 이후
 
-- [ ] **MAP-01 — StageMap·경로 예약 영역 계약과 후보**
+- [x] **MAP-01 — StageMap·경로 예약 영역 계약과 후보** (2026-11-24 `main` 반영)
   - 담당: claude-main 조정, 구현 claude-1(worktree `wt-map-01`, 브랜치 `feat/map-01`); 사용자 실제 맵 후보 승인
   - 선행: TECH-01, TECH-02
   - 범위: 18×10, waypoint, spawn/base, path width, reserved tile, 경계 접촉/클릭 귀속
   - 사용자 결정(2026-11-24): 가로·세로 폭 1칸 경로, 경계 클릭은 오른쪽·아래 칸, ART-01 시안 기반 3개 맵 후보(Stage 2·3은 35칸 이상으로 연장) 승인. 기하 계약 `docs/SIM-CONTRACT.md` 10절
+  - 결과: `src/game/core/map/`(검증·설치 가능·진행도→위치·좌표→칸), `src/game/content/stageMaps.ts`(3맵 후보). lint/typecheck/test(291 passed)/build exit 0. codex-main 리뷰 F1(소수 tile 경계)·F2(sparse 배열) 보통 2건 수정 → **재리뷰 1 통과**(@`42b233d`, `.codex-out/MAP-01-review.md`)
   - QA: MAPD-01~46, VAL-01~16, UI 좌표 검증
   - 완료 조건: 세 스테이지 모두 유효한 후보 데이터·검증 증거
 
