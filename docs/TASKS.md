@@ -17,7 +17,8 @@
   3. ~~DOC-02~~ 완료(2026-11-24). 추적표 `docs/TRACE.md`, 태스크 반영 때마다 해당 행 갱신
   4. ~~MAP-01~~ 완료(2026-11-24, 3맵 후보·기하 모듈). ~~DATA-01~~ 완료(2026-11-24, 스키마·검증기). ~~SIM-01~~·~~ECON-01~~ 완료(2026-11-24). 다음 **SIM-02**(타워 발사·타깃·투사체·둔화) — SIM-01 훅(expireSlows·fire·enemySpeed)과 ECON-01 타워 상태에 연결, 테스트는 TEST_ONLY
 - **운영 흐름:** 사용자는 claude-main 탭에서 지시 → 코딩 claude-1/2, QA·리뷰 codex-main, 디자인 codex-design (WORKFLOW 2~4절). `main` 반영·push는 claude-main 탭에서 사용자 직접 확인 후
-- **구현 탭 작업 방식:** claude-1/2는 공유 폴더가 아닌 전용 git worktree(`../wt-<task>`)와 작업 브랜치에서 작업, 병합 후 worktree·브랜치 삭제
+- **저장소 경로(2026-11-24 변경):** `~/Desktop/Ddooby/projects/ddooby-defence` (이전 `.../ddooby-defence/ddooby-defence` 이중 폴더 정리, 사용자 요청)
+- **구현 탭 작업 방식:** claude-1/2는 공유 폴더가 아닌 전용 git worktree와 작업 브랜치에서 작업한다. worktree는 형제 폴더 `../ddooby-defence-<task>`(예: `ddooby-defence-sim-02`)에 만들고, 병합 후 worktree·브랜치 삭제(사용자 결정 2026-11-24)
 - **브랜치 정리:** `chore/tech-01-scaffold`·`docs/doc-01-crosscheck` 로컬·원격 삭제 완료(2026-11-24, 사용자 승인)
 - **저장소 밖 자료:** 선택 전 Stage 1 구판 PNG와 `.omc/`는 원래 PC에만 있음(의도적 미포함)
 
