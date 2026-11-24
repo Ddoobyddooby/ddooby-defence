@@ -45,7 +45,7 @@
   - 결과: SPEC의 요구사항 범주 ID를 개별 테스트·태스크까지 연결하는 표(위치 claude-main 확정)
   - QA: GATE-01~12, DOCQ-05~08, FINQ-08
   - 완료 조건: 핵심 경로 누락 없음, 잘못된 ID 참조 없음, 중복/유사 테스트 책임 구분
-  - 진행(2026-11-24, 브랜치 `docs/doc-02-trace`): `docs/TRACE.md` 골격 v0.1 — SPEC 규칙을 개별 REQ 77행으로 분해, TASK·QA 시리즈·실제 테스트 위치·상태 연결, TASK 역추적, 테스트 책임 구분. TECH-02 테스트 연결 채움. codex-main 문서 QA 요청
+  - 진행(2026-11-24, 브랜치 `docs/doc-02-trace`): `docs/TRACE.md` 골격 v0.1 — SPEC 규칙을 개별 REQ 79행으로 분해, TASK·QA 시리즈·실제 테스트 위치·상태 연결, TASK 역추적, 테스트 책임 구분. TECH-02 테스트 연결 채움. codex-main 문서 QA 요청
 
 ## 2. 디자인 시안 (v0.1 문서 이후)
 

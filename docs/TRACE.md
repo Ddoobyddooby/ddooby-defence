@@ -79,7 +79,8 @@
 | REQ-ECON-07 | 판매는 준비 단계에서만, 확인 후 실행 시 재검증, 전투로 넘어간 확인창 무효 | SPEC 8·9절 | ECON-01, UI-01 | `sim/testing/toySim.test.ts` TECH-02/Q08 | 부분 통과(`1d3c829`, 코어 재검증). 확인창은 UI-01 |
 | REQ-ECON-08 | 환급 = `floor(actuallyPaid × 환급률)` 내림 한 번, 제거·환급 원자적, 중복 환급 방지 | SPEC 8절, SIM-CONTRACT 3.3 | ECON-01 | `sim/intmath.test.ts`·`sim/formulas.test.ts` TECH-02/N13, `sim/testing/toySim.test.ts` TECH-02/Q06 | 부분 통과(`1d3c829`, 산식·toy 판매). 강화 누적 포함은 ECON-01 |
 | REQ-ECON-09 | 일시정지·결과 단계의 게임플레이 명령 거부 | SPEC 8절, SIM-CONTRACT 4절 | ECON-01, SIM-01 | `sim/commands.test.ts` TECH-02/Q09 | 부분 통과(`1d3c829`, 접수 거부) |
-| REQ-ECON-10 | 재도전 시 이전 시도의 정산 ID·누적 비용 소멸 | SPEC 8·10절 | SIM-01 | `sim/ids.test.ts` TECH-02/Q01, `sim/replay.test.ts` TECH-02/R06 | 부분 통과(`1d3c829`, 카운터·코어 재사용 차단). 실제 재도전 흐름은 SIM-01 |
+| REQ-ECON-10 | 재도전 시 이전 시도의 정산 ID·누적 비용 소멸 | SPEC 8·10절 | SIM-01, ECON-01 | `sim/ids.test.ts` TECH-02/Q01, `sim/replay.test.ts` TECH-02/R06 | 부분 통과(`1d3c829`, 카운터·코어 재사용 차단). 실제 재도전 흐름은 SIM-01 |
+| REQ-ECON-11 | 설치 가격은 타워 종류별 1개이고 모든 스테이지에 동일, 강화 가격은 종류·레벨별 고정 명시값 | SPEC 3·8절 | DATA-01, ECON-01 | — | 설계됨 |
 
 ### REQ-STATE — 틱·시도·승패·저장 (게이트 CORE·STATE, QA INT·DATA)
 
@@ -92,14 +93,15 @@
 | REQ-STATE-05 | 마지막 웨이브 정상 완료 시 보상 한 번 후 승리 | SPEC 7절 | SIM-01, ECON-01 | — | 설계됨 |
 | REQ-STATE-06 | 승패 결과 이후 게임플레이 상태 불변, 순수 VFX만 잔존 | SPEC 7절, SIM-CONTRACT 2.1 | SIM-01, UI-01 | `sim/testing/toySim.test.ts`·`sim/replay.test.ts` TECH-02/R08(결과 후 step 오류) | 부분 통과(`1d3c829`, toy 결과 단계). VFX는 UI-01 |
 | REQ-STATE-07 | 논리 틱 50ms, 콘텐츠 시간 50ms 배수·하한, 정수 고정소수점(mt·bp), 비율 반올림 | SPEC 7절, SIM-CONTRACT 2·3절 | TECH-02 | `sim/time.test.ts` T01~T04, `sim/intmath.test.ts` N01~N10, `sim/formulas.test.ts` N11~N14 | **통과**(`1d3c829`, 224 passed) |
-| REQ-STATE-08 | 같은 틱 복수 명령은 seq 숫자 순, 앞 명령 반영 상태로 순차 재검증, payload 동결 | SIM-CONTRACT 4절 | TECH-02 | `sim/commands.test.ts` Q04·Q12~Q14, `sim/testing/toySim.test.ts` Q03·Q07 | **통과**(`1d3c829`) |
-| REQ-STATE-09 | 동일 코드·콘텐츠·초기 상태·입력 → 틱별 상태·이벤트 동일, 첫 불일치 틱·필드 진단 | SPEC 11절, SIM-CONTRACT 7절 | TECH-02, SIM-03 | `sim/canonical.test.ts`·`sim/hash.test.ts` S01~S09, `sim/replay.test.ts` R01~R09·I1 | 부분 통과(`1d3c829`, toy 리플레이). 실제 전투 리플레이는 SIM-03 |
+| REQ-STATE-08 | 같은 틱 복수 명령은 seq 숫자 순, 앞 명령 반영 상태로 순차 재검증, payload 동결 | SIM-CONTRACT 4절 | TECH-02, SIM-01 | `sim/commands.test.ts` Q04·Q12~Q14, `sim/testing/toySim.test.ts` Q03·Q07 | 부분 통과(`1d3c829`, 큐 접수·동결·seq 정렬은 제품 모듈, 순차 재검증은 toy). 실제 게임플레이 명령 적용은 SIM-01 |
+| REQ-STATE-09 | 동일 코드·콘텐츠·초기 상태·입력 → 틱별 상태·이벤트 동일, 첫 불일치 틱·필드 진단 | SPEC 11절, SIM-CONTRACT 7절 | TECH-02, SIM-03 | `sim/canonical.test.ts`·`sim/hash.test.ts` S01~S09, `sim/replay.test.ts` R01·R03~R09·I1 (R02 "같은 세션 재사용과 무관한 재생"은 R06 describe 안의 테스트로 검증) | 부분 통과(`1d3c829`, toy 리플레이). 실제 전투 리플레이는 SIM-03 |
 | REQ-STATE-10 | 코어 결정성 금지(난수·벽시계·환경 의존 수학), 상태 내 소수 금지 | SIM-CONTRACT 6·7.1절 | TECH-02 | `sim/lint.test.ts` L01~L03, `sim/canonical.test.ts` L04 | **통과**(`1d3c829`). 별칭 우회는 lint 미검출 → 코드 리뷰 게이트 |
 | REQ-STATE-11 | 일시정지 시 게임 시간·VFX 동결, 접수된 명령 보존 후 재개 시 재검증 | SPEC 9절, SIM-CONTRACT 4절 | SIM-01, UI-01 | `sim/testing/toySim.test.ts` TECH-02/Q09(큐 보존) | 부분 통과(`1d3c829`, 코어 큐). VFX 동결은 UI-01 |
 | REQ-STATE-12 | 재도전 시 타워·적·골드·둔화·투사체·타이머·정산 초기화, 클리어 플래그 유지 | SPEC 10절 | SIM-01, SAVE-01 | — | 설계됨 |
 | REQ-STATE-13 | 로컬 클리어 플래그 저장, 해금은 플래그에서 파생, 클라우드 없음 | SPEC 10절 | SAVE-01 | — | 설계됨 |
 | REQ-STATE-14 | 저장 실패 시 오류·재시도, 새로고침 시 미저장 클리어 손실 안내, 세션 해금 유지 | SPEC 10절 | SAVE-01, UI-01 | — | 설계됨 |
 | REQ-STATE-15 | 이미 얻은 클리어는 재플레이 실패에도 유지 | SPEC 10절 | SAVE-01 | — | 설계됨 |
+| REQ-STATE-16 | 해금 규칙: Stage 1만 최초 해금, 직전 스테이지 클리어 시 다음 스테이지 해금, 해금된 스테이지는 재도전 가능 | SPEC 1절 | SAVE-01, UI-01 | — | 설계됨 |
 
 ### REQ-UI — HUD·입력·화면 상태 (게이트 UI, QA UI·HUD)
 
@@ -138,24 +140,29 @@
 
 ## 3. 태스크별 역추적 (TASK → REQ)
 
+- 2절의 TASK 칸과 이 표는 양방향으로 일치해야 한다. 단 TECH-01·TECH-02 행은 **기초 증거를 제공한 태스크**이고, 그 밖의 행은 **제품 구현 책임 태스크**다.
+
 | TASK | 담당 REQ | 현재 |
 |---|---|---|
 | TECH-01 | MAP-01(격자) | 완료 |
 | TECH-02 | STATE-07·08·09·10, TOWER-07, ENEMY-03·05, WAVE-03·04·06, ECON-02·04·05·06·07·08·09·10, STATE-06·11 (기초·toy 수준) | 완료. 표의 `부분 통과` 행은 후속 태스크가 이어서 채움 |
 | MAP-01 | MAP-01·02·03·05 | 미착수 |
-| DATA-01 | MAP-02, TOWER-02·03·04, ENEMY-01·02·07, WAVE-01·02·03·07 | 미착수 |
-| SIM-01 | STATE-01·03·04·05·06·11·12, WAVE-03·04·05·06, ECON-06·09·10 | 미착수 |
-| SIM-02 | TOWER-01·05~12, ENEMY-03~07, MAP-04, STATE-02 | 미착수 |
-| ECON-01 | ECON-01~10, MAP-03, STATE-03·05 | 미착수 |
+| DATA-01 | MAP-02, TOWER-02·03·04, ENEMY-01·02·07, WAVE-01·02·03·07, ECON-11 | 미착수 |
+| SIM-01 | STATE-01·03·04·05·06·08·11·12, WAVE-03·04·05·06, ECON-06·09·10 | 미착수 |
+| SIM-02 | TOWER-01·03·05~12, ENEMY-03~07, MAP-04, STATE-02 | 미착수 |
+| ECON-01 | ECON-01~11, MAP-03, STATE-03·05, WAVE-06 | 미착수 |
 | SIM-03 | STATE-09, QA-06 | 미착수 |
-| UI-01 | UI-01~11, MAP-04·05, ECON-07, STATE-06·11·14, WAVE-07 | 미착수 |
-| SAVE-01 | STATE-12~15, UI-09·10 | 미착수 |
+| UI-01 | UI-01~11, MAP-04·05, ECON-07, STATE-06·11·14·16, WAVE-07 | 미착수 |
+| SAVE-01 | STATE-12~16, UI-09·10 | 미착수 |
 | BAL-01 | BALANCE-01·02, TOWER-01·02·05, WAVE-02, ENEMY-08 | 미착수 |
-| QA-01 / REL-01 | QA-03·04·07 | 운영 중 / 미착수 |
+| DOC-01 | QA-01 | 완료 |
+| DOC-02 | QA-02 | 진행 중 |
+| QA-01 | QA-03·04 | 운영 중 |
+| REL-01 | QA-04·07 | 미착수 |
 
 ## 4. 테스트 책임 구분 (중복 방지)
 
-- **규칙의 정답은 코어 단위 테스트가 소유한다.** 같은 규칙을 UI 테스트에서 다시 계산해 판정하지 않는다. UI 테스트는 "코어 상태가 화면에 그대로 보이는가", "금지 입력이 명령을 만들지 않는가"만 본다.
+- **규칙의 정답은 코어 단위 테스트가 소유한다.** 같은 규칙을 UI 테스트에서 다시 계산해 판정하지 않는다. UI 테스트는 (1) 코어 상태가 화면에 그대로 보이는가, (2) 금지 입력이 명령을 만들지 않는가, (3) **정상 선택·클릭이 올바른 종류·좌표·횟수의 명령으로 코어에 전달되고 그 결과가 화면·저장 피드백으로 이어지는가**(UI-01·SAVE-01의 계층 연동 책임)를 본다. 경제·전투 산식은 UI에서 재계산하지 않는다.
 - **산식(helper) vs 규칙 적용:** `intmath`·`formulas` 테스트(TECH-02)는 계산식만 소유한다. 그 식이 올바른 시점·대상에 적용되는지는 SIM-01/02/ECON-01 테스트가 소유한다. 예: 환급 내림은 N13(산식) + ECON-01(강화 누적 actuallyPaid로 판매).
 - **toy vs 실제 시뮬:** `sim/testing/toySim`은 TEST_ONLY다. toy 테스트 통과는 계약 수준 증거일 뿐 제품 규칙 통과로 세지 않는다(표에서 `부분 통과`).
 - **리플레이:** 해시·정규화·종료 경계는 TECH-02 테스트가, 실제 전투 시나리오의 결정성은 SIM-03이 소유한다.
