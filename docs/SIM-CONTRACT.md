@@ -141,7 +141,7 @@
 
 ## 8. 이 계약에서 정하지 않는 것
 
-- 게임 수치 전부(TBD-TOWER/ENEMY/ECON/WAVE/PROJECTILE), 각 필드 상한 값 → DATA-01 및 사용자 승인.
+- 게임 수치 전부(TBD-TOWER/ENEMY/ECON/WAVE/PROJECTILE) → BAL-01 및 사용자 승인. 필드 형식·기술 상한은 11절(DATA-01).
 - 같은 틱에 이미 HP 0이 된 적에게 다른 투사체가 명중하는 경우, 설치 직후 첫 발사 틱, 투사체 TTL 판정 단계, 투사체 이동 양자화 정밀도 → SIM-02.
 - ~~경로 폭·대각 구간 허용 여부·격자 경계 클릭 귀속 → MAP-01~~ 10절에서 확정.
 - 이벤트·거부 사유는 기초 모듈(`src/game/core/sim/events.ts`)에서 아래로 고정했다(TECH-02 구현). SIM-01/02에서 추가·변경하면 해시가 바뀌므로 이 목록을 함께 갱신한다.
@@ -193,3 +193,71 @@ Stage 1                Stage 2                Stage 3
 8 ..###############B   8 ........#########B   8 S##...............
 9 ..................   9 ..................   9 ..................
 ```
+
+## 11. 콘텐츠 데이터 스키마·검증 (DATA-01)
+
+> **값이 아니라 형식·단위·검증 규칙만 정한다.** 실제 능력치·가격·보상·웨이브 구성은 미승인(TBD-TOWER/ENEMY/ECON/WAVE/PROJECTILE)이며 BAL-01에서 후보를 만들고 사용자가 승인한다. 그 전까지 테스트·개발용 값은 `TEST_ONLY`로만 둔다.
+
+### 11.1 묶음 구조
+
+`ContentBundle = { contentVersion, towers, enemies, traits, economy, stages }`. 숫자는 모두 안전 정수, 시간은 2절, 거리·속도는 3.1절 단위.
+
+| 항목 | 필드 |
+|---|---|
+| `towers` | 정확히 4개, `type` ∈ `archer`·`ballista`·`mage`·`frost` 각 1개. `buildCost`, `upgradeCosts: [Lv2, Lv3, Lv4]`, `levels`: Lv1 기본값 + `[Lv2, Lv3, Lv4]` 증분(각 증분은 Lv1과 같은 필드의 **정수 차이**, 음수 허용, 0 허용) |
+| 타워 레벨 필드(공통) | `damage`, `attackPeriodMs`, `rangeMt`, `projectileSpeedMtPerSec`, `projectileTtlMs` |
+| 타워 레벨 필드(종류별) | `mage`: `aoeRadiusMt` · `frost`: `slowBp`, `slowDurationMs`. 다른 종류에 이 필드가 있으면 오류 |
+| `enemies` | 정확히 4개, `type` ∈ `normal`·`fast`·`heavy`·`swarm` 각 1개. `hp`, `speedMtPerSec`, `baseDamage`(기지 피해), `killReward` |
+| `traits` | 정확히 3개, `type` ∈ `controlResistance`·`hpBoost`·`speedBoost` 각 1개. `controlResistance`: `resistBp` · `hpBoost`: `hpBoostBp` · `speedBoost`: `speedBoostBp`. 공통 `killRewardBonus`(특성 처치 보상 가산, 정책 미정이므로 0 허용) |
+| `economy` | `refundRateBp`(전 스테이지 공통) |
+| `stages` | 정확히 3개, 순서 = Stage 1·2·3. 각 `stageId`, `initialGold`, `map`(10절 `StageMap`, `map.stageId == stageId`), `waves` |
+| `waves` | 스테이지마다 정확히 5개, 순서대로 `waveIndex` 1..5. 각 `role`, `prepMs`, `clearReward`, `segments` |
+| `role` | 웨이브 번호별 고정(SPEC 6절): 1 `basic`(기본 대응) · 2 `focus`(특정 적 강조) · 3 `newMix`(새 조합) · 4 `complex`(복합 대응) · 5 `finale`(종합 도전). 다른 값·순서는 오류 |
+| `segments` | 1개 이상. 각 `startMs`, `intervalMs`, `count`, `enemyType`, `trait`(`null` 또는 특성 type 1개) |
+
+- 설계 의도 매트릭스(주력·지원 적, 압박 목표)는 문서(BAL-01 산출물)에 두고 데이터에는 `role`만 둔다(SPEC 6절 "의도와 Segment 데이터 분리").
+- `stageId` 3개는 서로 달라야 하고 10절 맵 데이터와 연결된다. 현재 후보 ID: `stage-1-meadow-outpost`·`stage-2-snowfall-pass`·`stage-3-dusk-ruins`.
+
+### 11.2 필드 범위 (기술 상한, 밸런스 값 아님)
+
+정수 overflow를 막기 위한 상한이다(3.2절 C1). 밸런스 승인과 무관하며 BAL-01에서 좁힐 수 있다.
+
+| 필드 | 범위 |
+|---|---|
+| 골드(`buildCost`·`upgradeCosts`·`initialGold`·`clearReward`·`killReward`) | 1 ≤ v ≤ 1,000,000. `killRewardBonus`만 0 ≤ v ≤ 1,000,000 |
+| `hp`, `damage`, `baseDamage` | 1 ≤ v ≤ 1,000,000 |
+| `rangeMt`, `aoeRadiusMt` | 1 ≤ v ≤ 25,000 (맵 대각선 약 20,600mt) |
+| 속도(`speedMtPerSec`·`projectileSpeedMtPerSec`) | 20 ≤ v ≤ 100,000, 20의 배수 (3.1절) |
+| 지속 시간(`attackPeriodMs`·`projectileTtlMs`·`slowDurationMs`·`prepMs`) | 50 ≤ v ≤ 600,000, 50의 배수 (2절 하한) |
+| `startMs` | 0 ≤ v ≤ 600,000, 50의 배수 |
+| `intervalMs` | `count > 1`이면 50 ≤ v ≤ 600,000, `count == 1`이면 0 또는 위 범위. 50의 배수 |
+| `count` | 1 ≤ v ≤ 1,000. 웨이브당 Segment ≤ 64개, 웨이브당 적 총수 ≤ 5,000 |
+| `slowBp` | 1 ≤ v ≤ 9,999 (3.3절: 둔화 < 100%) |
+| `resistBp`, `refundRateBp` | 0 ≤ v ≤ 10,000 |
+| `hpBoostBp`, `speedBoostBp` | 1 ≤ v ≤ 90,000 (최대 +900%) |
+
+- **레벨 범위는 증분을 더한 결과값(Lv1~4 각각)에 적용**한다. 증분 자체는 범위 검사 대상이 아니고, 결과가 범위를 벗어나면 그 레벨·필드 경로의 오류.
+
+### 11.3 교차 규칙 (SPEC 3·6·8절)
+
+- **사거리 순서(사용자 결정 2026-11-24):** 같은 레벨끼리 `ballista > archer > mage > frost`(엄격 부등호)를 **Lv1~Lv4 각각** 만족. 다른 레벨끼리는 비교하지 않는다.
+- **강화 비용:** 타워마다 `upgradeCosts[0] < upgradeCosts[1] < upgradeCosts[2]` (Lv2 < Lv3 < Lv4). 다른 타워끼리 가격 순서는 검사하지 않는다(SPEC 미정).
+- **설치 가격**은 타워 종류별 1개이고 스테이지 데이터에 두지 않는다(REQ-ECON-11: 스테이지 공통).
+- **Stage 1 등장 조건:** Stage 1의 5개 웨이브 Segment를 합치면 적 4종과 특성 3종이 모두 한 번 이상 등장.
+- **참조 무결성:** `enemyType`·`trait`는 위 목록의 값만, `map`은 10절 검증 통과.
+
+### 11.4 검증 단계·오류 격리 (SPEC 10절, PLAN 3.3)
+
+- 오류는 **필드 경로**(예: `stages[1].waves[3].segments[0].count`)와 사유를 담은 목록으로 모두 모은다(첫 오류에서 멈추지 않음). 자동 보정·기본값 대체 금지(SPEC 10절 "가짜 데이터로 대체하지 않음"). 배열 hole·`undefined`·`null`·비정수·문자열 숫자는 모두 오류(10.1절과 같은 원칙).
+- **사전 검증**(콘텐츠 로드 시): 결과 = `{ globalErrors, stages: [{ stageId, errors }] }`.
+  - `globalErrors`: `contentVersion`·`towers`·`enemies`·`traits`·`economy`·스테이지 개수·`stageId` 중복 오류. 하나라도 있으면 **모든 스테이지 플레이 불가**.
+  - 스테이지별 `errors`: 그 스테이지의 `initialGold`·`map`·`waves` 오류. 해당 스테이지만 **콘텐츠 오류로 격리**하고 다른 정상 스테이지는 그대로 사용 가능.
+  - Stage 1 등장 조건 위반은 Stage 1의 오류.
+- **진입 재검증:** 스테이지 시작 직전에 전역 항목 + 그 스테이지를 같은 검증기로 다시 검사. 실패하면 시작하지 않는다.
+- **검증 통과 결과물**은 깊은 복사 후 동결한 객체로 반환하고, 시도는 그 사본만 읽는다(TECH-02 리뷰 I2와 같은 원칙).
+- **스테이지 콘텐츠 해시**(7.2절 `contentHash`) = 정규 JSON `{ "global": {contentVersion, towers, enemies, traits, economy}, "stage": <그 스테이지> }`의 FNV-1a 64.
+
+### 11.5 웨이브 전개
+
+- 검증된 웨이브의 Segment는 `planSpawns`(TECH-02 `sim/time.ts`)로 `(생성 틱, Segment 원본 순서, Segment 내 순번)` 순서 일정으로 전개한다. 각 항목은 `enemyType`·`trait`를 함께 담는다. 같은 웨이브 안 Segment 겹침은 허용(SPEC 6절).
+- 웨이브 사이 비중첩·완료 판정은 SIM-01 책임이다.
