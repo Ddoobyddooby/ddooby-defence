@@ -96,7 +96,7 @@
 ## 4. 핵심 게임 로직
 
 - [ ] **SIM-01 — 시도 상태·스테이지·웨이브 상태 머신**
-  - 담당: 구현 담당 claude-main 배정
+  - 담당: claude-main 계약(`docs/SIM-CONTRACT.md` 12절), 구현 claude-1(worktree `wt-sim-01`, 브랜치 `feat/sim-01`)
   - 선행: TECH-02, DATA-01
   - 범위: prep/combat/pause/result, spawn/clear, attempt snapshot, 8단계 틱
   - QA: INT-01~15, COREG-02, COREG-09~10, TSTR-04

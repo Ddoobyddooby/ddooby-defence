@@ -210,7 +210,7 @@ Stage 1                Stage 2                Stage 3
 | `enemies` | 정확히 4개, `type` ∈ `normal`·`fast`·`heavy`·`swarm` 각 1개. `hp`, `speedMtPerSec`, `baseDamage`(기지 피해), `killReward` |
 | `traits` | 정확히 3개, `type` ∈ `controlResistance`·`hpBoost`·`speedBoost` 각 1개. `controlResistance`: `resistBp` · `hpBoost`: `hpBoostBp` · `speedBoost`: `speedBoostBp`. 공통 `killRewardBonus`(특성 처치 보상 가산, 정책 미정이므로 0 허용) |
 | `economy` | `refundRateBp`(전 스테이지 공통) |
-| `stages` | 정확히 3개, 순서 = Stage 1·2·3. 각 `stageId`, `initialGold`, `map`(10절 `StageMap`, `map.stageId == stageId`), `waves` |
+| `stages` | 정확히 3개, 순서 = Stage 1·2·3. 각 `stageId`, `initialGold`, `baseHp`(기지 HP 초기값, SIM-01에서 추가), `map`(10절 `StageMap`, `map.stageId == stageId`), `waves` |
 | `waves` | 스테이지마다 정확히 5개, 순서대로 `waveIndex` 1..5. 각 `role`, `prepMs`, `clearReward`, `segments` |
 | `role` | 웨이브 번호별 고정(SPEC 6절): 1 `basic`(기본 대응) · 2 `focus`(특정 적 강조) · 3 `newMix`(새 조합) · 4 `complex`(복합 대응) · 5 `finale`(종합 도전). 다른 값·순서는 오류 |
 | `segments` | 1개 이상. 각 `startMs`, `intervalMs`, `count`, `enemyType`, `trait`(`null` 또는 특성 type 1개) |
@@ -225,7 +225,7 @@ Stage 1                Stage 2                Stage 3
 | 필드 | 범위 |
 |---|---|
 | 골드(`buildCost`·`upgradeCosts`·`initialGold`·`clearReward`·`killReward`) | 1 ≤ v ≤ 1,000,000. `killRewardBonus`만 0 ≤ v ≤ 1,000,000 |
-| `hp`, `damage`, `baseDamage` | 1 ≤ v ≤ 1,000,000 |
+| `hp`, `damage`, `baseDamage`, `baseHp` | 1 ≤ v ≤ 1,000,000 |
 | `rangeMt`, `aoeRadiusMt` | 1 ≤ v ≤ 25,000 (맵 대각선 약 20,600mt) |
 | 속도(`speedMtPerSec`·`projectileSpeedMtPerSec`) | 20 ≤ v ≤ 100,000, 20의 배수 (3.1절) |
 | 지속 시간(`attackPeriodMs`·`projectileTtlMs`·`slowDurationMs`·`prepMs`) | 50 ≤ v ≤ 600,000, 50의 배수 (2절 하한) |
@@ -251,7 +251,7 @@ Stage 1                Stage 2                Stage 3
 - 오류는 **필드 경로**(예: `stages[1].waves[3].segments[0].count`)와 사유를 담은 목록으로 모두 모은다(첫 오류에서 멈추지 않음). 자동 보정·기본값 대체 금지(SPEC 10절 "가짜 데이터로 대체하지 않음"). 배열 hole·`undefined`·`null`·비정수·문자열 숫자는 모두 오류(10.1절과 같은 원칙).
 - **사전 검증**(콘텐츠 로드 시): 결과 = `{ globalErrors, stages: [{ stageId, errors }] }`.
   - `globalErrors`: `contentVersion`·`towers`·`enemies`·`traits`·`economy`·스테이지 개수·`stageId` 중복 오류. 하나라도 있으면 **모든 스테이지 플레이 불가**.
-  - 스테이지별 `errors`: 그 스테이지의 `initialGold`·`map`·`waves` 오류. 해당 스테이지만 **콘텐츠 오류로 격리**하고 다른 정상 스테이지는 그대로 사용 가능.
+  - 스테이지별 `errors`: 그 스테이지의 `initialGold`·`baseHp`·`map`·`waves` 오류. 해당 스테이지만 **콘텐츠 오류로 격리**하고 다른 정상 스테이지는 그대로 사용 가능.
   - Stage 1 등장 조건 위반은 Stage 1의 오류.
   - **스테이지 항목 자체가 잘못된 경우:** `stages` 배열 길이가 3이 아니면 전역 오류. 길이가 3이면 각 자리의 hole·`undefined`·`null`·객체 아님은 **그 자리 스테이지만의 오류**(격리, 다른 스테이지는 사용 가능). 그 자리의 `stageId`를 알 수 없으므로 결과의 `stageId`는 `null`.
 - **수집 범위:** 한 필드의 오류가 다른 필드의 판정을 막지 않는다. 배열 길이 오류가 있어도 존재하는 항목은 각각 검사한다. 생략은 **그 값에 의존하는 계산만**(예: Lv2 `damage`가 무효면 Lv3·Lv4 `damage` 누적 결과 검사만 생략, 같은 레벨의 다른 필드는 계속 검사). 맵은 구조·필드·좌표 오류를 모두 모은 뒤, 그것이 없을 때만 기하 검증(10절)을 수행한다.
@@ -266,3 +266,48 @@ Stage 1                Stage 2                Stage 3
 
 - 검증된 웨이브의 Segment는 `planSpawns`(TECH-02 `sim/time.ts`)로 `(생성 틱, Segment 원본 순서, Segment 내 순번)` 순서 일정으로 전개한다. 각 항목은 `enemyType`·`trait`를 함께 담는다. 같은 웨이브 안 Segment 겹침은 허용(SPEC 6절).
 - 웨이브 사이 비중첩·완료 판정은 SIM-01 책임이다.
+
+## 12. 시도 상태 머신·틱 처리 (SIM-01)
+
+> SPEC 7·9·10절과 2.1절 타임라인을 실제 시도(attempt) 코어로 구체화한다. 전투 계산(4단계 발사·명중, 2단계 둔화 만료)의 내용은 SIM-02, 설치·강화·판매는 ECON-01이 채운다. SIM-01은 그 자리를 **확장 지점**으로 둔다.
+
+### 12.1 시도 생성·초기 상태
+
+- `createAttempt(content, stageId, attemptId)`: `content`는 11절 검증 통과 결과, 시작 전에 **진입 재검증**(11.4) 실패면 생성하지 않는다. 시도는 콘텐츠 사본만 읽는다.
+- 초기 상태(스냅샷 0): `phase = preparation`, `waveIndex = 1`(준비 중인 다음 웨이브), `prepTicksRemaining = wave1.prepMs/50`, `gold = initialGold`, `baseHp = stage.baseHp`, 엔티티·큐·소비 키 없음, 모든 카운터 1, `paused = false`, `outcome = null`.
+- **재도전** = 같은 콘텐츠·stageId로 새 `attemptId`의 새 시도 생성. 이전 시도의 어떤 상태도 넘기지 않는다(SPEC 10절). 클리어 플래그는 코어 밖(SAVE-01).
+
+### 12.2 단계(phase)
+
+| phase | 의미 | 틱 진행 |
+|---|---|---|
+| `preparation` | 다음 웨이브 준비, 타이머 감소(2.1절), `startWave`로 조기 시작 | 예 |
+| `combat` | 웨이브 진행 | 예 |
+| `victory` / `defeat` | 결과, 게임플레이 불변 | `step()` 오류(2.1절) |
+
+- **일시정지**는 phase가 아니라 별도 플래그 `paused`다. `pause()`/`resume()`은 틱 밖 조작이며 상태 스냅샷에 반영되지만 틱·이벤트를 만들지 않는다. `paused`인 동안 `step()`은 오류(어댑터는 호출하지 않음), 게임플레이 명령은 접수 즉시 거부(4절). 결과 단계에서 `pause()`는 오류.
+- `startWave`는 `preparation`에서만 유효(아니면 `wrongPhase` 거부). 조기 시작 보너스 없음(SPEC 6절).
+
+### 12.3 틱 8단계 (SPEC 7절, 순서 고정)
+
+1. **명령:** 4절대로 seq 순 적용. SIM-01이 처리하는 명령은 `startWave`. `build`·`upgrade`·`sell`은 ECON-01, `setTargeting`은 SIM-02가 채우기 전까지 `unsupportedKind`로 거부.
+2. **둔화 만료:** 확장 지점(SIM-02). SIM-01은 아무것도 하지 않음.
+3. **생성:** `combat`이고 이번 웨이브의 전개 일정(11.5, `waveStartTick` 기준)에 이 틱 항목이 있으면 그 순서대로 생성. 적 상태: `enemyId`(카운터), `enemyType`, `trait`, `maxHp = hp`(3.3절 체력 강화 반영), `speedPerTick`(3.3절 변환·속도 강화 반영, 둔화 전), `pathProgress = 0`, `baseDamage`, `killReward`(= 유형 `killReward` + 특성 `killRewardBonus`, 특성 없으면 유형 값). 이벤트 `enemySpawned`.
+4. **발사·충돌:** 확장 지점(SIM-02). 이 단계는 적 HP만 줄일 수 있고 제거는 하지 않는다. 같은 틱에 생성된 적도 대상이 될 수 있다.
+5. **사망·처치 골드:** `hp ≤ 0`인 적을 `enemyId` 순으로 제거하고 경제 이벤트 `kill:e{enemyId}`로 `killReward`를 **정확히 한 번** 지급. 이벤트 `enemyKilled`·`economySettled`.
+6. **이동·기지 도달:** 남은 적을 `enemyId` 순으로 `pathProgress += 현재 속도`(SIM-01에서는 둔화 없음, 확장 지점). `pathProgress ≥ pathLengthMt`이면 제거하고 `baseHp -= baseDamage`(0 미만이면 0), 처치 골드 없음. 이벤트 `enemyReachedBase`.
+7. **결과 판정(패배 우선):** `baseHp == 0`이면 `defeat`(이번 틱의 웨이브 완료 보상 없음). 아니면 `combat`에서 이번 웨이브 예약 생성이 모두 끝났고 살아 있는 적이 0이면 웨이브 완료: 경제 이벤트 `waveClear:w{waveIndex}`로 `clearReward` 한 번 지급, 이벤트 `waveCleared`. 마지막(5번) 웨이브면 보상 후 `victory`.
+8. **정리·전환:** 결과면 `resultReached{outcome}`. 웨이브 완료(비최종)면 `waveIndex + 1`, `preparation`, 그 웨이브의 `prepTicksRemaining`, `prepEntered`(진입 틱은 타이머를 소비하지 않음, 2.1절). 준비 단계였다면 타이머 감소·만료 시 다음 틱부터 전투(2.1절, `waveStarted{trigger:"timer"}`는 실제 전투가 시작되는 틱 1단계에서 기록).
+
+- 웨이브 사이 중첩 없음: 다음 웨이브는 이전 웨이브 완료 후 준비 단계를 거쳐야만 시작한다(SPEC 6절).
+- 1단계 명령은 같은 틱 5·7단계의 골드를 쓸 수 없다(단계 순서로 자연히 보장, SPEC 7절).
+
+### 12.4 확장 지점 (SIM-02·ECON-01 연결용)
+
+- 코어는 단계 2·4·6(속도)의 처리기와 1단계 명령 처리기를 **주입 가능한 순수 함수**로 둔다. 기본값은 위의 SIM-01 동작(없음/없음/둔화 없음/`unsupportedKind`).
+- 주입 함수는 상태를 정해진 범위로만 바꿀 수 있다: 4단계는 적 HP 감소와 자기 상태(투사체 등)만, 2단계는 둔화 상태만. 제거·골드·결과 판정은 항상 SIM-01 단계가 한다.
+- 테스트는 TEST_ONLY 주입 함수(예: "이 틱에 이 적 HP를 0으로")로 동시 사건을 만든다.
+
+### 12.5 리플레이 연결
+
+- 시도 코어는 7.3절 리플레이 실행기의 코어 인터페이스(`completedTick`·`isResult`·`submit`·`step`·`snapshot`)를 구현한다. 장난감 시뮬(TECH-02)과 같은 리플레이 검증을 실제 시도 코어에 적용할 수 있어야 한다.
