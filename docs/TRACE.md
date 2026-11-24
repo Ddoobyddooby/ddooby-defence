@@ -20,7 +20,7 @@
 |---|---|---|---|---|---|
 | REQ-MAP-01 | 18열×10행 정사각 논리 격자, 격자 밖 좌표 거부 | SPEC 1·2절 | TECH-01, MAP-01 | `src/game/core/grid.test.ts`, `map/stageMap.test.ts` | **통과**(`42b233d`, 격자 경계·3맵 격자 안 검증) |
 | REQ-MAP-02 | 스테이지별 독립 지도, 경로 = waypoint + 설치 불가 예약 격자 | SPEC 2절, SIM-CONTRACT 10절 | MAP-01, DATA-01 | `map/stageMap.test.ts`(3맵 그림 리터럴·칸 수·검증 오류), `content/stageMaps.ts`, `content/validate.test.ts`(맵 엄격 필드·스테이지 격리) | **통과**(`42b233d`·`ceded17`, 기하·후보 데이터·묶음 스키마) |
-| REQ-MAP-03 | 경로·spawn·base·예약 격자·점유 칸에는 설치 불가 | SPEC 2절 | MAP-01, ECON-01 | `map/stageMap.test.ts`(isBuildable 전 칸 대조) | 부분 통과(`42b233d`, 판정 함수). 실제 설치 명령 연결은 ECON-01 |
+| REQ-MAP-03 | 경로·spawn·base·예약 격자·점유 칸에는 설치 불가 | SPEC 2절 | MAP-01, ECON-01 | `map/stageMap.test.ts`(isBuildable), `attempt/econ.test.ts`(경로·출발·기지 notBuildable, 점유 occupied, 경로 칸 타워 없음 불변식) | **통과**(`cc4059a`) |
 | REQ-MAP-04 | 타워는 논리 1×1 점유, 스프라이트 돌출은 점유를 늘리지 않음 | SPEC 2절 | SIM-02, UI-01 | — | 설계됨 |
 | REQ-MAP-05 | 화면 → 맵 논리 격자 역변환, HUD·레터박스·맵 밖 입력은 설치 명령 생성 금지. 격자 경계 클릭은 오른쪽·아래 칸 | SPEC 2·9절, SIM-CONTRACT 10.1 | MAP-01, UI-01 | `map/pointToCell.test.ts`(소수 tile 경계 포함) | 부분 통과(`42b233d`, 좌표→칸 변환). 화면 축척·레터박스·HUD 입력 연결은 UI-01 |
 
@@ -70,17 +70,17 @@
 
 | ID | 요구 | 근거 | TASK | 테스트 위치 | 상태 |
 |---|---|---|---|---|---|
-| REQ-ECON-01 | 골드는 정수, 스테이지별 초기 골드 독립·이월 없음 | SPEC 8절 | ECON-01 | — | 설계됨 |
-| REQ-ECON-02 | 설치 성공 = 골드 차감·타워 생성·격자 점유 원자적 | SPEC 8절 | ECON-01 | `sim/testing/toySim.test.ts` TECH-02/Q03·Q05 | 부분 통과(`1d3c829`, toy). 실제 맵 설치 가능 판정은 MAP-01·ECON-01 |
-| REQ-ECON-03 | 강화 성공 = 차감·레벨 변경·actuallyPaid 누적 원자적 | SPEC 8절 | ECON-01 | — | 설계됨 |
-| REQ-ECON-04 | 실패한 명령은 어떤 상태도 바꾸지 않음 | SPEC 8절, SIM-CONTRACT 4절 | ECON-01 | `sim/testing/toySim.test.ts` TECH-02/Q03·Q05·Q06 | 부분 통과(`1d3c829`, toy) |
-| REQ-ECON-05 | 적 유효 사망 이벤트당 처치 골드 정확히 한 번 | SPEC 8절, SIM-CONTRACT 5절 | ECON-01 | `sim/testing/toySim.test.ts` TECH-02/Q10(소비 키 중복 차단) | 부분 통과(`1d3c829`, 중복 키 차단만). 실제 사망 처리는 SIM-02·ECON-01 |
+| REQ-ECON-01 | 골드는 정수, 스테이지별 초기 골드 독립·이월 없음 | SPEC 8절 | ECON-01 | `attempt/econ.test.ts`(정수 골드·불변식 gold = initialGold + Σdelta), `attempt/attempt.test.ts`(스테이지별 initialGold) | **통과**(`cc4059a`) |
+| REQ-ECON-02 | 설치 성공 = 골드 차감·타워 생성·격자 점유 원자적 | SPEC 8절 | ECON-01 | `attempt/econ.test.ts`(설치 성공·거부 4종·검사 순서·같은 틱 경합) | **통과**(`cc4059a`) |
+| REQ-ECON-03 | 강화 성공 = 차감·레벨 변경·actuallyPaid 누적 원자적 | SPEC 8절 | ECON-01 | `attempt/econ.test.ts`(Lv1→4 누적 actuallyPaid, maxLevel) | **통과**(`cc4059a`) |
+| REQ-ECON-04 | 실패한 명령은 어떤 상태도 바꾸지 않음 | SPEC 8절, SIM-CONTRACT 4절 | ECON-01 | `attempt/econ.test.ts`(거부 시 골드·타워·원장·키·towerId 불변), `attempt/attempt.hooks.test.ts`(예외 시 step 롤백) | **통과**(`cc4059a`) |
+| REQ-ECON-05 | 적 유효 사망 이벤트당 처치 골드 정확히 한 번 | SPEC 8절, SIM-CONTRACT 5절 | ECON-01 | `attempt/econ.test.ts`·`attempt/attempt.test.ts`(kill 키 1회, TEST_ONLY 처치 주입) | 부분 통과(`cc4059a`, 정산 1회 보장). 실제 사망 원인은 SIM-02 |
 | REQ-ECON-06 | 웨이브 완료 보상 정확히 한 번, 패배 시 미지급 | SPEC 7·8절 | ECON-01, SIM-01 | `attempt/attempt.test.ts`(waveClear 키 1회, 패배 시 미지급) | **통과**(`3ff5742`) |
-| REQ-ECON-07 | 판매는 준비 단계에서만, 확인 후 실행 시 재검증, 전투로 넘어간 확인창 무효 | SPEC 8·9절 | ECON-01, UI-01 | `sim/testing/toySim.test.ts` TECH-02/Q08 | 부분 통과(`1d3c829`, 코어 재검증). 확인창은 UI-01 |
-| REQ-ECON-08 | 환급 = `floor(actuallyPaid × 환급률)` 내림 한 번, 제거·환급 원자적, 중복 환급 방지 | SPEC 8절, SIM-CONTRACT 3.3 | ECON-01 | `sim/intmath.test.ts`·`sim/formulas.test.ts` TECH-02/N13, `sim/testing/toySim.test.ts` TECH-02/Q06 | 부분 통과(`1d3c829`, 산식·toy 판매). 강화 누적 포함은 ECON-01 |
+| REQ-ECON-07 | 판매는 준비 단계에서만, 확인 후 실행 시 재검증, 전투로 넘어간 확인창 무효 | SPEC 8·9절 | ECON-01, UI-01 | `attempt/econ.test.ts`(판매 준비만·전투 중 wrongPhase·적용 시 재검증) | 부분 통과(`cc4059a`, 코어). 판매 확인창은 UI-01 |
+| REQ-ECON-08 | 환급 = `floor(actuallyPaid × 환급률)` 내림 한 번, 제거·환급 원자적, 중복 환급 방지 | SPEC 8절, SIM-CONTRACT 3.3 | ECON-01 | `sim/intmath.test.ts`·`sim/formulas.test.ts` N13, `attempt/econ.test.ts`(누적 지출 floor 한 번, 중복 판매 거부) | **통과**(`cc4059a`) |
 | REQ-ECON-09 | 일시정지·결과 단계의 게임플레이 명령 거부 | SPEC 8절, SIM-CONTRACT 4절 | ECON-01, SIM-01 | `sim/commands.test.ts` Q09, `attempt/attempt.test.ts`·`attempt/attempt.hooks.test.ts`(pause·결과 단계 명령 거부) | **통과**(`3ff5742`) |
-| REQ-ECON-10 | 재도전 시 이전 시도의 정산 ID·누적 비용 소멸 | SPEC 8·10절 | SIM-01, ECON-01 | `sim/ids.test.ts` Q01, `sim/replay.test.ts` R06, `attempt/attempt.test.ts`(재도전 카운터·소비 키 초기화) | 부분 통과(`3ff5742`, 코어). 타워 actuallyPaid 초기화는 ECON-01 |
-| REQ-ECON-11 | 설치 가격은 타워 종류별 1개이고 모든 스테이지에 동일, 강화 가격은 종류·레벨별 고정 명시값 | SPEC 3·8절 | DATA-01, ECON-01 | `content/validate.test.ts`(설치 가격 타워당 1개, 스테이지 데이터에 가격 없음) | 부분 통과(`ceded17`, 스키마). 실제 차감은 ECON-01 |
+| REQ-ECON-10 | 재도전 시 이전 시도의 정산 ID·누적 비용 소멸 | SPEC 8·10절 | SIM-01, ECON-01 | `sim/ids.test.ts` Q01, `sim/replay.test.ts` R06, `attempt/attempt.test.ts`, `attempt/econ.test.ts`(재도전 시 타워·actuallyPaid·키 초기화) | **통과**(`cc4059a`) |
+| REQ-ECON-11 | 설치 가격은 타워 종류별 1개이고 모든 스테이지에 동일, 강화 가격은 종류·레벨별 고정 명시값 | SPEC 3·8절 | DATA-01, ECON-01 | `content/validate.test.ts`, `attempt/econ.test.ts`(타워 종류별 buildCost 차감, 스테이지 무관) | **통과**(`cc4059a`) |
 
 ### REQ-STATE — 틱·시도·승패·저장 (게이트 CORE·STATE, QA INT·DATA)
 
@@ -150,7 +150,7 @@
 | DATA-01 | MAP-02, TOWER-02·03·04, ENEMY-01·02·07, WAVE-01·02·03·07, ECON-11 | 완료 |
 | SIM-01 | STATE-01·03·04·05·06·08·11·12, WAVE-03·04·05·06, ECON-06·09·10 | 완료 |
 | SIM-02 | TOWER-01·03·05~12, ENEMY-03~07, MAP-04, STATE-02 | 미착수 |
-| ECON-01 | ECON-01~11, MAP-03, STATE-03·05, WAVE-06 | 미착수 |
+| ECON-01 | ECON-01~11, MAP-03, STATE-03·05, WAVE-06 | 완료 |
 | SIM-03 | STATE-09, QA-06 | 미착수 |
 | UI-01 | UI-01~11, MAP-04·05, ECON-07, STATE-06·11·14·16, WAVE-07 | 미착수 |
 | SAVE-01 | STATE-12~16, UI-09·10 | 미착수 |

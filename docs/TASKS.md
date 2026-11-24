@@ -9,13 +9,13 @@
 > 다른 PC·새 세션에서는 이 섹션부터 읽는다. 세션을 마칠 때 claude-main이 갱신한다.
 
 - **최종 갱신:** 2026-11-24, `main` 기준
-- **완료:** DOC-01, DOC-02(추적표 골격), TECH-02, MAP-01, DATA-01, SIM-01(결정성 계약·기초 모듈), ART-01 시안 선택(Stage 1 v2·Stage 2·Stage 3), TECH-01 스캐폴딩(Next.js 16 + TS + Phaser 4, 검증 명령은 `README.md`), 전체 문서 탭 이름 통일
+- **완료:** DOC-01, DOC-02(추적표 골격), TECH-02, MAP-01, DATA-01, SIM-01, ECON-01(결정성 계약·기초 모듈), ART-01 시안 선택(Stage 1 v2·Stage 2·Stage 3), TECH-01 스캐폴딩(Next.js 16 + TS + Phaser 4, 검증 명령은 `README.md`), 전체 문서 탭 이름 통일
 - **사용자 결정:** TECH-01은 codex-main 독립 리뷰 없이 `main` 반영으로 마무리(2026-11-24)
 - **다음 작업 순서 (2026-11-24 사용자 확정):**
   1. ~~DOC-01~~ 완료(2026-11-24, 재리뷰 1 통과). 문서 상호검증: 스택 확정 후 남은 "미정·확인 필요" 문구 정리 + codex-main 문서 QA (ART-01·TECH-01이 DOC-01 선행 없이 진행된 점 보완)
   2. ~~TECH-02~~ 완료(2026-11-24). 계약 `docs/SIM-CONTRACT.md`(재리뷰 2 통과) + 기초 모듈 `src/game/core/sim/`(claude-1 구현, 재리뷰 1 통과)
   3. ~~DOC-02~~ 완료(2026-11-24). 추적표 `docs/TRACE.md`, 태스크 반영 때마다 해당 행 갱신
-  4. ~~MAP-01~~ 완료(2026-11-24, 3맵 후보·기하 모듈). ~~DATA-01~~ 완료(2026-11-24, 스키마·검증기). ~~SIM-01~~ 완료(2026-11-24, 시도 코어). 다음 **SIM-02**(타워·적·타깃·투사체·둔화)·**ECON-01**(설치·강화·판매) — 둘 다 SIM-01 훅에 연결, 테스트는 TEST_ONLY
+  4. ~~MAP-01~~ 완료(2026-11-24, 3맵 후보·기하 모듈). ~~DATA-01~~ 완료(2026-11-24, 스키마·검증기). ~~SIM-01~~·~~ECON-01~~ 완료(2026-11-24). 다음 **SIM-02**(타워 발사·타깃·투사체·둔화) — SIM-01 훅(expireSlows·fire·enemySpeed)과 ECON-01 타워 상태에 연결, 테스트는 TEST_ONLY
 - **운영 흐름:** 사용자는 claude-main 탭에서 지시 → 코딩 claude-1/2, QA·리뷰 codex-main, 디자인 codex-design (WORKFLOW 2~4절). `main` 반영·push는 claude-main 탭에서 사용자 직접 확인 후
 - **구현 탭 작업 방식:** claude-1/2는 공유 폴더가 아닌 전용 git worktree(`../wt-<task>`)와 작업 브랜치에서 작업, 병합 후 worktree·브랜치 삭제
 - **브랜치 정리:** `chore/tech-01-scaffold`·`docs/doc-01-crosscheck` 로컬·원격 삭제 완료(2026-11-24, 사용자 승인)
@@ -110,12 +110,13 @@
   - QA: BALD-01~10, ENMD-01~18, INT-01~15, BALX-03~08
   - 완료 조건: 타워 역할·발사 스냅샷·저항·중첩·만료·VFX/게임 상태 분리 검증
 
-- [ ] **ECON-01 — 원자적 경제 거래와 보상**
+- [x] **ECON-01 — 원자적 경제 거래와 보상** (2026-11-24 `main` 반영)
   - 담당: claude-main 계약(`docs/SIM-CONTRACT.md` 13절), 구현 claude-1(worktree `wt-econ-01`, 브랜치 `feat/econ-01`). 사용자 결정(2026-11-24): 설치·강화는 준비·전투 모두, 판매는 준비만
   - 선행: SIM-01, DATA-01
   - 범위: 설치·강화·판매, actuallyPaid, 환급 한 번 내림, kill/wave award exactly-once, stage 독립 골드
   - QA: ECOD-01~20, COREG-05~06, BALX-09~12
   - 완료 조건: 실패·중복·동시 조건·retry 케이스에서 경제·점유 불변식 만족
+  - 결과: 시도 코어가 build·upgrade·sell·setTargeting 직접 처리, 스냅샷 `towers`, 명령 훅 제거, `ATTEMPT_CODE_VERSION` attempt-v2. lint/typecheck/test(439 passed)/build exit 0. codex-main 리뷰 F1(음수 좌표 접수) 수정 → **재리뷰 1 통과**(@`cc4059a`, `.codex-out/ECON-01-review.md`)
 
 - [ ] **SIM-03 — 결정적 리플레이·실패 주입·회귀 기반**
   - 담당: 구현 담당 claude-main 배정, codex-main 테스트 전략/독립 리뷰
