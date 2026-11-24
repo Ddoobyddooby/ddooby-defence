@@ -60,10 +60,10 @@
 |---|---|---|---|---|---|
 | REQ-WAVE-01 | 3 Stage × 5 Wave 고정, 5개 역할 순서 | SPEC 1·6절 | DATA-01 | `content/validate.test.ts`(스테이지 3·웨이브 5·waveIndex·role 순서) | **통과**(`ceded17`, 검증기) |
 | REQ-WAVE-02 | Stage 1의 5개 웨이브에 적 4종·특성 3종 모두 등장 | SPEC 6절 | DATA-01(검증기), BAL-01 | `content/validate.test.ts`(Stage 1 적·특성 누락 시 Stage 1만 오류) | **통과**(`ceded17`, 검증기). 실제 구성은 BAL-01 |
-| REQ-WAVE-03 | 설계 의도 매트릭스와 Segment 출현 데이터 분리, Segment는 고정 일정(시작·간격·유형·특성·수량), 같은 웨이브 내 겹침 허용 | SPEC 6절, SIM-CONTRACT 2절 | DATA-01, SIM-01 | `sim/time.test.ts` TECH-02/T04·T05·T08, `content/validate.test.ts`, `content/expandWave.test.ts` | 부분 통과(`ceded17`, Segment 스키마·범위·전개). 웨이브 실행은 SIM-01 |
-| REQ-WAVE-04 | 동일 예약 시각은 원본 데이터 순서 → 적 ID 순 | SPEC 6절, SIM-CONTRACT 5절 | TECH-02, SIM-01 | `sim/time.test.ts` TECH-02/T08, `content/expandWave.test.ts`(겹치는 Segment 순서) | 부분 통과(`ceded17`, 전개 순서). 실제 생성 단계는 SIM-01 |
-| REQ-WAVE-05 | 웨이브 사이 중첩 없음, 완료 = 예약 생성 전부 완료 + 생존 적 0 | SPEC 6절 | SIM-01 | — | 설계됨 |
-| REQ-WAVE-06 | 조기 시작·준비 타이머 만료는 정확히 한 번 전투 시작, 조기 시작 보너스 없음 | SPEC 6절, SIM-CONTRACT 2.1 | SIM-01, ECON-01 | `sim/testing/toySim.test.ts` TECH-02/T06·T07 | 부분 통과(`1d3c829`, toy 타이머·조기 시작 시점). 실제 전투 전환은 SIM-01 |
+| REQ-WAVE-03 | 설계 의도 매트릭스와 Segment 출현 데이터 분리, Segment는 고정 일정(시작·간격·유형·특성·수량), 같은 웨이브 내 겹침 허용 | SPEC 6절, SIM-CONTRACT 2절 | DATA-01, SIM-01 | `sim/time.test.ts` TECH-02/T04·T05·T08, `content/validate.test.ts`, `content/expandWave.test.ts`, `attempt/attempt.test.ts`(일정대로 생성) | **통과**(`3ff5742`, 스키마·전개·실제 생성) |
+| REQ-WAVE-04 | 동일 예약 시각은 원본 데이터 순서 → 적 ID 순 | SPEC 6절, SIM-CONTRACT 5절 | TECH-02, SIM-01 | `sim/time.test.ts` TECH-02/T08, `content/expandWave.test.ts`, `attempt/attempt.test.ts`(같은 틱 여러 생성 순서) | **통과**(`3ff5742`) |
+| REQ-WAVE-05 | 웨이브 사이 중첩 없음, 완료 = 예약 생성 전부 완료 + 생존 적 0 | SPEC 6절 | SIM-01 | `attempt/attempt.test.ts`(웨이브 사이 중첩 없음, 완료 = 전원 생성+생존 0) | **통과**(`3ff5742`) |
+| REQ-WAVE-06 | 조기 시작·준비 타이머 만료는 정확히 한 번 전투 시작, 조기 시작 보너스 없음 | SPEC 6절, SIM-CONTRACT 2.1 | SIM-01, ECON-01 | `sim/testing/toySim.test.ts` T06·T07, `attempt/attempt.test.ts`(타이머 만료·조기 시작 1회, 전투 중 startWave 거부) | **통과**(`3ff5742`) |
 | REQ-WAVE-07 | 3맵·15웨이브 사전 검증 + 진입 재검증, 오류 스테이지 격리·진단, 가짜 데이터 자동 대체 금지 | SPEC 10절, PLAN 3.3 | DATA-01, UI-01 | `content/validate.test.ts`(전역/스테이지 격리, 오류 전부 수집, 진입 재검증 동일, 자동 보정 없음), `content/stageHash.test.ts` | 부분 통과(`ceded17`, 코어 검증·격리). 스테이지 카드 오류 표시는 UI-01 |
 
 ### REQ-ECON — 경제·원자성·판매 (게이트 ECON, QA ECOD)
@@ -75,29 +75,29 @@
 | REQ-ECON-03 | 강화 성공 = 차감·레벨 변경·actuallyPaid 누적 원자적 | SPEC 8절 | ECON-01 | — | 설계됨 |
 | REQ-ECON-04 | 실패한 명령은 어떤 상태도 바꾸지 않음 | SPEC 8절, SIM-CONTRACT 4절 | ECON-01 | `sim/testing/toySim.test.ts` TECH-02/Q03·Q05·Q06 | 부분 통과(`1d3c829`, toy) |
 | REQ-ECON-05 | 적 유효 사망 이벤트당 처치 골드 정확히 한 번 | SPEC 8절, SIM-CONTRACT 5절 | ECON-01 | `sim/testing/toySim.test.ts` TECH-02/Q10(소비 키 중복 차단) | 부분 통과(`1d3c829`, 중복 키 차단만). 실제 사망 처리는 SIM-02·ECON-01 |
-| REQ-ECON-06 | 웨이브 완료 보상 정확히 한 번, 패배 시 미지급 | SPEC 7·8절 | ECON-01, SIM-01 | `sim/testing/toySim.test.ts` TECH-02/Q10 | 부분 통과(중복 키 차단만) |
+| REQ-ECON-06 | 웨이브 완료 보상 정확히 한 번, 패배 시 미지급 | SPEC 7·8절 | ECON-01, SIM-01 | `attempt/attempt.test.ts`(waveClear 키 1회, 패배 시 미지급) | **통과**(`3ff5742`) |
 | REQ-ECON-07 | 판매는 준비 단계에서만, 확인 후 실행 시 재검증, 전투로 넘어간 확인창 무효 | SPEC 8·9절 | ECON-01, UI-01 | `sim/testing/toySim.test.ts` TECH-02/Q08 | 부분 통과(`1d3c829`, 코어 재검증). 확인창은 UI-01 |
 | REQ-ECON-08 | 환급 = `floor(actuallyPaid × 환급률)` 내림 한 번, 제거·환급 원자적, 중복 환급 방지 | SPEC 8절, SIM-CONTRACT 3.3 | ECON-01 | `sim/intmath.test.ts`·`sim/formulas.test.ts` TECH-02/N13, `sim/testing/toySim.test.ts` TECH-02/Q06 | 부분 통과(`1d3c829`, 산식·toy 판매). 강화 누적 포함은 ECON-01 |
-| REQ-ECON-09 | 일시정지·결과 단계의 게임플레이 명령 거부 | SPEC 8절, SIM-CONTRACT 4절 | ECON-01, SIM-01 | `sim/commands.test.ts` TECH-02/Q09 | 부분 통과(`1d3c829`, 접수 거부) |
-| REQ-ECON-10 | 재도전 시 이전 시도의 정산 ID·누적 비용 소멸 | SPEC 8·10절 | SIM-01, ECON-01 | `sim/ids.test.ts` TECH-02/Q01, `sim/replay.test.ts` TECH-02/R06 | 부분 통과(`1d3c829`, 카운터·코어 재사용 차단). 실제 재도전 흐름은 SIM-01 |
+| REQ-ECON-09 | 일시정지·결과 단계의 게임플레이 명령 거부 | SPEC 8절, SIM-CONTRACT 4절 | ECON-01, SIM-01 | `sim/commands.test.ts` Q09, `attempt/attempt.test.ts`·`attempt/attempt.hooks.test.ts`(pause·결과 단계 명령 거부) | **통과**(`3ff5742`) |
+| REQ-ECON-10 | 재도전 시 이전 시도의 정산 ID·누적 비용 소멸 | SPEC 8·10절 | SIM-01, ECON-01 | `sim/ids.test.ts` Q01, `sim/replay.test.ts` R06, `attempt/attempt.test.ts`(재도전 카운터·소비 키 초기화) | 부분 통과(`3ff5742`, 코어). 타워 actuallyPaid 초기화는 ECON-01 |
 | REQ-ECON-11 | 설치 가격은 타워 종류별 1개이고 모든 스테이지에 동일, 강화 가격은 종류·레벨별 고정 명시값 | SPEC 3·8절 | DATA-01, ECON-01 | `content/validate.test.ts`(설치 가격 타워당 1개, 스테이지 데이터에 가격 없음) | 부분 통과(`ceded17`, 스키마). 실제 차감은 ECON-01 |
 
 ### REQ-STATE — 틱·시도·승패·저장 (게이트 CORE·STATE, QA INT·DATA)
 
 | ID | 요구 | 근거 | TASK | 테스트 위치 | 상태 |
 |---|---|---|---|---|---|
-| REQ-STATE-01 | 논리 틱 8단계 순서 고정 | SPEC 7절 | SIM-01 | — | 설계됨 |
+| REQ-STATE-01 | 논리 틱 8단계 순서 고정 | SPEC 7절 | SIM-01 | `attempt/attempt.test.ts`·`attempt/attempt.hooks.test.ts`(단계·훅 호출 순서) | **통과**(`3ff5742`, 8단계 순서·확장 지점). 2·4단계 내용은 SIM-02 |
 | REQ-STATE-02 | 같은 틱에 생성된 적도 공격 대상 | SPEC 7절 | SIM-02 | — | 설계됨 |
-| REQ-STATE-03 | 1단계 명령은 같은 틱 5단계 처치 골드를 쓸 수 없음 | SPEC 7절 | SIM-01, ECON-01 | — | 설계됨 |
-| REQ-STATE-04 | 기지 파괴와 웨이브 완료가 같은 틱이면 패배 우선, 보상 없음 | SPEC 7절 | SIM-01 | — | 설계됨 |
-| REQ-STATE-05 | 마지막 웨이브 정상 완료 시 보상 한 번 후 승리 | SPEC 7절 | SIM-01, ECON-01 | — | 설계됨 |
-| REQ-STATE-06 | 승패 결과 이후 게임플레이 상태 불변, 순수 VFX만 잔존 | SPEC 7절, SIM-CONTRACT 2.1 | SIM-01, UI-01 | `sim/testing/toySim.test.ts`·`sim/replay.test.ts` TECH-02/R08(결과 후 step 오류) | 부분 통과(`1d3c829`, toy 결과 단계). VFX는 UI-01 |
+| REQ-STATE-03 | 1단계 명령은 같은 틱 5단계 처치 골드를 쓸 수 없음 | SPEC 7절 | SIM-01, ECON-01 | `attempt/attempt.test.ts`(1단계 명령이 같은 틱 처치 골드 사용 불가) | **통과**(`3ff5742`) |
+| REQ-STATE-04 | 기지 파괴와 웨이브 완료가 같은 틱이면 패배 우선, 보상 없음 | SPEC 7절 | SIM-01 | `attempt/attempt.test.ts`(기지 파괴+웨이브 완료 같은 틱 → defeat·보상 없음) | **통과**(`3ff5742`) |
+| REQ-STATE-05 | 마지막 웨이브 정상 완료 시 보상 한 번 후 승리 | SPEC 7절 | SIM-01, ECON-01 | `attempt/attempt.test.ts`(마지막 웨이브 보상 1회 후 victory) | **통과**(`3ff5742`) |
+| REQ-STATE-06 | 승패 결과 이후 게임플레이 상태 불변, 순수 VFX만 잔존 | SPEC 7절, SIM-CONTRACT 2.1 | SIM-01, UI-01 | `attempt/attempt.test.ts`·`attempt/attempt.hooks.test.ts`(결과 후 step·명령·pause·저장된 쓰기 함수 거부) | 부분 통과(`3ff5742`, 게임플레이 불변). VFX 잔존은 UI-01 |
 | REQ-STATE-07 | 논리 틱 50ms, 콘텐츠 시간 50ms 배수·하한, 정수 고정소수점(mt·bp), 비율 반올림 | SPEC 7절, SIM-CONTRACT 2·3절 | TECH-02 | `sim/time.test.ts` T01~T04, `sim/intmath.test.ts` N01~N10, `sim/formulas.test.ts` N11~N14 | **통과**(`1d3c829`, 224 passed) |
-| REQ-STATE-08 | 같은 틱 복수 명령은 seq 숫자 순, 앞 명령 반영 상태로 순차 재검증, payload 동결 | SIM-CONTRACT 4절 | TECH-02, SIM-01 | `sim/commands.test.ts` Q04·Q12~Q14, `sim/testing/toySim.test.ts` Q03·Q07 | 부분 통과(`1d3c829`, 큐 접수·동결·seq 정렬은 제품 모듈, 순차 재검증은 toy). 실제 게임플레이 명령 적용은 SIM-01 |
+| REQ-STATE-08 | 같은 틱 복수 명령은 seq 숫자 순, 앞 명령 반영 상태로 순차 재검증, payload 동결 | SIM-CONTRACT 4절 | TECH-02, SIM-01 | `sim/commands.test.ts` Q04·Q12~Q14, `attempt/attempt.test.ts`·`attempt/attempt.hooks.test.ts`(seq 순 적용·명령 단위 롤백) | **통과**(`3ff5742`, 실제 시도 코어). 설치·판매 등 명령 내용은 ECON-01 |
 | REQ-STATE-09 | 동일 코드·콘텐츠·초기 상태·입력 → 틱별 상태·이벤트 동일, 첫 불일치 틱·필드 진단 | SPEC 11절, SIM-CONTRACT 7절 | TECH-02, SIM-03 | `sim/canonical.test.ts`·`sim/hash.test.ts` S01~S09, `sim/replay.test.ts` R01·R03~R09·I1 (R02 "같은 세션 재사용과 무관한 재생"은 R06 describe 안의 테스트로 검증) | 부분 통과(`1d3c829`, toy 리플레이). 실제 전투 리플레이는 SIM-03 |
 | REQ-STATE-10 | 코어 결정성 금지(난수·벽시계·환경 의존 수학), 상태 내 소수 금지 | SIM-CONTRACT 6·7.1절 | TECH-02 | `sim/lint.test.ts` L01~L03, `sim/canonical.test.ts` L04 | **통과**(`1d3c829`). 별칭 우회는 lint 미검출 → 코드 리뷰 게이트 |
-| REQ-STATE-11 | 일시정지 시 게임 시간·VFX 동결, 접수된 명령 보존 후 재개 시 재검증 | SPEC 9절, SIM-CONTRACT 4절 | SIM-01, UI-01 | `sim/testing/toySim.test.ts` TECH-02/Q09(큐 보존) | 부분 통과(`1d3c829`, 코어 큐). VFX 동결은 UI-01 |
-| REQ-STATE-12 | 재도전 시 타워·적·골드·둔화·투사체·타이머·정산 초기화, 클리어 플래그 유지 | SPEC 10절 | SIM-01, SAVE-01 | — | 설계됨 |
+| REQ-STATE-11 | 일시정지 시 게임 시간·VFX 동결, 접수된 명령 보존 후 재개 시 재검증 | SPEC 9절, SIM-CONTRACT 4절 | SIM-01, UI-01 | `attempt/attempt.test.ts`·`attempt/attempt.hooks.test.ts`(pause 큐 보존·재개, step 중 pause 금지) | 부분 통과(`3ff5742`, 코어). VFX 동결·오버레이는 UI-01 |
+| REQ-STATE-12 | 재도전 시 타워·적·골드·둔화·투사체·타이머·정산 초기화, 클리어 플래그 유지 | SPEC 10절 | SIM-01, SAVE-01 | `attempt/attempt.test.ts`(재도전 스냅샷 0 동일·유입 없음) | 부분 통과(`3ff5742`, 코어 초기화). 클리어 플래그 유지는 SAVE-01, 타워·투사체 초기화는 SIM-02·ECON-01에서 재확인 |
 | REQ-STATE-13 | 로컬 클리어 플래그 저장, 해금은 플래그에서 파생, 클라우드 없음 | SPEC 10절 | SAVE-01 | — | 설계됨 |
 | REQ-STATE-14 | 저장 실패 시 오류·재시도, 새로고침 시 미저장 클리어 손실 안내, 세션 해금 유지 | SPEC 10절 | SAVE-01, UI-01 | — | 설계됨 |
 | REQ-STATE-15 | 이미 얻은 클리어는 재플레이 실패에도 유지 | SPEC 10절 | SAVE-01 | — | 설계됨 |
@@ -148,7 +148,7 @@
 | TECH-02 | STATE-07·08·09·10, TOWER-07, ENEMY-03·05, WAVE-03·04·06, ECON-02·04·05·06·07·08·09·10, STATE-06·11 (기초·toy 수준) | 완료. 표의 `부분 통과` 행은 후속 태스크가 이어서 채움 |
 | MAP-01 | MAP-01·02·03·05 | 완료 |
 | DATA-01 | MAP-02, TOWER-02·03·04, ENEMY-01·02·07, WAVE-01·02·03·07, ECON-11 | 완료 |
-| SIM-01 | STATE-01·03·04·05·06·08·11·12, WAVE-03·04·05·06, ECON-06·09·10 | 미착수 |
+| SIM-01 | STATE-01·03·04·05·06·08·11·12, WAVE-03·04·05·06, ECON-06·09·10 | 완료 |
 | SIM-02 | TOWER-01·03·05~12, ENEMY-03~07, MAP-04, STATE-02 | 미착수 |
 | ECON-01 | ECON-01~11, MAP-03, STATE-03·05, WAVE-06 | 미착수 |
 | SIM-03 | STATE-09, QA-06 | 미착수 |
