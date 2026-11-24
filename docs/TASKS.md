@@ -9,13 +9,13 @@
 > 다른 PC·새 세션에서는 이 섹션부터 읽는다. 세션을 마칠 때 claude-main이 갱신한다.
 
 - **최종 갱신:** 2026-11-24, `main` 기준
-- **완료:** DOC-01, DOC-02(추적표 골격), TECH-02, MAP-01(결정성 계약·기초 모듈), ART-01 시안 선택(Stage 1 v2·Stage 2·Stage 3), TECH-01 스캐폴딩(Next.js 16 + TS + Phaser 4, 검증 명령은 `README.md`), 전체 문서 탭 이름 통일
+- **완료:** DOC-01, DOC-02(추적표 골격), TECH-02, MAP-01, DATA-01(결정성 계약·기초 모듈), ART-01 시안 선택(Stage 1 v2·Stage 2·Stage 3), TECH-01 스캐폴딩(Next.js 16 + TS + Phaser 4, 검증 명령은 `README.md`), 전체 문서 탭 이름 통일
 - **사용자 결정:** TECH-01은 codex-main 독립 리뷰 없이 `main` 반영으로 마무리(2026-11-24)
 - **다음 작업 순서 (2026-11-24 사용자 확정):**
   1. ~~DOC-01~~ 완료(2026-11-24, 재리뷰 1 통과). 문서 상호검증: 스택 확정 후 남은 "미정·확인 필요" 문구 정리 + codex-main 문서 QA (ART-01·TECH-01이 DOC-01 선행 없이 진행된 점 보완)
   2. ~~TECH-02~~ 완료(2026-11-24). 계약 `docs/SIM-CONTRACT.md`(재리뷰 2 통과) + 기초 모듈 `src/game/core/sim/`(claude-1 구현, 재리뷰 1 통과)
   3. ~~DOC-02~~ 완료(2026-11-24). 추적표 `docs/TRACE.md`, 태스크 반영 때마다 해당 행 갱신
-  4. ~~MAP-01~~ 완료(2026-11-24, 3맵 후보·기하 모듈). 다음 **DATA-01**(타워·적·특성·경제·웨이브 스키마와 15웨이브 검증기, 맵은 `src/game/content/stageMaps.ts` 연결)
+  4. ~~MAP-01~~ 완료(2026-11-24, 3맵 후보·기하 모듈). ~~DATA-01~~ 완료(2026-11-24, 스키마·검증기). 다음 **SIM-01**(시도·웨이브 상태 머신, 8단계 틱) — 테스트는 TEST_ONLY 콘텐츠
 - **운영 흐름:** 사용자는 claude-main 탭에서 지시 → 코딩 claude-1/2, QA·리뷰 codex-main, 디자인 codex-design (WORKFLOW 2~4절). `main` 반영·push는 claude-main 탭에서 사용자 직접 확인 후
 - **구현 탭 작업 방식:** claude-1/2는 공유 폴더가 아닌 전용 git worktree(`../wt-<task>`)와 작업 브랜치에서 작업, 병합 후 worktree·브랜치 삭제
 - **브랜치 정리:** `chore/tech-01-scaffold`·`docs/doc-01-crosscheck` 로컬·원격 삭제 완료(2026-11-24, 사용자 승인)
@@ -84,11 +84,12 @@
   - QA: MAPD-01~46, VAL-01~16, UI 좌표 검증
   - 완료 조건: 세 스테이지 모두 유효한 후보 데이터·검증 증거
 
-- [ ] **DATA-01 — 데이터 스키마·15개 웨이브 검증기**
+- [x] **DATA-01 — 데이터 스키마·15개 웨이브 검증기** (2026-11-24 `main` 반영)
   - 담당: claude-main 조정, 구현 claude-1(worktree `wt-data-01`, 브랜치 `feat/data-01`)
   - 선행: TECH-02, MAP-01의 데이터 계약
   - 범위: 타워·적·특성·스테이지 경제·SpawnSegment, 전체 15 Wave 사전 검사와 진입 시 재검사, 오류 격리
   - 계약: `docs/SIM-CONTRACT.md` 11절(스키마·기술 상한·교차 규칙·오류 격리·웨이브 전개). 사용자 결정(2026-11-24): 사거리 순서는 같은 레벨끼리 비교. 실제 수치는 미승인 → 테스트는 `TEST_ONLY` 데이터
+  - 결과: `src/game/core/content/`(검증·격리·진입 재검증·스테이지 해시·웨이브 전개). lint/typecheck/test(356 passed)/build exit 0. codex-main 리뷰 F1~F3·C1·C2 → 재리뷰 1 RR1-F2a·F2b → **재리뷰 2 통과**(@`ceded17`, `.codex-out/DATA-01-review.md`)
   - QA: WAVD-01~15, VAL-01~16, WBL-01~18, COREG-07~08
   - 완료 조건: 정상/누락/중복/역순/오류 데이터의 예상 차단 및 결정적 전개 검증
 
