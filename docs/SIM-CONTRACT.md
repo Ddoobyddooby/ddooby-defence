@@ -204,7 +204,7 @@ Stage 1                Stage 2                Stage 3
 
 | 항목 | 필드 |
 |---|---|
-| `towers` | 정확히 4개, `type` ∈ `archer`·`ballista`·`mage`·`frost` 각 1개. `buildCost`, `upgradeCosts: [Lv2, Lv3, Lv4]`, `levels`: Lv1 기본값 + `[Lv2, Lv3, Lv4]` 증분(각 증분은 Lv1과 같은 필드의 **정수 차이**, 음수 허용, 0 허용) |
+| `towers` | 정확히 4개, `type` ∈ `archer`·`ballista`·`mage`·`frost` 각 1개. `buildCost`, `upgradeCosts: [Lv2, Lv3, Lv4]`, `levels: { base, increments: [Lv2, Lv3, Lv4] }`. 각 증분은 base와 **같은 필드 전부**를 가진 정수(음수·0 허용). **증분은 강화 1회마다 누적**된다: `Lv2 = base + inc[0]`, `Lv3 = Lv2 + inc[1]`, `Lv4 = Lv3 + inc[2]` |
 | 타워 레벨 필드(공통) | `damage`, `attackPeriodMs`, `rangeMt`, `projectileSpeedMtPerSec`, `projectileTtlMs` |
 | 타워 레벨 필드(종류별) | `mage`: `aoeRadiusMt` · `frost`: `slowBp`, `slowDurationMs`. 다른 종류에 이 필드가 있으면 오류 |
 | `enemies` | 정확히 4개, `type` ∈ `normal`·`fast`·`heavy`·`swarm` 각 1개. `hp`, `speedMtPerSec`, `baseDamage`(기지 피해), `killReward` |
@@ -255,7 +255,9 @@ Stage 1                Stage 2                Stage 3
   - Stage 1 등장 조건 위반은 Stage 1의 오류.
 - **진입 재검증:** 스테이지 시작 직전에 전역 항목 + 그 스테이지를 같은 검증기로 다시 검사. 실패하면 시작하지 않는다.
 - **검증 통과 결과물**은 깊은 복사 후 동결한 객체로 반환하고, 시도는 그 사본만 읽는다(TECH-02 리뷰 I2와 같은 원칙).
-- **스테이지 콘텐츠 해시**(7.2절 `contentHash`) = 정규 JSON `{ "global": {contentVersion, towers, enemies, traits, economy}, "stage": <그 스테이지> }`의 FNV-1a 64.
+- **정규 순서:** 통과 결과에서 `towers`는 `archer`·`ballista`·`mage`·`frost`, `enemies`는 `normal`·`fast`·`heavy`·`swarm`, `traits`는 `controlResistance`·`hpBoost`·`speedBoost` 순으로 정렬한다(입력 배열 순서는 의미 없음). `stages`·`waves`·`segments`는 입력 순서가 의미이므로 유지한다. 오류 경로는 **입력** 인덱스를 쓴다.
+- **엄격 필드:** 계약에 없는 필드가 있으면 그 경로의 오류.
+- **스테이지 콘텐츠 해시**(7.2절 `contentHash`) = **검증 통과 결과(정규 순서)** 기준 정규 JSON `{ "global": {contentVersion, towers, enemies, traits, economy}, "stage": <그 스테이지> }`의 FNV-1a 64. 따라서 타워·적·특성의 입력 배열 순서만 다른 묶음은 같은 해시다.
 
 ### 11.5 웨이브 전개
 
