@@ -105,7 +105,7 @@
   - 결과: `src/game/core/attempt/`(createAttempt·8단계 틱·확장 지점 훅·리플레이 연결), 스테이지 `baseHp` 필드 추가. lint/typecheck/test(419 passed)/build exit 0. codex-main 리뷰 F1~F4(훅 수명·step 중 pause·명령 롤백·생성 경로) 수정 → **재리뷰 1 통과**(@`3ff5742`, `.codex-out/SIM-01-review.md`). 남은 연결: 타워·투사체·둔화 상태와 스냅샷 필드는 SIM-02·ECON-01에서 코어에 추가
 
 - [ ] **SIM-02 — 타워·적·타깃·투사체·둔화**
-  - 담당: 구현 담당 claude-main 배정
+  - 담당: claude-main 계약(`docs/SIM-CONTRACT.md` 14절), 구현 claude-1(worktree `../ddooby-defence-sim-02`, 브랜치 `feat/sim-02`). 사용자 결정(2026-11-24): 설치 틱 즉시 발사 가능, 4단계 HP 0 적 즉시 사망 취급, 강화 시 남은 대기 유지
   - 선행: SIM-01, DATA-01
   - 범위: 4타워·3강화·4적·3특성, 타깃 4종, ST·AoE 발사/명중, slow source 상태
   - QA: BALD-01~10, ENMD-01~18, INT-01~15, BALX-03~08
