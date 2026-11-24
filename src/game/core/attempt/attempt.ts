@@ -1,17 +1,20 @@
 // SIM-01 — 시도 상태 머신·8단계 틱 (SIM-CONTRACT 12절). 순수 코어: 벽시계·난수 없음, 안전 정수만 상태에 둔다.
-// 설치·강화·판매·타깃 설정(ECON-01, 13절)은 코어가 직접 처리한다. 발사·명중·둔화(SIM-02)는 12.4 확장 지점(AttemptHooks).
+// 설치·강화·판매·타깃 설정(ECON-01, 13절)과 발사·투사체·둔화(SIM-02, 14절)는 코어가 직접 처리한다. 남은 훅은 TEST_ONLY `fire` 하나.
 import { isInsideGrid } from "../grid";
-import { compileStageMap, isBuildable, type CompiledStageMap } from "../map/stageMap";
+import { compileStageMap, isBuildable, progressToPosition, type CompiledStageMap, type PointMt } from "../map/stageMap";
 import { expandWave, type ExpandedSpawn } from "../content/expandWave";
 import type { ContentError, EnemyDef, StageContent, TowerDef, TowerType, TraitDef } from "../content/types";
 import { validateStageForEntry } from "../content/validate";
+import { towerLevelStats } from "../content/levelStats";
 import { cloneCanonical, sortByNumber, sortCodeUnit } from "../sim/canonical";
 import { drainCommands, submitCommand, type Command, type SubmitResult, type TargetingMode } from "../sim/commands";
 import { SimStateError } from "../sim/errors";
 import { EVENT_TYPE, REJECT_REASON, type EventType, type RejectReason } from "../sim/events";
-import { baseSpeedPerTick, boostedMaxHp, boostedSpeedPerTick, refundFor } from "../sim/formulas";
+import { baseSpeedPerTick, boostedMaxHp, boostedSpeedPerTick, effectiveSlowBp, refundFor, slowedSpeedPerTick } from "../sim/formulas";
 import { createIdCounters, takeId, type IdCounters } from "../sim/ids";
-import { addSafe, assertSafeInteger } from "../sim/intmath";
+import { addSafe, assertSafeInteger, isqrt, mulSafe, roundDiv } from "../sim/intmath";
+import { durationMsToTicks } from "../sim/time";
+import { pickTarget, type TargetCandidate } from "./combat";
 import type {
   AttemptEvent,
   AttemptHooks,
@@ -19,9 +22,10 @@ import type {
   AttemptPhase,
   EnemyView,
   LedgerEntry,
+  SlowView,
 } from "./types";
 
-export const ATTEMPT_CODE_VERSION = "attempt-v2";
+export const ATTEMPT_CODE_VERSION = "attempt-v3";
 
 /** 생성 경로를 createAttempt 하나로 강제하는 모듈 비공개 토큰. */
 const CREATE_TOKEN: unique symbol = Symbol("AttemptCore.create");
@@ -46,6 +50,23 @@ interface EnemyState {
   pathProgress: number;
   baseDamage: number;
   killReward: number;
+  /** 활성 둔화, sourceTowerId 오름차순(14.2). */
+  slows: SlowView[];
+}
+
+interface ProjectileState {
+  projectileId: number;
+  towerId: number;
+  kind: "single" | "aoe";
+  targetEnemyId: number | null;
+  pos: PointMt;
+  impact: PointMt | null;
+  speedPerTick: number;
+  damage: number;
+  expireTick: number;
+  aoeRadiusMt: number | null;
+  slowBp: number | null;
+  slowDurationTicks: number | null;
 }
 
 interface TowerState {
@@ -56,6 +77,8 @@ interface TowerState {
   targetingMode: TargetingMode;
   /** 설치 비용 + 성공한 강화 가격의 합(환급 기준, SPEC 8절). */
   actuallyPaid: number;
+  /** T >= nextFireTick 이면 발사 가능. 설치 틱으로 시작, 강화는 바꾸지 않는다(14.2). */
+  nextFireTick: number;
 }
 
 const NO_OCCUPIED: ReadonlySet<number> = new Set();
@@ -79,6 +102,7 @@ interface State {
   counters: IdCounters;
   enemies: EnemyState[];
   towers: TowerState[];
+  projectiles: ProjectileState[];
   queue: Command[];
   consumed: string[];
   ledger: LedgerEntry[];
@@ -125,8 +149,10 @@ function withLease<R>(fn: (lease: Lease) => R): R {
 }
 
 function view(e: EnemyState): EnemyView {
-  return Object.freeze({ ...e });
+  return Object.freeze({ ...e, slows: Object.freeze(e.slows.map((x) => Object.freeze({ ...x }))) });
 }
+
+const dist2 = (a: PointMt, b: PointMt): number => addSafe(mulSafe(a.x - b.x, a.x - b.x), mulSafe(a.y - b.y, a.y - b.y));
 
 export class AttemptCore {
   private s: State;
@@ -164,6 +190,7 @@ export class AttemptCore {
       counters: createIdCounters(),
       enemies: [],
       towers: [],
+      projectiles: [],
       queue: [],
       consumed: [],
       ledger: [],
@@ -222,12 +249,17 @@ export class AttemptCore {
         baseHp: s.baseHp,
         consumedEconomyEvents: sortCodeUnit(s.consumed),
         counters: { ...s.counters },
-        enemies: sortByNumber(s.enemies, (e) => e.id).map((e) => ({ ...e })),
+        enemies: sortByNumber(s.enemies, (e) => e.id).map((e) => ({ ...e, slows: sortByNumber(e.slows, (x) => x.sourceTowerId).map((x) => ({ ...x })) })),
         gold: s.gold,
         outcome: s.outcome,
         paused: s.paused,
         phase: s.phase,
         prepTicksRemaining: s.prepTicksRemaining,
+        projectiles: sortByNumber(s.projectiles, (p) => p.projectileId).map((p) => ({
+          ...p,
+          impact: p.impact === null ? null : { x: p.impact.x, y: p.impact.y },
+          pos: { x: p.pos.x, y: p.pos.y },
+        })),
         queue: sortByNumber(s.queue, (c) => c.seq).map((c) => ({
           applyTick: c.applyTick,
           kind: c.kind,
@@ -240,6 +272,7 @@ export class AttemptCore {
           actuallyPaid: t.actuallyPaid,
           cell: { col: t.cell.col, row: t.cell.row },
           level: t.level,
+          nextFireTick: t.nextFireTick,
           targetingMode: t.targetingMode,
           towerId: t.towerId,
           type: t.type,
@@ -266,7 +299,7 @@ export class AttemptCore {
       this.stage1Commands(work);
       this.stage2Slows(work);
       this.stage3Spawn(work);
-      this.stage4Fire(work);
+      this.stage4Combat(work);
       this.stage5Deaths(work);
       this.stage6Move(work);
       const pending = this.stage7Result(work);
@@ -331,7 +364,7 @@ export class AttemptCore {
     const cost = this.towerDef(towerType).buildCost;
     if (w.gold < cost) return reject(REJECT_REASON.insufficientGold);
     const towerId = takeId(w.counters, "tower");
-    w.towers.push({ towerId, type: towerType, cell: { col: tile.col, row: tile.row }, level: 1, targetingMode: "first", actuallyPaid: cost });
+    w.towers.push({ towerId, type: towerType, cell: { col: tile.col, row: tile.row }, level: 1, targetingMode: "first", actuallyPaid: cost, nextFireTick: k.T });
     this.emit(k, EVENT_TYPE.towerBuilt, { cell: { col: tile.col, row: tile.row }, cost, towerId, towerType });
     this.mustSettle(k, `build:c${c.seq}`, -cost, { seq: c.seq, towerId });
   }
@@ -389,11 +422,9 @@ export class AttemptCore {
     this.emit(k, EVENT_TYPE.waveStarted, fields);
   }
 
-  /** 2단계: 둔화 만료 확장 지점(SIM-02). SIM-01 은 바꿀 상태가 없다. */
+  /** 2단계: `T ≥ expireTick` 인 둔화를 모든 적에서 제거한다(14.3). 이벤트 없음. */
   private stage2Slows(k: Work): void {
-    const hook = this.hooks.expireSlows;
-    if (hook === undefined) return;
-    assertSync("expireSlows", hook({ tick: k.T, enemies: Object.freeze(sortByNumber(k.w.enemies, (e) => e.id).map(view)) }));
+    for (const e of k.w.enemies) e.slows = e.slows.filter((x) => x.expireTick > k.T);
   }
 
   /** 3단계: 이번 틱 일정 항목을 (틱, Segment 원본 순서, 순번) 순서대로 생성. 같은 틱 적은 4단계 대상이 된다. */
@@ -431,6 +462,7 @@ export class AttemptCore {
       pathProgress: 0,
       baseDamage: def.baseDamage,
       killReward,
+      slows: [],
     });
     this.emit(k, EVENT_TYPE.enemySpawned, {
       enemyId: id,
@@ -442,8 +474,133 @@ export class AttemptCore {
     });
   }
 
-  /** 4단계: 발사·충돌 확장 지점(SIM-02). HP 감소만 허용하고 제거는 5단계가 한다. */
-  private stage4Fire(k: Work): void {
+  /** 4단계(14.4): (a) 기존 투사체 → (b) 타워 발사 → TEST_ONLY `fire` 훅. HP 만 줄이고 제거는 5단계가 한다. */
+  private stage4Combat(k: Work): void {
+    this.advanceProjectiles(k);
+    this.fireTowers(k);
+    this.runFireHook(k);
+  }
+
+  private enemyPos(e: EnemyState): PointMt {
+    return progressToPosition(this.map, e.pathProgress);
+  }
+
+  /** (a) projectileId 오름차순. 취소 → 이동 → 명중/폭발 → 만료(명중 우선). */
+  private advanceProjectiles(k: Work): void {
+    const { w, T } = k;
+    for (const p of sortByNumber(w.projectiles, (x) => x.projectileId)) {
+      const target = p.kind === "single" ? w.enemies.find((e) => e.id === p.targetEnemyId && e.hp > 0) : undefined;
+      if (p.kind === "single" && target === undefined) {
+        this.removeProjectile(w, p);
+        this.emit(k, EVENT_TYPE.projectileCancelled, { projectileId: p.projectileId, reason: "targetGone" });
+        continue;
+      }
+      const goal: PointMt = target !== undefined ? this.enemyPos(target) : (p.impact as PointMt);
+      const dx = goal.x - p.pos.x;
+      const dy = goal.y - p.pos.y;
+      const rest2 = addSafe(mulSafe(dx, dx), mulSafe(dy, dy));
+      if (rest2 <= mulSafe(p.speedPerTick, p.speedPerTick)) {
+        p.pos = { x: goal.x, y: goal.y };
+        this.removeProjectile(w, p);
+        if (target !== undefined) this.hitSingle(k, p, target);
+        else this.explode(k, p);
+        continue;
+      }
+      const d = isqrt(rest2); // d > speedPerTick 이므로 목표를 지나치지 않는다
+      p.pos = { x: p.pos.x + roundDiv(mulSafe(dx, p.speedPerTick), d), y: p.pos.y + roundDiv(mulSafe(dy, p.speedPerTick), d) };
+      if (T >= p.expireTick) {
+        this.removeProjectile(w, p);
+        this.emit(k, EVENT_TYPE.projectileExpired, { projectileId: p.projectileId });
+      }
+    }
+  }
+
+  private removeProjectile(w: State, p: ProjectileState): void {
+    w.projectiles.splice(w.projectiles.indexOf(p), 1);
+  }
+
+  private damageEnemy(k: Work, e: EnemyState, p: ProjectileState): void {
+    e.hp = Math.max(0, e.hp - p.damage);
+    this.emit(k, EVENT_TYPE.enemyDamaged, { damage: p.damage, enemyId: e.id, hpAfter: e.hp, projectileId: p.projectileId, towerId: p.towerId });
+  }
+
+  private hitSingle(k: Work, p: ProjectileState, target: EnemyState): void {
+    this.damageEnemy(k, target, p);
+    if (p.slowBp !== null && p.slowDurationTicks !== null) this.applySlow(k, p, target, p.slowBp, p.slowDurationTicks);
+  }
+
+  /** 14.5: 같은 출처는 새 효과로 교체(약해져도), 다른 출처는 공존. 저항은 실효 bp 에 반영. */
+  private applySlow(k: Work, p: ProjectileState, e: EnemyState, baseSlowBp: number, durationTicks: number): void {
+    const traitDef = e.trait === null ? undefined : this.stage.global.traits.find((t) => t.type === e.trait);
+    const resist = e.trait === "controlResistance" ? (traitDef?.resistBp ?? 0) : 0;
+    const slowBp = effectiveSlowBp(baseSlowBp, resist);
+    const expireTick = addSafe(k.T, durationTicks);
+    const entry: SlowView = { sourceTowerId: p.towerId, slowBp, expireTick };
+    const i = e.slows.findIndex((x) => x.sourceTowerId === p.towerId);
+    if (i >= 0) e.slows[i] = entry;
+    else e.slows = sortByNumber([...e.slows, entry], (x) => x.sourceTowerId);
+    this.emit(k, EVENT_TYPE.slowApplied, { enemyId: e.id, expireTick, slowBp, sourceTowerId: p.towerId });
+  }
+
+  /** aoe: 폭발 이벤트 후 그 순간 살아 있는 적 중 충돌점과 거리² ≤ 반경² 인 적에게 enemyId 순 피해. */
+  private explode(k: Work, p: ProjectileState): void {
+    const impact = p.impact as PointMt;
+    const radius = p.aoeRadiusMt as number;
+    this.emit(k, EVENT_TYPE.projectileExploded, { projectileId: p.projectileId, x: impact.x, y: impact.y });
+    const r2 = mulSafe(radius, radius);
+    for (const e of sortByNumber(k.w.enemies, (x) => x.id)) {
+      if (e.hp > 0 && dist2(this.enemyPos(e), impact) <= r2) this.damageEnemy(k, e, p);
+    }
+  }
+
+  /** (b) towerId 오름차순. 후보가 없으면 nextFireTick 을 유지한다(준비된 채 대기). */
+  private fireTowers(k: Work): void {
+    const { w, T } = k;
+    for (const tower of sortByNumber(w.towers, (t) => t.towerId)) {
+      if (T < tower.nextFireTick) continue;
+      const stats = towerLevelStats(this.towerDef(tower.type), tower.level);
+      const center: PointMt = { x: tower.cell.col * 1000 + 500, y: tower.cell.row * 1000 + 500 };
+      const range2 = mulSafe(stats.rangeMt, stats.rangeMt);
+      const candidates: TargetCandidate[] = [];
+      for (const e of w.enemies) {
+        if (e.hp <= 0) continue;
+        const d2 = dist2(center, this.enemyPos(e));
+        if (d2 <= range2) candidates.push({ id: e.id, pathProgress: e.pathProgress, hp: e.hp, d2 });
+      }
+      const chosen = pickTarget(tower.targetingMode, candidates);
+      if (chosen === undefined) continue;
+      const target = w.enemies.find((e) => e.id === chosen.id) as EnemyState;
+      const aoe = tower.type === "mage";
+      const impact = aoe ? this.enemyPos(target) : null;
+      const projectileId = takeId(w.counters, "projectile");
+      const ttlTicks = durationMsToTicks(stats.projectileTtlMs, "projectileTtlMs");
+      w.projectiles.push({
+        projectileId,
+        towerId: tower.towerId,
+        kind: aoe ? "aoe" : "single",
+        targetEnemyId: aoe ? null : target.id,
+        pos: { x: center.x, y: center.y },
+        impact: impact === null ? null : { x: impact.x, y: impact.y },
+        speedPerTick: baseSpeedPerTick(stats.projectileSpeedMtPerSec),
+        damage: stats.damage,
+        expireTick: addSafe(T, ttlTicks),
+        aoeRadiusMt: aoe ? (stats.aoeRadiusMt as number) : null,
+        slowBp: tower.type === "frost" ? (stats.slowBp as number) : null,
+        slowDurationTicks: tower.type === "frost" ? durationMsToTicks(stats.slowDurationMs, "slowDurationMs") : null,
+      });
+      tower.nextFireTick = addSafe(T, durationMsToTicks(stats.attackPeriodMs, "attackPeriodMs"));
+      this.emit(k, EVENT_TYPE.projectileFired, {
+        impact: impact === null ? null : { x: impact.x, y: impact.y },
+        kind: aoe ? "aoe" : "single",
+        projectileId,
+        targetEnemyId: target.id,
+        towerId: tower.towerId,
+      });
+    }
+  }
+
+  /** TEST_ONLY 주입 훅. 코어 4단계 (b) 뒤에 실행된다(14.7). */
+  private runFireHook(k: Work): void {
     const fire = this.hooks.fire;
     if (fire === undefined) return;
     const { w } = k;
@@ -483,14 +640,8 @@ export class AttemptCore {
   private stage6Move(k: Work): void {
     const { w } = k;
     for (const e of sortByNumber(w.enemies, (x) => x.id)) {
-      let speed = e.speedPerTick;
-      if (this.hooks.enemySpeed) {
-        const r: unknown = this.hooks.enemySpeed(view(e));
-        assertSync("enemySpeed", r);
-        speed = r as number;
-      }
-      assertSafeInteger(speed, "enemySpeed");
-      if (speed < 1) throw new RangeError(`enemySpeed: 1 이상이어야 함 (${speed})`);
+      // 14.5: 가장 큰 실효 둔화 하나만 적용(나머지는 유지되어 만료 후 드러남). 최소 속도 1.
+      const speed = e.slows.length === 0 ? e.speedPerTick : slowedSpeedPerTick(e.speedPerTick, Math.max(...e.slows.map((x) => x.slowBp)));
       e.pathProgress = addSafe(e.pathProgress, speed);
       if (e.pathProgress >= this.pathLengthMt) {
         w.enemies.splice(w.enemies.indexOf(e), 1);
@@ -514,6 +665,13 @@ export class AttemptCore {
   /** 8단계: 결과 전환, 다음 웨이브 준비 진입(진입 틱은 타이머를 소비하지 않음), 준비 타이머 감소. */
   private stage8Cleanup(k: Work, pending: { outcome: AttemptOutcome | null; nextPrep: boolean }): void {
     const { w } = k;
+    // 14.7: 대상 적이 상태에 없는 single 투사체 정리(5단계 사망·6단계 기지 도달). 결과 틱에도 수행한다.
+    for (const p of sortByNumber(w.projectiles, (x) => x.projectileId)) {
+      if (p.kind === "single" && !w.enemies.some((e) => e.id === p.targetEnemyId)) {
+        this.removeProjectile(w, p);
+        this.emit(k, EVENT_TYPE.projectileCancelled, { projectileId: p.projectileId, reason: "targetGone" });
+      }
+    }
     if (pending.outcome !== null) {
       w.phase = pending.outcome;
       w.outcome = pending.outcome;

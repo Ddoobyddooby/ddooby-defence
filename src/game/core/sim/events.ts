@@ -29,6 +29,18 @@ export const EVENT_TYPE = {
   enemyReachedBase: "enemyReachedBase",
   /** 7단계 웨이브 완료(완료 보상은 같은 단계의 economySettled `waveClear:w{n}`). 패배 틱에는 없다. */
   waveCleared: "waveCleared",
+  /** 4단계(b) 타워 발사(SIM-02). 투사체 생성. */
+  projectileFired: "projectileFired",
+  /** 대상 적이 사라진 single 투사체 제거(4단계 시작 또는 8단계 정리, reason "targetGone"). */
+  projectileCancelled: "projectileCancelled",
+  /** 명중하지 못한 채 수명(expireTick)이 끝나 제거(aoe도 폭발하지 않음). */
+  projectileExpired: "projectileExpired",
+  /** aoe 투사체가 충돌점에 도달해 폭발(대상 0명이어도 남는다). */
+  projectileExploded: "projectileExploded",
+  /** 투사체 피해 적용(single 명중, aoe 범위 안 각 적). */
+  enemyDamaged: "enemyDamaged",
+  /** 둔화 적용·교체(실효값, 실효 0이어도 기록). */
+  slowApplied: "slowApplied",
 } as const;
 export type EventType = (typeof EVENT_TYPE)[keyof typeof EVENT_TYPE];
 

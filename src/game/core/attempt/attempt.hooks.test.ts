@@ -29,11 +29,8 @@ describe("F1 훅 쓰기 함수 수명", () => {
   it("저장한 damage 를 다음 틱의 다른 훅에서 호출 → 오류·상태 불변", () => {
     let saved: FireHookContext["damage"] | undefined;
     const core = createAttempt(bundle(), STAGE2_ID, 1, {
-      expireSlows(ctx) {
-        if (ctx.tick === 2) saved?.(1, 100);
-        return undefined;
-      },
       fire(ctx) {
+        if (ctx.tick === 2) saved?.(1, 100);
         saved ??= ctx.damage;
         return undefined;
       },
@@ -80,32 +77,11 @@ describe("F1 훅 쓰기 함수 수명", () => {
     expect(core.ledger()).toEqual([]);
     expect((core.snapshot().enemies as { hp: number }[])[0].hp).toBe(100);
   });
-  it("async expireSlows·enemySpeed 도 프로토콜 오류로 step 실패", async () => {
-    const make = (hooks: AttemptHooks) => {
-      const core = createAttempt(bundle(), STAGE2_ID, 1, hooks);
-      core.submit("build", { towerType: "archer", tile: { col: 0, row: 0 } });
-      core.submit("startWave", {});
-      return core;
-    };
-    const cases: AttemptHooks[] = [
-      { expireSlows: asHook<"expireSlows">(async () => undefined) },
-      { enemySpeed: asHook<"enemySpeed">(async () => 5000) },
-    ];
-    for (const hooks of cases) {
-      const core = make(hooks);
-      const before = core.snapshot();
-      expect(() => core.step()).toThrow(SimStateError);
-      expect(core.snapshot()).toEqual(before);
-    }
-    await new Promise((resolve) => setTimeout(resolve, 5));
-  });
 });
 
 describe("F2 step 중 pause/resume/submit 금지", () => {
   const kinds: [string, (call: () => void) => AttemptHooks][] = [
-    ["slow", (call) => ({ expireSlows: () => (call(), undefined) })],
     ["fire", (call) => ({ fire: () => (call(), undefined) })],
-    ["speed", (call) => ({ enemySpeed: () => (call(), 5000) })],
   ];
   for (const [name, make] of kinds) {
     for (const op of ["pause", "resume", "submit"] as const) {
@@ -156,7 +132,7 @@ describe("F4 생성 경로는 createAttempt 하나", () => {
     core.submit("startWave", {});
     core.step();
     expect(core.snapshot().enemies).toEqual([
-      { id: 1, enemyType: "normal", trait: null, hp: 100, maxHp: 100, speedPerTick: 5000, pathProgress: 5000, baseDamage: 1, killReward: 5 },
+      { id: 1, enemyType: "normal", trait: null, hp: 100, maxHp: 100, speedPerTick: 5000, pathProgress: 5000, baseDamage: 1, killReward: 5, slows: [] },
     ]);
   });
 });

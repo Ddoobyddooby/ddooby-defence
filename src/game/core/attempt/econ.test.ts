@@ -153,7 +153,7 @@ describe("upgrade", () => {
     expect(trace).toEqual([[2, 250, 650, 150], [3, 500, 400, 250], [4, 900, 0, 400]]);
     core.submit("upgrade", { towerId: 1 });
     const ev = core.step();
-    expect(ev).toEqual([{ eventSeq: 11, tick: 5, type: "commandRejected", kind: "upgrade", reason: "maxLevel", seq: 5 }]);
+    expect(ev).toEqual([{ eventSeq: 12, tick: 5, type: "commandRejected", kind: "upgrade", reason: "maxLevel", seq: 5 }]);
     expect(core.snapshot()).toMatchObject({ gold: 0, towers: [{ level: 4, actuallyPaid: 900 }] });
     expect(core.snapshot().consumedEconomyEvents).toEqual(["build:c1", "upgrade:c2", "upgrade:c3", "upgrade:c4"]);
   });

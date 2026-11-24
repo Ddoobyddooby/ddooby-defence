@@ -148,6 +148,7 @@
 - 이벤트·거부 사유는 기초 모듈(`src/game/core/sim/events.ts`)에서 아래로 고정했다(TECH-02 구현). SIM-01/02에서 추가·변경하면 해시가 바뀌므로 이 목록을 함께 갱신한다.
   - 이벤트: `towerBuilt` `towerSold` `targetingChanged` `waveStarted`{trigger: command|timer, waveIndex, waveStartTick[, seq]} `prepEntered`{waveIndex, prepTicks} `resultReached`{outcome} `economySettled`{key, delta, goldAfter, +enemyId|waveIndex} `commandRejected`
   - SIM-01 추가: `enemySpawned`{enemyId, enemyType, trait, maxHp, speedPerTick, segmentIndex} `enemyKilled`{enemyId, reward} `enemyReachedBase`{enemyId, baseDamage, baseHpAfter} `waveCleared`{waveIndex, reward}
+  - SIM-02 추가: `projectileFired`{projectileId, towerId, kind, targetEnemyId, impact} `projectileCancelled`{projectileId, reason:"targetGone"} `projectileExpired`{projectileId} `projectileExploded`{projectileId, x, y} `enemyDamaged`{enemyId, projectileId, towerId, damage, hpAfter} `slowApplied`{enemyId, sourceTowerId, slowBp, expireTick}
   - 적용 시 거부(seq·eventSeq 소비): `insufficientGold` `occupied` `outOfGrid` `towerNotFound` `wrongPhase` `unsupportedKind` `alreadySettled`
   - 접수 즉시 거부(seq 없음): `paused` `resultPhase`. 구조가 잘못된 명령은 접수 시 예외(seq 미소비)
   - 명령 payload(toy 수준): build `{tile:{col,row}}`, upgrade·sell `{towerId}`, setTargeting `{towerId, mode: first|last|close|strong}`, startWave `{}`

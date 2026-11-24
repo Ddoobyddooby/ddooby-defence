@@ -14,13 +14,9 @@ export function killAt(...targets: readonly { readonly tick: number; readonly en
   };
 }
 
-/** 여러 훅 객체를 합친다. 같은 훅은 인자 순서대로 모두 실행한다(enemySpeed 는 첫 정의만 사용). */
+/** 여러 훅 객체를 합친다. 같은 훅은 인자 순서대로 모두 실행한다. */
 export function combineHooks(...parts: readonly AttemptHooks[]): AttemptHooks {
   return {
-    enemySpeed: parts.find((p) => p.enemySpeed)?.enemySpeed,
-    expireSlows(ctx) {
-      for (const p of parts) p.expireSlows?.(ctx);
-    },
     fire(ctx) {
       for (const p of parts) p.fire?.(ctx);
     },

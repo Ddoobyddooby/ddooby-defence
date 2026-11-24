@@ -27,6 +27,7 @@ describe("초기 상태·생성(12.1)", () => {
       paused: false,
       phase: "preparation",
       prepTicksRemaining: 3,
+      projectiles: [],
       queue: [],
       stageId: "stage-2-snowfall-pass",
       tick: 0,
@@ -156,9 +157,9 @@ describe("생성(12.3 단계 3)", () => {
     ]);
     const enemies = core.snapshot().enemies;
     expect(enemies).toEqual([
-      { id: 1, enemyType: "normal", trait: null, hp: 100, maxHp: 100, speedPerTick: 5000, pathProgress: 15000, baseDamage: 1, killReward: 5 },
-      { id: 2, enemyType: "normal", trait: null, hp: 100, maxHp: 100, speedPerTick: 5000, pathProgress: 5000, baseDamage: 1, killReward: 5 },
-      { id: 3, enemyType: "fast", trait: "hpBoost", hp: 90, maxHp: 90, speedPerTick: 100, pathProgress: 100, baseDamage: 1, killReward: 8 },
+      { id: 1, enemyType: "normal", trait: null, hp: 100, maxHp: 100, speedPerTick: 5000, pathProgress: 15000, baseDamage: 1, killReward: 5, slows: [] },
+      { id: 2, enemyType: "normal", trait: null, hp: 100, maxHp: 100, speedPerTick: 5000, pathProgress: 5000, baseDamage: 1, killReward: 5, slows: [] },
+      { id: 3, enemyType: "fast", trait: "hpBoost", hp: 90, maxHp: 90, speedPerTick: 100, pathProgress: 100, baseDamage: 1, killReward: 8, slows: [] },
     ]);
     expect(core.snapshot().counters).toMatchObject({ nextEnemyId: 4, nextEventSeq: 5 });
   });
@@ -168,7 +169,7 @@ describe("생성(12.3 단계 3)", () => {
     core.submit("startWave", {});
     core.step();
     expect(core.snapshot().enemies).toEqual([
-      { id: 1, enemyType: "normal", trait: "speedBoost", hp: 100, maxHp: 100, speedPerTick: 6500, pathProgress: 6500, baseDamage: 1, killReward: 7 },
+      { id: 1, enemyType: "normal", trait: "speedBoost", hp: 100, maxHp: 100, speedPerTick: 6500, pathProgress: 6500, baseDamage: 1, killReward: 7, slows: [] },
     ]);
   });
 });
@@ -196,7 +197,7 @@ describe("이동·기지 도달(12.3 단계 6)", () => {
     core.submit("startWave", {});
     for (let t = 1; t <= 8; t++) core.step();
     expect(core.snapshot().enemies).toEqual([
-      { id: 1, enemyType: "normal", trait: null, hp: 100, maxHp: 100, speedPerTick: 4000, pathProgress: 32000, baseDamage: 1, killReward: 5 },
+      { id: 1, enemyType: "normal", trait: null, hp: 100, maxHp: 100, speedPerTick: 4000, pathProgress: 32000, baseDamage: 1, killReward: 5, slows: [] },
     ]);
     const ev = core.step();
     expect(ev[0]).toMatchObject({ type: "enemyReachedBase", enemyId: 1, baseHpAfter: 24, tick: 9 });
@@ -293,35 +294,18 @@ describe("동시 사건(12.3 단계 5~7, 패배 우선)", () => {
 });
 
 describe("확장 지점(12.4)", () => {
-  it("단계 순서: 둔화 만료 → (생성) → 발사 → 이동속도 질의, 4단계는 같은 틱 생성 적을 본다", () => {
+  it("fire 훅은 코어 4단계 뒤, 같은 틱 3단계 생성 적을 본다(14.7)", () => {
     const log: string[] = [];
     const hooks = {
-      expireSlows: (ctx: { enemies: readonly unknown[] }) => {
-        log.push(`slow:${ctx.enemies.length}`);
-        return undefined;
-      },
       fire: (ctx: { enemies: readonly unknown[] }) => {
         log.push(`fire:${ctx.enemies.length}`);
         return undefined;
-      },
-      enemySpeed: () => {
-        log.push("speed");
-        return 5000;
       },
     };
     const core = createAttempt(uniformStage2(ONE_NORMAL), STAGE2_ID, 1, hooks);
     core.submit("startWave", {});
     core.step();
-    expect(log).toEqual(["slow:0", "fire:1", "speed"]);
-  });
-  it("enemySpeed 훅: 반으로 줄이면 도달이 늦어진다(2500/틱 → 15번째 이동 37500 ≥ 36000, 틱 15)", () => {
-    const core = createAttempt(uniformStage2(ONE_NORMAL), STAGE2_ID, 1, { enemySpeed: () => 2500 });
-    core.submit("startWave", {});
-    for (let t = 1; t <= 14; t++) core.step();
-    expect(core.snapshot().enemies).toHaveLength(1);
-    const ev = core.step();
-    expect(ev.some((e) => e.type === "enemyReachedBase")).toBe(true);
-    expect(() => createAttempt(uniformStage2(ONE_NORMAL), STAGE2_ID, 1, { enemySpeed: () => 0 }).step()).not.toThrow(); // 전투 전에는 질의 안 함
+    expect(log).toEqual(["fire:1"]);
   });
   it("훅 오류 시 step() 은 원자적: 상태·큐·completedTick 불변", () => {
     const core = createAttempt(uniformStage2(ONE_NORMAL), STAGE2_ID, 1, {
@@ -398,6 +382,6 @@ describe("재도전", () => {
 
 describe("코드 버전", () => {
   it("ATTEMPT_CODE_VERSION 은 리플레이 호환성 검사에 쓰는 고정 문자열", () => {
-    expect(ATTEMPT_CODE_VERSION).toBe("attempt-v2");
+    expect(ATTEMPT_CODE_VERSION).toBe("attempt-v3");
   });
 });
