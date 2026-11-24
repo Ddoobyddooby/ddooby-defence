@@ -19,7 +19,7 @@
 | ID | 요구 | 근거 | TASK | 테스트 위치 | 상태 |
 |---|---|---|---|---|---|
 | REQ-MAP-01 | 18열×10행 정사각 논리 격자, 격자 밖 좌표 거부 | SPEC 1·2절 | TECH-01, MAP-01 | `src/game/core/grid.test.ts`, `map/stageMap.test.ts` | **통과**(`42b233d`, 격자 경계·3맵 격자 안 검증) |
-| REQ-MAP-02 | 스테이지별 독립 지도, 경로 = waypoint + 설치 불가 예약 격자 | SPEC 2절, SIM-CONTRACT 10절 | MAP-01, DATA-01 | `map/stageMap.test.ts`(3맵 그림 리터럴·칸 수·검증 오류), `content/stageMaps.ts` | **통과**(`42b233d`, 기하·후보 데이터). 스테이지 묶음 스키마는 DATA-01 |
+| REQ-MAP-02 | 스테이지별 독립 지도, 경로 = waypoint + 설치 불가 예약 격자 | SPEC 2절, SIM-CONTRACT 10절 | MAP-01, DATA-01 | `map/stageMap.test.ts`(3맵 그림 리터럴·칸 수·검증 오류), `content/stageMaps.ts`, `content/validate.test.ts`(맵 엄격 필드·스테이지 격리) | **통과**(`42b233d`·`ceded17`, 기하·후보 데이터·묶음 스키마) |
 | REQ-MAP-03 | 경로·spawn·base·예약 격자·점유 칸에는 설치 불가 | SPEC 2절 | MAP-01, ECON-01 | `map/stageMap.test.ts`(isBuildable 전 칸 대조) | 부분 통과(`42b233d`, 판정 함수). 실제 설치 명령 연결은 ECON-01 |
 | REQ-MAP-04 | 타워는 논리 1×1 점유, 스프라이트 돌출은 점유를 늘리지 않음 | SPEC 2절 | SIM-02, UI-01 | — | 설계됨 |
 | REQ-MAP-05 | 화면 → 맵 논리 격자 역변환, HUD·레터박스·맵 밖 입력은 설치 명령 생성 금지. 격자 경계 클릭은 오른쪽·아래 칸 | SPEC 2·9절, SIM-CONTRACT 10.1 | MAP-01, UI-01 | `map/pointToCell.test.ts`(소수 tile 경계 포함) | 부분 통과(`42b233d`, 좌표→칸 변환). 화면 축척·레터박스·HUD 입력 연결은 UI-01 |
@@ -29,9 +29,9 @@
 | ID | 요구 | 근거 | TASK | 테스트 위치 | 상태 |
 |---|---|---|---|---|---|
 | REQ-TOWER-01 | 4종 역할(궁수 연사·발리스타 장거리 단일·마법 광역·서리 둔화) | SPEC 3절 | SIM-02, BAL-01 | — | 설계됨 |
-| REQ-TOWER-02 | 사거리 엄격 순서 발리스타 > 궁수 > 마법 > 서리 | SPEC 3절 | DATA-01(검증기), BAL-01 | — | 설계됨 |
-| REQ-TOWER-03 | Lv1~4, 갈림길 없는 강화 3회, Lv1 기본값 + Lv2/3/4 증분 데이터 | SPEC 3절 | DATA-01, SIM-02 | — | 설계됨 |
-| REQ-TOWER-04 | 같은 타워 강화 비용 Lv2 < Lv3 < Lv4 | SPEC 3·8절 | DATA-01 | — | 설계됨 |
+| REQ-TOWER-02 | 사거리 엄격 순서 발리스타 > 궁수 > 마법 > 서리 | SPEC 3절(사용자 결정: 같은 레벨끼리), SIM-CONTRACT 11.3 | DATA-01(검증기), BAL-01 | `content/validate.test.ts`(같은 레벨 순서 Lv1~4, 동률 오류, 다른 레벨 역전 허용) | **통과**(`ceded17`, 검증기). 실제 값은 BAL-01 |
+| REQ-TOWER-03 | Lv1~4, 갈림길 없는 강화 3회, Lv1 기본값 + Lv2/3/4 증분 데이터 | SPEC 3절 | DATA-01, SIM-02 | `content/validate.test.ts`(base·증분 누적, 증분 결과 범위) | 부분 통과(`ceded17`, 데이터 형식·누적 검증). 강화 적용은 SIM-02 |
+| REQ-TOWER-04 | 같은 타워 강화 비용 Lv2 < Lv3 < Lv4 | SPEC 3·8절 | DATA-01 | `content/validate.test.ts`(Lv2<Lv3<Lv4, 동률·역전 오류) | **통과**(`ceded17`, 검증기) |
 | REQ-TOWER-05 | 모든 타워가 모든 적에게 피해, 면역·하드카운터 없음 | SPEC 3절 | SIM-02, BAL-01 | — | 설계됨 |
 | REQ-TOWER-06 | 타깃 우선순위 선두(기본)·후미·가까운·강한 | SPEC 3절, SIM-CONTRACT 3.3 | SIM-02 | — | 설계됨 |
 | REQ-TOWER-07 | 동률은 경로 진행도 → 생성 순번 → 적 ID | SPEC 3절, SIM-CONTRACT 5절 | TECH-02, SIM-02 | `sim/time.test.ts` TECH-02/T08(적 ID = 생성 순서) | 부분 통과(`1d3c829`, ID 부여 순서만). 타깃 정렬은 SIM-02 |
@@ -45,26 +45,26 @@
 
 | ID | 요구 | 근거 | TASK | 테스트 위치 | 상태 |
 |---|---|---|---|---|---|
-| REQ-ENEMY-01 | 기본 적 4종, 유형별 HP·속도·기지 피해는 Stage 1~3 공통, 스테이지·웨이브 보정 없음 | SPEC 5절 | DATA-01 | — | 설계됨 |
-| REQ-ENEMY-02 | 적 = 기본 유형 1 + 보조 특성 0~1 | SPEC 5절 | DATA-01 | — | 설계됨 |
+| REQ-ENEMY-01 | 기본 적 4종, 유형별 HP·속도·기지 피해는 Stage 1~3 공통, 스테이지·웨이브 보정 없음 | SPEC 5절 | DATA-01 | `content/validate.test.ts`(적 4종 1회씩, 스테이지별 적 능력치 필드 없음) | **통과**(`ceded17`, 스키마) |
+| REQ-ENEMY-02 | 적 = 기본 유형 1 + 보조 특성 0~1 | SPEC 5절 | DATA-01 | `content/validate.test.ts`(Segment trait null 또는 1개) | **통과**(`ceded17`, 스키마) |
 | REQ-ENEMY-03 | 체력·속도 강화는 비율 보정(반올림, 최소 1), 생성 시 고정, 속도는 mt/틱 변환 후 적용 | SPEC 5절, SIM-CONTRACT 3.3 | TECH-02, SIM-02 | `sim/formulas.test.ts` TECH-02/N11·N14 | 부분 통과(`1d3c829`, 산식만). 생성 연결은 SIM-02 |
 | REQ-ENEMY-04 | 둔화: 같은 출처 갱신, 다른 출처 개별 유지, 가장 강한 하나만 적용, 만료 후 다음 효과 | SPEC 4절 | SIM-02 | `sim/time.test.ts` TECH-02/T09(만료 틱 산술) | 부분 통과(만료 산술만). 단계별 동작은 SIM-02 의존성 차단 |
 | REQ-ENEMY-05 | `effectiveSlow = baseSlow × (1 − controlResistance)` (bp, 반올림) | SPEC 4절, SIM-CONTRACT 3.3 | TECH-02, SIM-02 | `sim/formulas.test.ts` TECH-02/N12 | 부분 통과(`1d3c829`, 산식만) |
 | REQ-ENEMY-06 | 판매된 타워의 둔화는 만료까지 유지, 적 사망·기지 도달 시 제거 | SPEC 4절 | SIM-02 | — | 설계됨 |
-| REQ-ENEMY-07 | 경량 군집형은 데이터의 밀집 생성으로 표현, 사망 시 분열·추가 생성 없음, 중장형 방어력 없음 | SPEC 5절 | DATA-01, SIM-02 | — | 설계됨 |
+| REQ-ENEMY-07 | 경량 군집형은 데이터의 밀집 생성으로 표현, 사망 시 분열·추가 생성 없음, 중장형 방어력 없음 | SPEC 5절 | DATA-01, SIM-02 | `content/validate.test.ts`(분열·방어력 필드 없음, 밀집은 Segment로 표현) | 부분 통과(`ceded17`, 스키마). 사망 시 동작은 SIM-02 |
 | REQ-ENEMY-08 | 처치 보상에 특성 영향을 줄지 | SPEC 5·8절, TBD-ECON | BAL-01 | — | 의존성 차단(사용자 결정 필요) |
 
 ### REQ-WAVE — 3×5 웨이브·생성·완료 (게이트 DATA·STATE, QA WAVD·WBL)
 
 | ID | 요구 | 근거 | TASK | 테스트 위치 | 상태 |
 |---|---|---|---|---|---|
-| REQ-WAVE-01 | 3 Stage × 5 Wave 고정, 5개 역할 순서 | SPEC 1·6절 | DATA-01 | — | 설계됨 |
-| REQ-WAVE-02 | Stage 1의 5개 웨이브에 적 4종·특성 3종 모두 등장 | SPEC 6절 | DATA-01(검증기), BAL-01 | — | 설계됨 |
-| REQ-WAVE-03 | 설계 의도 매트릭스와 Segment 출현 데이터 분리, Segment는 고정 일정(시작·간격·유형·특성·수량), 같은 웨이브 내 겹침 허용 | SPEC 6절, SIM-CONTRACT 2절 | DATA-01, SIM-01 | `sim/time.test.ts` TECH-02/T04·T05·T08 | 부분 통과(`1d3c829`, 시간 하한·생성 틱 산술). 데이터 스키마는 DATA-01 |
-| REQ-WAVE-04 | 동일 예약 시각은 원본 데이터 순서 → 적 ID 순 | SPEC 6절, SIM-CONTRACT 5절 | TECH-02, SIM-01 | `sim/time.test.ts` TECH-02/T08 | 부분 통과(`1d3c829`, 정렬 산술). 실제 생성 단계는 SIM-01 |
+| REQ-WAVE-01 | 3 Stage × 5 Wave 고정, 5개 역할 순서 | SPEC 1·6절 | DATA-01 | `content/validate.test.ts`(스테이지 3·웨이브 5·waveIndex·role 순서) | **통과**(`ceded17`, 검증기) |
+| REQ-WAVE-02 | Stage 1의 5개 웨이브에 적 4종·특성 3종 모두 등장 | SPEC 6절 | DATA-01(검증기), BAL-01 | `content/validate.test.ts`(Stage 1 적·특성 누락 시 Stage 1만 오류) | **통과**(`ceded17`, 검증기). 실제 구성은 BAL-01 |
+| REQ-WAVE-03 | 설계 의도 매트릭스와 Segment 출현 데이터 분리, Segment는 고정 일정(시작·간격·유형·특성·수량), 같은 웨이브 내 겹침 허용 | SPEC 6절, SIM-CONTRACT 2절 | DATA-01, SIM-01 | `sim/time.test.ts` TECH-02/T04·T05·T08, `content/validate.test.ts`, `content/expandWave.test.ts` | 부분 통과(`ceded17`, Segment 스키마·범위·전개). 웨이브 실행은 SIM-01 |
+| REQ-WAVE-04 | 동일 예약 시각은 원본 데이터 순서 → 적 ID 순 | SPEC 6절, SIM-CONTRACT 5절 | TECH-02, SIM-01 | `sim/time.test.ts` TECH-02/T08, `content/expandWave.test.ts`(겹치는 Segment 순서) | 부분 통과(`ceded17`, 전개 순서). 실제 생성 단계는 SIM-01 |
 | REQ-WAVE-05 | 웨이브 사이 중첩 없음, 완료 = 예약 생성 전부 완료 + 생존 적 0 | SPEC 6절 | SIM-01 | — | 설계됨 |
 | REQ-WAVE-06 | 조기 시작·준비 타이머 만료는 정확히 한 번 전투 시작, 조기 시작 보너스 없음 | SPEC 6절, SIM-CONTRACT 2.1 | SIM-01, ECON-01 | `sim/testing/toySim.test.ts` TECH-02/T06·T07 | 부분 통과(`1d3c829`, toy 타이머·조기 시작 시점). 실제 전투 전환은 SIM-01 |
-| REQ-WAVE-07 | 3맵·15웨이브 사전 검증 + 진입 재검증, 오류 스테이지 격리·진단, 가짜 데이터 자동 대체 금지 | SPEC 10절, PLAN 3.3 | DATA-01, UI-01 | — | 설계됨 |
+| REQ-WAVE-07 | 3맵·15웨이브 사전 검증 + 진입 재검증, 오류 스테이지 격리·진단, 가짜 데이터 자동 대체 금지 | SPEC 10절, PLAN 3.3 | DATA-01, UI-01 | `content/validate.test.ts`(전역/스테이지 격리, 오류 전부 수집, 진입 재검증 동일, 자동 보정 없음), `content/stageHash.test.ts` | 부분 통과(`ceded17`, 코어 검증·격리). 스테이지 카드 오류 표시는 UI-01 |
 
 ### REQ-ECON — 경제·원자성·판매 (게이트 ECON, QA ECOD)
 
@@ -80,7 +80,7 @@
 | REQ-ECON-08 | 환급 = `floor(actuallyPaid × 환급률)` 내림 한 번, 제거·환급 원자적, 중복 환급 방지 | SPEC 8절, SIM-CONTRACT 3.3 | ECON-01 | `sim/intmath.test.ts`·`sim/formulas.test.ts` TECH-02/N13, `sim/testing/toySim.test.ts` TECH-02/Q06 | 부분 통과(`1d3c829`, 산식·toy 판매). 강화 누적 포함은 ECON-01 |
 | REQ-ECON-09 | 일시정지·결과 단계의 게임플레이 명령 거부 | SPEC 8절, SIM-CONTRACT 4절 | ECON-01, SIM-01 | `sim/commands.test.ts` TECH-02/Q09 | 부분 통과(`1d3c829`, 접수 거부) |
 | REQ-ECON-10 | 재도전 시 이전 시도의 정산 ID·누적 비용 소멸 | SPEC 8·10절 | SIM-01, ECON-01 | `sim/ids.test.ts` TECH-02/Q01, `sim/replay.test.ts` TECH-02/R06 | 부분 통과(`1d3c829`, 카운터·코어 재사용 차단). 실제 재도전 흐름은 SIM-01 |
-| REQ-ECON-11 | 설치 가격은 타워 종류별 1개이고 모든 스테이지에 동일, 강화 가격은 종류·레벨별 고정 명시값 | SPEC 3·8절 | DATA-01, ECON-01 | — | 설계됨 |
+| REQ-ECON-11 | 설치 가격은 타워 종류별 1개이고 모든 스테이지에 동일, 강화 가격은 종류·레벨별 고정 명시값 | SPEC 3·8절 | DATA-01, ECON-01 | `content/validate.test.ts`(설치 가격 타워당 1개, 스테이지 데이터에 가격 없음) | 부분 통과(`ceded17`, 스키마). 실제 차감은 ECON-01 |
 
 ### REQ-STATE — 틱·시도·승패·저장 (게이트 CORE·STATE, QA INT·DATA)
 
@@ -147,7 +147,7 @@
 | TECH-01 | MAP-01(격자) | 완료 |
 | TECH-02 | STATE-07·08·09·10, TOWER-07, ENEMY-03·05, WAVE-03·04·06, ECON-02·04·05·06·07·08·09·10, STATE-06·11 (기초·toy 수준) | 완료. 표의 `부분 통과` 행은 후속 태스크가 이어서 채움 |
 | MAP-01 | MAP-01·02·03·05 | 완료 |
-| DATA-01 | MAP-02, TOWER-02·03·04, ENEMY-01·02·07, WAVE-01·02·03·07, ECON-11 | 미착수 |
+| DATA-01 | MAP-02, TOWER-02·03·04, ENEMY-01·02·07, WAVE-01·02·03·07, ECON-11 | 완료 |
 | SIM-01 | STATE-01·03·04·05·06·08·11·12, WAVE-03·04·05·06, ECON-06·09·10 | 미착수 |
 | SIM-02 | TOWER-01·03·05~12, ENEMY-03~07, MAP-04, STATE-02 | 미착수 |
 | ECON-01 | ECON-01~11, MAP-03, STATE-03·05, WAVE-06 | 미착수 |
