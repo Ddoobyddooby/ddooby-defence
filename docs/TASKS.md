@@ -111,7 +111,7 @@
   - 완료 조건: 타워 역할·발사 스냅샷·저항·중첩·만료·VFX/게임 상태 분리 검증
 
 - [ ] **ECON-01 — 원자적 경제 거래와 보상**
-  - 담당: 구현 담당 claude-main 배정
+  - 담당: claude-main 계약(`docs/SIM-CONTRACT.md` 13절), 구현 claude-1(worktree `wt-econ-01`, 브랜치 `feat/econ-01`). 사용자 결정(2026-11-24): 설치·강화는 준비·전투 모두, 판매는 준비만
   - 선행: SIM-01, DATA-01
   - 범위: 설치·강화·판매, actuallyPaid, 환급 한 번 내림, kill/wave award exactly-once, stage 독립 골드
   - QA: ECOD-01~20, COREG-05~06, BALX-09~12

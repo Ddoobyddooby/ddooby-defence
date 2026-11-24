@@ -316,3 +316,34 @@ Stage 1                Stage 2                Stage 3
 ### 12.5 리플레이 연결
 
 - 시도 코어는 7.3절 리플레이 실행기의 코어 인터페이스(`completedTick`·`isResult`·`submit`·`step`·`snapshot`)를 구현한다. 장난감 시뮬(TECH-02)과 같은 리플레이 검증을 실제 시도 코어에 적용할 수 있어야 한다.
+
+## 13. 경제 거래·타워 상태 (ECON-01)
+
+> SPEC 8절을 시도 코어에 구체화한다. 타워는 SIM-02 전투에서도 쓰므로 **코어 소유 상태**로 두고 1단계 명령 처리를 코어가 직접 한다(12.4의 명령 훅 대신). 명령 단위 원자성은 12.4의 규칙(거부 시 그 명령 변경 전부 롤백)을 그대로 따른다. 사용자 결정(2026-11-24): 설치·강화는 준비·전투 모두 가능, 판매는 준비만.
+
+### 13.1 타워 상태
+
+- `TowerState = { towerId, type, cell: {col,row}, level(1~4), targetingMode, actuallyPaid }`. 스냅샷의 `towers`는 `towerId` 오름차순. 점유 칸은 `towers`에서 파생(별도 저장 안 함).
+- `targetingMode` 기본값 `first`(SPEC 3절 선두). 발사 관련 상태(`nextFireTick` 등)는 SIM-02가 추가한다.
+- 재도전(새 시도)에는 타워가 없다.
+
+### 13.2 명령
+
+| 명령 | payload | 허용 단계 | 검사 순서 → 거부 사유 | 성공 시 (원자적) | 경제 키 |
+|---|---|---|---|---|---|
+| `build` | `{towerType, tile:{col,row}}` | preparation·combat | 격자 밖 → `outOfGrid` · 경로/예약 칸 → `notBuildable` · 타워 있음 → `occupied` · 골드 < `buildCost` → `insufficientGold` | 골드 −`buildCost`, 타워 생성(`towerId` 소비, Lv1, `first`, `actuallyPaid = buildCost`) | `build:c{seq}` |
+| `upgrade` | `{towerId}` | preparation·combat | 타워 없음 → `towerNotFound` · Lv4 → `maxLevel` · 골드 < 다음 강화 가격 → `insufficientGold` | 골드 −가격, `level + 1`, `actuallyPaid += 가격` | `upgrade:c{seq}` |
+| `sell` | `{towerId}` | preparation만 | 단계 → `wrongPhase` · 타워 없음 → `towerNotFound` | `refund = floor(actuallyPaid × refundRateBp / 10000)`(3.3절, 내림 한 번), 골드 +refund, 타워 제거(칸 해제) | `sell:t{towerId}` |
+| `setTargeting` | `{towerId, mode}` | preparation·combat | 타워 없음 → `towerNotFound` | `targetingMode = mode`(같은 값이어도 성공) | 없음 |
+
+- 단계 검사는 모든 명령에서 가장 먼저(`wrongPhase`). 일시정지·결과 단계는 접수 즉시 거부(4절).
+- `towerType`·`mode`가 목록 밖이거나 payload 구조가 틀리면 **접수 시 구조 오류**(4절, seq 미소비). 격자 밖 좌표(정수지만 범위 밖)는 접수는 되고 적용 시 `outOfGrid`.
+- 골드 검사는 **앞 명령까지 반영된 현재 골드**로 한다. 같은 틱 5·7단계 골드는 아직 없다(SPEC 7절).
+- `refund`가 0이어도(환급률 0) 판매는 성공하고 `delta 0`으로 정산 기록한다.
+- 이벤트: `towerBuilt{towerId, towerType, cell, cost}`, `towerUpgraded{towerId, level, cost}`, `towerSold{towerId, refund}`, `targetingChanged{towerId, mode}`, 각 경제 거래마다 `economySettled`. 새 거부 사유: `notBuildable`, `maxLevel`.
+
+### 13.3 불변식 (테스트·리플레이로 감시)
+
+- 골드 ≥ 0, 안전 정수. `gold == initialGold + Σ 원장 delta`.
+- 타워마다 `actuallyPaid == buildCost + Σ(성공한 강화 가격)`. 같은 칸 타워 최대 1개, 경로·예약 칸에 타워 없음.
+- 경제 키는 시도 안에서 한 번만 소비(5절). 거부된 명령은 키·골드·타워를 남기지 않는다(12.4).
