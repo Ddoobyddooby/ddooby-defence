@@ -508,10 +508,11 @@ function parseMap(v: unknown, path: string, stageId: string | undefined, errs: E
 
 function parseStage(item: unknown, i: number, errs: Errs): StageDef | undefined {
   const path = `stages[${i}]`;
-  const rec = readRec(item, path, errs, ["stageId", "initialGold", "map", "waves"]);
+  const rec = readRec(item, path, errs, ["stageId", "initialGold", "baseHp", "map", "waves"]);
   if (rec === undefined) return undefined;
   const stageId = readNonEmptyString(rec, "stageId", path, errs);
   const initialGold = readInt(rec, "initialGold", path, errs, GOLD);
+  const baseHp = readInt(rec, "baseHp", path, errs, STAT);
 
   let map: StageDef["map"] | undefined;
   const mf = getField(rec, "map", path, errs);
@@ -537,7 +538,9 @@ function parseStage(item: unknown, i: number, errs: Errs): StageDef | undefined 
     }
   }
 
-  return stageId !== undefined && initialGold !== undefined && map !== undefined && waves !== undefined ? { stageId, initialGold, map, waves } : undefined;
+  return stageId !== undefined && initialGold !== undefined && baseHp !== undefined && map !== undefined && waves !== undefined
+    ? { stageId, initialGold, baseHp, map, waves }
+    : undefined;
 }
 
 // ───────── 전체 ─────────

@@ -19,6 +19,14 @@ export const EVENT_TYPE = {
   economySettled: "economySettled",
   /** 적용 시점 재검증에서 거부된 명령. reason은 REJECT_REASON. */
   commandRejected: "commandRejected",
+  /** 3단계 적 생성(SIM-01). */
+  enemySpawned: "enemySpawned",
+  /** 5단계 적 제거(HP 0 이하). 처치 골드는 같은 단계의 economySettled(`kill:e{id}`). */
+  enemyKilled: "enemyKilled",
+  /** 6단계 적이 기지에 도달해 제거되고 기지 HP가 줄었다(처치 골드 없음). */
+  enemyReachedBase: "enemyReachedBase",
+  /** 7단계 웨이브 완료(완료 보상은 같은 단계의 economySettled `waveClear:w{n}`). 패배 틱에는 없다. */
+  waveCleared: "waveCleared",
 } as const;
 export type EventType = (typeof EVENT_TYPE)[keyof typeof EVENT_TYPE];
 

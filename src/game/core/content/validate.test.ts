@@ -41,6 +41,7 @@ describe("정상 묶음", () => {
     if (!r.ok) throw new Error(JSON.stringify(r.errors));
     expect(r.content.stage.stageId).toBe("stage-2-snowfall-pass");
     expect(r.content.stage.initialGold).toBe(350);
+    expect(r.content.stage.baseHp).toBe(25);
     expect(r.content.global.towers.length).toBe(4);
     for (const o of [r.content, r.content.global, r.content.global.towers[2].levels.base, r.content.stage.map.waypoints[0], r.content.stage.waves[2].segments[1]]) {
       expect(Object.isFrozen(o)).toBe(true);
@@ -146,6 +147,7 @@ describe("11.2 필드 범위(하한-1/하한/상한/상한+1)", () => {
     expectRange("towers[0].buildCost", 1, 1_000_000, "global");
     expectRange("enemies[0].killReward", 1, 1_000_000, "global");
     expectRange("stages[0].initialGold", 1, 1_000_000, 0);
+    expectRange("stages[1].baseHp", 1, 1_000_000, 1);
     expectRange("stages[0].waves[0].clearReward", 1, 1_000_000, 0);
     expectRange("traits[0].killRewardBonus", 0, 1_000_000, "global");
   });
@@ -496,6 +498,7 @@ describe("11.4 오류 수집·격리", () => {
       ["traits[1].hpBoostBp", "global"],
       ["economy.refundRateBp", "global"],
       ["stages[0].initialGold", "stage0"],
+      ["stages[0].baseHp", "stage0"],
       ["stages[0].waves[2].prepMs", "stage0"],
       ["stages[0].waves[2].segments[1].count", "stage0"],
     ];

@@ -26,7 +26,7 @@ describe("스테이지 콘텐츠 해시 (11.4)", () => {
     expect(stageContentHash(tiny)).toBe("3b20f1a5f4a7dff6");
   });
   it("golden: 유효 TEST_ONLY 묶음의 3개 스테이지 해시(Python 독립 계산값 고정)", () => {
-    expect(hashes(validBundle())).toEqual(["038012bb00e9449c", "f0ada8bd09ae2599", "84bf748411fc0347"]);
+    expect(hashes(validBundle())).toEqual(["07e8d06cf2585b0b", "bfeaecf9ad26ae5f", "37d63f5c229ebcfb"]);
   });
   it("소문자 16자리 16진수, 스테이지마다 다르다", () => {
     const h = hashes(validBundle());

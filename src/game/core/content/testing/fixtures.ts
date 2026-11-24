@@ -60,7 +60,7 @@ export function validBundle(): Plain {
       { type: "speedBoost", speedBoostBp: 3000, killRewardBonus: 2 },
     ],
     economy: { refundRateBp: 7000 },
-    stages: STAGE_MAPS.map((map, i) => ({ stageId: map.stageId, initialGold: 300 + i * 50, map: structuredClone(map), waves: waves() })),
+    stages: STAGE_MAPS.map((map, i) => ({ stageId: map.stageId, initialGold: 300 + i * 50, baseHp: 20 + i * 5, map: structuredClone(map), waves: waves() })),
   };
 }
 

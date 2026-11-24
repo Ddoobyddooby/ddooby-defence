@@ -93,6 +93,8 @@ export interface WaveDef {
 export interface StageDef {
   readonly stageId: string;
   readonly initialGold: number;
+  /** 기지 HP 초기값(SIM-01). */
+  readonly baseHp: number;
   readonly map: StageMap;
   readonly waves: readonly WaveDef[];
 }
