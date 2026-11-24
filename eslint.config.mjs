@@ -28,7 +28,7 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // PLAN 2절: 순수 TypeScript 게임 코어는 Next.js/React/Phaser에 의존하지 않는다.
   {
-    files: ["src/game/core/**"],
+    files: ["src/game/core/**", "src/game/content/**"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -46,7 +46,7 @@ const eslintConfig = defineConfig([
   // SIM-CONTRACT 6절: 결정성을 깨는 전역·수학 함수 금지. 별칭(`const M = Math; M.random()`)·`globalThis.Math.random()` 같은
   // 우회는 lint가 못 잡으므로 코드 리뷰 게이트로 보완한다(lint만으로 순수성을 증명하지 않는다).
   {
-    files: ["src/game/core/**"],
+    files: ["src/game/core/**", "src/game/content/**"],
     rules: {
       "no-restricted-globals": [
         "error",
