@@ -58,8 +58,12 @@ export interface UiState {
   readonly selectedTowerId: number | null;
   /** 판매 확인창이 열린 타워. */
   readonly sellConfirmId: number | null;
+  /** 타워 정보 창(일시정지 없음). 선택한 타워가 있을 때만 true 가 될 수 있다. */
+  readonly infoOpen: boolean;
+  /** 메뉴(일시정지 화면)에서 `스테이지 선택` 확인창이 열려 있다. */
+  readonly leaveConfirm: boolean;
 }
-export const EMPTY_UI: UiState = { placeType: null, selectedTowerId: null, sellConfirmId: null };
+export const EMPTY_UI: UiState = { placeType: null, selectedTowerId: null, sellConfirmId: null, infoOpen: false, leaveConfirm: false };
 
 export type UiMode = "default" | "place" | "sellConfirm";
 export const uiModeOf = (ui: UiState): UiMode => (ui.sellConfirmId !== null ? "sellConfirm" : ui.placeType !== null ? "place" : "default");

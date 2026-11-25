@@ -52,11 +52,11 @@ describe("hudView (UI-CONTRACT 7절)", () => {
     const h = hudView(snap(), content, EMPTY_UI, "x");
     expect(h).toMatchObject({ phase: "combat", phaseLabel: "전투", prep: null, combat: { spawned: 1, totalSpawn: 6, alive: 1 } });
   });
-  it("일시정지 표시: 단계명이 '일시정지'가 되고 조작이 비활성이며 조기 시작 불가", () => {
+  it("일시정지 표시: 단계명은 그대로(메뉴가 일시정지를 보여 준다), 조작이 비활성이며 조기 시작 불가", () => {
     const { core, content, snap } = fresh();
     core.pause();
     const h = hudView(snap(), content, EMPTY_UI, "x");
-    expect(h).toMatchObject({ paused: true, phaseLabel: "일시정지", controlsEnabled: false, prep: { canStartNow: false } });
+    expect(h).toMatchObject({ paused: true, phaseLabel: "준비", controlsEnabled: false, prep: { canStartNow: false } });
   });
   it("타워 상세(archer Lv1, 준비): 능력치·강화 가격·환급·판매 가능·타깃", () => {
     const { core, content, snap } = fresh();
@@ -165,5 +165,17 @@ describe("리뷰 UI-01 F6: 대기 중 같은 명령은 버튼 비활성", () => 
     expect(busy.detail).toMatchObject({ canUpgrade: false, canSell: false });
     // 다른 타워의 대기는 영향 없음
     expect(hudView(snap(), content, ui, "x", new Set([pendingKey.upgrade(2)])).detail?.canUpgrade).toBe(true);
+  });
+});
+
+describe("MOB-02 hudView: 정보 창·확인창 표시 값, 메뉴용 값", () => {
+  it("infoOpen 은 선택한 타워가 실제로 있을 때만 true(없는 타워 id 면 false), leaveConfirm 은 그대로", () => {
+    const { core, content, snap } = fresh();
+    core.submit("build", { towerType: "archer", tile: { col: 0, row: 0 } });
+    core.step();
+    expect(hudView(snap(), content, { ...EMPTY_UI, selectedTowerId: 1, infoOpen: true }, "x").infoOpen).toBe(true);
+    expect(hudView(snap(), content, { ...EMPTY_UI, selectedTowerId: 99, infoOpen: true }, "x").infoOpen).toBe(false);
+    expect(hudView(snap(), content, { ...EMPTY_UI, infoOpen: true }, "x").infoOpen).toBe(false);
+    expect(hudView(snap(), content, { ...EMPTY_UI, leaveConfirm: true }, "x").leaveConfirm).toBe(true);
   });
 });

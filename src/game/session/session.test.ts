@@ -2,6 +2,7 @@
 // 기대값은 DEV_PLACEHOLDER 리터럴(Stage 1: 골드 300, archer 설치 100·환급 70, 길은 행 2)로 직접 계산한다.
 import { describe, expect, it } from "vitest";
 import { DEV_PLACEHOLDER } from "../content/devBundle";
+import { menuView } from "./hudView";
 import { MemoryProgressStore } from "./progress";
 import { FEEDBACK_MS, GameSession } from "./session";
 
@@ -100,7 +101,7 @@ describe("advance: 벽시계 → 50ms 틱 (SIM-CONTRACT 2절·UI-CONTRACT 5절)"
     session.startStage(0);
     session.advance(40);
     session.pause();
-    expect(battle(session).hud).toMatchObject({ paused: true, phaseLabel: "일시정지", controlsEnabled: false });
+    expect(battle(session).hud).toMatchObject({ paused: true, phaseLabel: "준비", controlsEnabled: false });
     expect(session.advance(500)).toBe(0);
     expect(tick(session)).toBe(0);
     session.resume();
@@ -115,25 +116,28 @@ describe("advance: 벽시계 → 50ms 틱 (SIM-CONTRACT 2절·UI-CONTRACT 5절)"
     session.togglePause();
     expect(battle(session).hud.paused).toBe(false);
   });
-  it("숨김(hidden) 동안 0틱·누적 안 함, 복귀 시 누적은 0부터(40ms 쌓아 둔 값도 버려짐), 자동 일시정지는 하지 않는다", () => {
+  it("숨김(hidden) 동안 0틱·누적 안 함, 숨겨질 때 자동 일시정지, 복귀 시 누적은 0부터(40ms 쌓아 둔 값도 버려짐)", () => {
     const { session } = make();
     session.startStage(0);
     session.advance(40);
     session.setHidden(true);
+    expect(battle(session).hud.paused).toBe(true); // MOB-02: 숨김 → 자동 일시정지
     expect(session.advance(5000)).toBe(0);
     session.setHidden(false);
+    expect(battle(session).hud.paused).toBe(true); // 복귀해도 사용자가 재개할 때까지 일시정지
     expect(session.advance(49)).toBe(0); // 복귀 직후 첫 입력은 버린다(F1)
-    expect(battle(session).hud.paused).toBe(false);
+    session.resume();
     expect(session.advance(49)).toBe(0); // 누적은 0부터
     expect(session.advance(1)).toBe(1);
   });
-  it("리뷰 F1: 숨김 복귀 직후 첫 advance 는 얼마나 커도 0틱(기준만 재설정), 그다음 정상 진행", () => {
+  it("리뷰 F1: 숨김 복귀 직후 첫 advance 는 얼마나 커도 0틱(기준만 재설정, 재개를 먼저 했어도 동일), 그다음 정상 진행", () => {
     const { session } = make();
     session.startStage(0);
     session.advance(40);
     session.setHidden(true);
     session.setHidden(false);
-    expect(session.advance(10000)).toBe(0); // 숨김 시간이 섞인 첫 프레임
+    session.resume(); // 사용자가 재개를 먼저 눌러도 숨김 시간이 섞인 첫 프레임은 버린다
+    expect(session.advance(10000)).toBe(0);
     expect(tick(session)).toBe(0);
     expect(session.advance(50)).toBe(1);
     expect(session.advance(49)).toBe(0);
@@ -147,8 +151,36 @@ describe("advance: 벽시계 → 50ms 틱 (SIM-CONTRACT 2절·UI-CONTRACT 5절)"
     session.setHidden(true);
     session.setHidden(true);
     session.setHidden(false);
+    session.resume();
     expect(session.advance(50)).toBe(0);
     expect(session.advance(50)).toBe(1);
+  });
+  it("MOB-02 자동 일시정지: 전투 중에도 숨기면 일시정지, 이미 일시정지면 그대로(재개되지 않음), 스테이지 선택 화면에서는 아무 일도 없다", () => {
+    const { session } = make();
+    session.setHidden(true); // 전투 아님: 오류 없이 무시
+    session.setHidden(false);
+    session.startStage(0);
+    session.advance(0); // 복귀 직후 첫 입력은 버려지므로 먼저 소비
+    session.startWave();
+    session.advance(100);
+    expect(battle(session).hud.phase).toBe("combat");
+    session.setHidden(true);
+    expect(battle(session).hud.paused).toBe(true);
+    session.setHidden(false);
+    expect(battle(session).hud.paused).toBe(true);
+    session.pause(); // 이미 일시정지: 변화 없음
+    session.setHidden(true);
+    expect(battle(session).hud.paused).toBe(true);
+  });
+  it("MOB-02 자동 일시정지: 결과 단계에서는 pause 를 호출하지 않는다(코어 오류 방지)", () => {
+    const { session } = make(sprint(100));
+    session.startStage(0);
+    session.startWave();
+    run(session, 200);
+    expect(battle(session).result?.outcome).toBe("victory");
+    expect(() => session.setHidden(true)).not.toThrow();
+    expect(() => session.openMenu()).not.toThrow();
+    expect(battle(session).hud.paused).toBe(false);
   });
   it("스테이지 선택 화면에서는 틱이 없다", () => {
     const { session } = make();
@@ -528,5 +560,279 @@ describe("리뷰 UI-01 F6: 같은 명령 이중 제출 방지(적용 틱까지)"
     expect(s.upgrade(1)).toEqual({ ok: true });
     expect(s.upgrade(2)).toEqual({ ok: true });
     expect(s.setTargeting(1, "last")).toEqual({ ok: true });
+  });
+});
+
+describe("MOB-02: ⚙ 메뉴(= 일시정지)·스테이지 선택 확인", () => {
+  const start = () => {
+    const { session } = make();
+    session.startStage(0);
+    return session;
+  };
+  it("메뉴를 열면 일시정지(0틱), 닫으면 재개·진행", () => {
+    const s = start();
+    s.openMenu();
+    expect(battle(s).hud.paused).toBe(true);
+    expect(s.advance(500)).toBe(0);
+    s.closeMenu();
+    expect(battle(s).hud.paused).toBe(false);
+    expect(s.advance(50)).toBe(1);
+  });
+  it("메뉴 안 `스테이지 선택`: 확인창 → 취소하면 메뉴 유지, 확인하면 시도를 버리고 선택 화면, 닫으면(재개) 확인창도 사라진다", () => {
+    const s = start();
+    s.requestLeave(); // 메뉴가 닫혀 있으면 무시
+    expect(battle(s).ui.leaveConfirm).toBe(false);
+    s.openMenu();
+    s.requestLeave();
+    expect(battle(s).hud.leaveConfirm).toBe(true);
+    s.cancelLeave();
+    expect(battle(s).hud).toMatchObject({ leaveConfirm: false, paused: true });
+    s.requestLeave();
+    s.closeMenu();
+    expect(battle(s).hud).toMatchObject({ leaveConfirm: false, paused: false });
+    s.openMenu();
+    s.confirmLeave(); // 확인창 없이는 나가지 않는다
+    expect(s.getState().screen).toBe("battle");
+    s.requestLeave();
+    s.confirmLeave();
+    expect(s.getState()).toMatchObject({ screen: "stageSelect", battle: null });
+  });
+  it("메뉴를 열면 판매 확인창은 취소된다(메뉴와 겹치지 않음)", () => {
+    const s = start();
+    s.build("archer", { col: 0, row: 0 });
+    s.advance(50);
+    s.selectTower(1);
+    s.requestSell(1);
+    expect(battle(s).ui.sellConfirmId).toBe(1);
+    s.openMenu();
+    expect(battle(s).ui).toMatchObject({ sellConfirmId: null, selectedTowerId: 1 });
+  });
+  it("결과 단계에서는 메뉴를 열 수 없다", () => {
+    const { session } = make(sprint(100));
+    session.startStage(0);
+    session.startWave();
+    run(session, 200);
+    session.openMenu();
+    session.requestLeave();
+    expect(battle(session).hud.paused).toBe(false);
+    expect(battle(session).ui.leaveConfirm).toBe(false);
+  });
+  it("메뉴 파생 값: 준비 단계는 단계만, 전투 단계는 생성 진행 `k / 전체`·생존 적 수", () => {
+    const s = start();
+    expect(menuView(battle(s).hud)).toEqual({ stageName: "초원 전초기지", phaseLabel: "준비", spawnText: null, alive: null });
+    s.startWave();
+    s.advance(50);
+    s.openMenu();
+    expect(menuView(battle(s).hud)).toEqual({ stageName: "초원 전초기지", phaseLabel: "전투", spawnText: "1 / 6", alive: 1 });
+  });
+});
+
+describe("MOB-02: 타워 정보 창(일시정지 없음)", () => {
+  const start = () => {
+    const { session } = make();
+    session.startStage(0);
+    session.build("archer", { col: 0, row: 0 });
+    session.advance(50);
+    return session;
+  };
+  it("선택한 타워가 없으면 열리지 않고, 있으면 열린다(진행 시간은 계속 흐른다)", () => {
+    const s = start();
+    s.openInfo();
+    expect(battle(s).ui.infoOpen).toBe(false);
+    s.selectTower(1);
+    s.openInfo();
+    expect(battle(s).hud.infoOpen).toBe(true);
+    const t0 = tick(s);
+    expect(s.advance(100)).toBe(2);
+    expect(tick(s)).toBe(t0 + 2);
+    expect(battle(s).hud.paused).toBe(false);
+  });
+  it("열려 있는 동안 맵 입력 무시(선택·설치 불변), 닫으면 다시 입력", () => {
+    const s = start();
+    s.selectTower(1);
+    s.openInfo();
+    s.tapCell({ col: 5, row: 0 });
+    expect(battle(s).ui).toMatchObject({ selectedTowerId: 1, infoOpen: true });
+    s.closeInfo();
+    expect(battle(s).ui.infoOpen).toBe(false);
+    s.tapCell({ col: 5, row: 0 });
+    expect(battle(s).ui.selectedTowerId).toBeNull();
+  });
+  it("타깃 변경은 정보 창을 연 채로 코어에 제출된다(일시정지 아님)", () => {
+    const s = start();
+    s.selectTower(1);
+    s.openInfo();
+    expect(s.setTargeting(1, "strong")).toEqual({ ok: true });
+    s.advance(50);
+    expect(battle(s).hud.detail?.targetingMode).toBe("strong");
+    expect(battle(s).hud.infoOpen).toBe(true);
+  });
+  it("선택한 타워가 사라지면(판매) 자동으로 닫힌다", () => {
+    const s = start();
+    s.selectTower(1);
+    s.openInfo();
+    s.requestSell(1); // 판매 확인은 정보 창과 함께 열려 있을 수 있다
+    expect(battle(s).ui).toMatchObject({ sellConfirmId: 1, infoOpen: true });
+    s.confirmSell();
+    s.advance(50);
+    expect(battle(s).ui).toMatchObject({ selectedTowerId: null, infoOpen: false });
+    expect(battle(s).hud.infoOpen).toBe(false);
+  });
+  it("설치 모드로 바꾸거나 선택이 해제되면 닫히고, 메뉴(일시정지) 중에는 열 수 없다", () => {
+    const s = start();
+    s.selectTower(1);
+    s.openInfo();
+    s.togglePlaceMode("frost");
+    expect(battle(s).ui).toMatchObject({ infoOpen: false, selectedTowerId: null, placeType: "frost" });
+    s.selectTower(1);
+    s.openMenu();
+    s.openInfo();
+    expect(battle(s).ui.infoOpen).toBe(false);
+  });
+  it("준비→전투 전환의 판매 확인 자동 취소는 정보 창을 닫지 않는다", () => {
+    const s = start();
+    s.selectTower(1);
+    s.openInfo();
+    s.requestSell(1);
+    s.startWave();
+    s.advance(50);
+    expect(battle(s).ui).toMatchObject({ sellConfirmId: null, infoOpen: true });
+  });
+});
+
+describe("MOB-02: handleBack 우선순위 (UI-CONTRACT 8.1절)", () => {
+  const start = () => {
+    const { session } = make();
+    session.startStage(0);
+    session.build("archer", { col: 0, row: 0 });
+    session.advance(50);
+    return session;
+  };
+  it("스테이지 선택 화면 → exit(앱 종료는 호출한 쪽), 아무 상태도 바꾸지 않는다", () => {
+    const { session } = make();
+    expect(session.handleBack()).toBe("exit");
+    expect(session.getState().screen).toBe("stageSelect");
+  });
+  it("리뷰 F1: 정보 창 → 메뉴 → 스테이지 선택 확인창 → 뒤로가기 1회는 보이는 확인창을 닫는다(정보 창은 메뉴를 열 때 이미 닫힘)", () => {
+    const s = start();
+    s.selectTower(1);
+    s.openInfo();
+    s.openMenu();
+    expect(battle(s).ui).toMatchObject({ infoOpen: false, selectedTowerId: 1 });
+    s.requestLeave();
+    expect(s.handleBack()).toBe("handled");
+    expect(battle(s).ui).toMatchObject({ leaveConfirm: false, infoOpen: false });
+    expect(battle(s).hud.paused).toBe(true);
+    expect(s.handleBack()).toBe("handled");
+    expect(battle(s).hud.paused).toBe(false);
+    expect(battle(s).ui.infoOpen).toBe(false); // 재개해도 정보 창은 다시 열리지 않음
+    expect(battle(s).ui.selectedTowerId).toBe(1);
+  });
+  it("리뷰 F1: Space/P(togglePause)·숨김 자동 일시정지 경로에서도 메뉴가 열리면 infoOpen=false(선택 유지)", () => {
+    for (const open of [(s: GameSession) => s.togglePause(), (s: GameSession) => s.setHidden(true)]) {
+      const s = start();
+      s.selectTower(1);
+      s.openInfo();
+      expect(battle(s).ui.infoOpen).toBe(true);
+      open(s);
+      expect(battle(s).hud.paused).toBe(true);
+      expect(battle(s).ui).toMatchObject({ infoOpen: false, selectedTowerId: 1 });
+    }
+  });
+  it("리뷰 F1: Esc 도 같은 순서 — 정보 창 → 메뉴 → 확인창 순으로 보이는 최상위부터 닫는다", () => {
+    const s = start();
+    s.selectTower(1);
+    s.openInfo();
+    s.openMenu();
+    s.requestLeave();
+    s.cancel();
+    expect(battle(s).ui).toMatchObject({ leaveConfirm: false, infoOpen: false });
+    expect(battle(s).hud.paused).toBe(true);
+    s.cancel();
+    expect(battle(s).hud.paused).toBe(false);
+    s.openInfo();
+    s.cancel(); // 메뉴가 닫혀 있으면 정보 창부터
+    expect(battle(s).ui.infoOpen).toBe(false);
+    expect(battle(s).hud.paused).toBe(false);
+  });
+  it("판매 확인은 메뉴가 열릴 때 취소되어 스테이지 선택 확인창과 겹치지 않는다", () => {
+    const s = start();
+    s.selectTower(1);
+    s.requestSell(1);
+    s.openMenu();
+    s.requestLeave();
+    expect(battle(s).ui).toMatchObject({ sellConfirmId: null, leaveConfirm: true });
+  });
+  it("메뉴가 닫혀 있을 때: 판매 확인 → 정보 창 → 메뉴 열기 → 메뉴 닫고 재개 순서로 한 단계씩", () => {
+    const s = start();
+    s.selectTower(1);
+    s.openInfo();
+    s.requestSell(1);
+    expect(s.handleBack()).toBe("handled");
+    expect(battle(s).ui).toMatchObject({ sellConfirmId: null, infoOpen: true, selectedTowerId: 1 });
+    expect(battle(s).hud.paused).toBe(false);
+    expect(s.handleBack()).toBe("handled");
+    expect(battle(s).ui).toMatchObject({ infoOpen: false, selectedTowerId: 1 });
+    expect(battle(s).hud.paused).toBe(false);
+    expect(s.handleBack()).toBe("handled"); // 전투 화면 → 메뉴 열기
+    expect(battle(s).hud.paused).toBe(true);
+    expect(s.handleBack()).toBe("handled"); // 메뉴 → 닫고 재개
+    expect(battle(s).hud.paused).toBe(false);
+  });
+  it("메뉴의 스테이지 선택 확인창이 열려 있으면 그것부터 닫고, 다음에 메뉴를 닫는다", () => {
+    const s = start();
+    s.openMenu();
+    s.requestLeave();
+    expect(s.handleBack()).toBe("handled");
+    expect(battle(s).hud).toMatchObject({ leaveConfirm: false, paused: true });
+    expect(s.handleBack()).toBe("handled");
+    expect(battle(s).hud.paused).toBe(false);
+  });
+  it("뒤로가기는 설치 모드·선택이 있어도 곧바로 메뉴를 연다(Esc 와 다름)", () => {
+    const s = start();
+    s.togglePlaceMode("frost");
+    expect(s.handleBack()).toBe("handled");
+    expect(battle(s).hud.paused).toBe(true);
+    expect(battle(s).ui.placeType).toBe("frost");
+  });
+  it("결과 단계 → 스테이지 선택 화면으로, 그다음 뒤로가기는 exit", () => {
+    const { session } = make(sprint(100));
+    session.startStage(0);
+    session.startWave();
+    run(session, 200);
+    expect(battle(session).result).not.toBeNull();
+    expect(session.handleBack()).toBe("handled");
+    expect(session.getState().screen).toBe("stageSelect");
+    expect(session.handleBack()).toBe("exit");
+  });
+  it("Esc(cancel): 설치 모드·선택 해제가 먼저, 그다음 뒤로가기와 같은 순서(메뉴 열기→닫기), 스테이지 선택 화면에서는 아무 일 없음", () => {
+    const s = start();
+    s.selectTower(1);
+    s.togglePlaceMode("frost");
+    s.cancel();
+    expect(battle(s).ui.placeType).toBeNull();
+    s.selectTower(1);
+    s.cancel();
+    expect(battle(s).ui.selectedTowerId).toBeNull();
+    expect(battle(s).hud.paused).toBe(false);
+    s.cancel(); // 해제할 것이 없으면 메뉴 열기
+    expect(battle(s).hud.paused).toBe(true);
+    s.cancel();
+    expect(battle(s).hud.paused).toBe(false);
+    const { session } = make();
+    expect(() => session.cancel()).not.toThrow();
+    expect(session.getState().screen).toBe("stageSelect");
+  });
+  it("Esc: 메뉴가 열려 있으면 설치 모드가 남아 있어도 메뉴부터 닫고, 정보 창이 열려 있으면 정보 창부터 닫는다", () => {
+    const s = start();
+    s.togglePlaceMode("frost");
+    s.openMenu();
+    s.cancel();
+    expect(battle(s)).toMatchObject({ hud: { paused: false }, ui: { placeType: "frost" } });
+    s.togglePlaceMode("frost");
+    s.selectTower(1);
+    s.openInfo();
+    s.cancel();
+    expect(battle(s).ui).toMatchObject({ infoOpen: false, selectedTowerId: 1 });
   });
 });

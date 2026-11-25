@@ -8,8 +8,9 @@ import { MemoryProgressStore } from "../session/progress";
 import { GameSession } from "../session/session";
 import { Hud } from "./Hud";
 import { OrientationNotice } from "./Orientation";
-import { FeedbackToast, PauseOverlay, ResultOverlay, SellConfirm } from "./Overlays";
+import { FeedbackToast, InfoWindow, MenuOverlay, ResultOverlay, SellConfirm } from "./Overlays";
 import { StageSelect } from "./StageSelect";
+import { useBackButton } from "./useBackButton";
 
 /**
  * 창 크기(회전 포함). 마운트 전에는 null(서버 렌더와 첫 클라이언트 렌더가 같도록).
@@ -45,6 +46,7 @@ export function GameApp() {
   const [session] = useState(() => new GameSession({ bundle: DEV_PLACEHOLDER, store: new MemoryProgressStore() }));
   const state = useSyncExternalStore(session.subscribe, session.getState, session.getState);
   const viewport = useViewport();
+  useBackButton(session);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -81,7 +83,8 @@ export function GameApp() {
       <section className="relative h-full min-w-0 flex-1" data-testid="map-area">
         <BattleCanvas session={session} />
         <FeedbackToast text={battle.feedback} />
-        {battle.result === null && battle.hud.paused && <PauseOverlay session={session} />}
+        {battle.result === null && battle.hud.infoOpen && detail !== null && <InfoWindow session={session} detail={detail} hud={battle.hud} />}
+        {battle.result === null && battle.hud.paused && <MenuOverlay session={session} hud={battle.hud} />}
         {battle.result === null && battle.ui.sellConfirmId !== null && detail !== null && detail.towerId === battle.ui.sellConfirmId && <SellConfirm session={session} name={detail.name} refund={detail.refund} />}
         {battle.result !== null && <ResultOverlay session={session} battle={battle} />}
       </section>
