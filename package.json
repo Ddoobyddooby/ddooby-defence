@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "golden:update": "GOLDEN_UPDATE=1 vitest run src/game/core/attempt/regression/regression.test.ts"
   },
   "dependencies": {
     "next": "16.4.6",
