@@ -9,15 +9,21 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
-    "golden:update": "GOLDEN_UPDATE=1 vitest run src/game/core/attempt/regression/regression.test.ts"
+    "golden:update": "GOLDEN_UPDATE=1 vitest run src/game/core/attempt/regression/regression.test.ts",
+    "android:sync": "next build && cap sync android",
+    "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug",
+    "android:install": "adb install -r android/app/build/outputs/apk/debug/app-debug.apk"
   },
   "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/core": "8.6.0",
     "next": "16.4.6",
     "phaser": "^4.2.1",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.6.0",
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^24.19.2",
     "@types/react": "^19",

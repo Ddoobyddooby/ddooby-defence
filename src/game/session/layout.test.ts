@@ -17,16 +17,26 @@ describe("computeLayout (UI-CONTRACT 3절)", () => {
     expect(l.hudW).toBe(320);
     expect(l.map).toMatchObject({ tile: 88, width: 1584, height: 880, x: 8, y: 100 });
   });
-  it("hudW 하한 176: 너비 700 에서도 계산은 되지만 지원 안 함(800 미만)", () => {
+  it("hudW 하한 176: 너비 700 → round(168) 대신 176, 640 이상이라 지원", () => {
     const l = computeLayout(700, 400);
     expect(l.hudW).toBe(176);
-    expect(l).toMatchObject({ supported: false, problem: "tooSmall" });
+    expect(l).toMatchObject({ supported: true, problem: null });
   });
-  it("세로 방향(높이 > 너비) → portrait, 높이 359 → tooSmall, 정확히 800×360 → 지원", () => {
+  it("최소 640×320(MOB-01): hudW 176, 맵 영역 464×320, tile = floor(min(25.78, 32)) = 25", () => {
+    const l = computeLayout(640, 320);
+    expect(l).toMatchObject({ supported: true, problem: null, hudW: 176, areaW: 464, areaH: 320 });
+    expect(l.map).toEqual({ tile: 25, x: 7, y: 35, width: 450, height: 250 });
+  });
+  it("실기기 Galaxy A16 가로(카메라 구멍 제외 약 796×384): hudW 191, tile 33", () => {
+    const l = computeLayout(796, 384);
+    expect(l).toMatchObject({ supported: true, hudW: 191, areaW: 605 });
+    expect(l.map).toMatchObject({ tile: 33, width: 594, height: 330 });
+  });
+  it("세로 방향(높이 > 너비) → portrait, 640×319·639×320 → tooSmall, 정확히 640×320 → 지원", () => {
     expect(computeLayout(400, 800)).toMatchObject({ supported: false, problem: "portrait" });
-    expect(computeLayout(800, 359)).toMatchObject({ supported: false, problem: "tooSmall" });
-    expect(computeLayout(799, 360)).toMatchObject({ supported: false, problem: "tooSmall" });
-    expect(computeLayout(800, 360).supported).toBe(true);
+    expect(computeLayout(640, 319)).toMatchObject({ supported: false, problem: "tooSmall" });
+    expect(computeLayout(639, 320)).toMatchObject({ supported: false, problem: "tooSmall" });
+    expect(computeLayout(640, 320).supported).toBe(true);
   });
   it("tile 은 항상 정수이고 최소 18", () => {
     expect(computeMapRect(100, 100).tile).toBe(18);

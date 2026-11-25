@@ -2,8 +2,9 @@
 import { GRID_COLS, GRID_ROWS, type Cell } from "../core/grid";
 import { pointToCell } from "../core/map/pointToCell";
 
-export const MIN_VIEWPORT_W = 800;
-export const MIN_VIEWPORT_H = 360;
+// MOB-01(2026-11-25): 실제 휴대폰 가로 화면(카메라 구멍 제외 약 796×384, iPhone SE 667×375)을 받도록 800×360 → 640×320.
+export const MIN_VIEWPORT_W = 640;
+export const MIN_VIEWPORT_H = 320;
 export const MIN_TILE = 18;
 
 export interface MapRect {
@@ -39,7 +40,7 @@ export function computeMapRect(areaW: number, areaH: number): MapRect {
   return { tile, x: Math.floor((areaW - width) / 2), y: Math.floor((areaH - height) / 2), width, height };
 }
 
-/** 뷰포트 → 배치. 세로(높이 > 너비)·800×360 미만은 supported=false (게임 대신 안내). */
+/** 뷰포트 → 배치. 세로(높이 > 너비)·640×320 미만은 supported=false (게임 대신 안내). */
 export function computeLayout(viewportW: number, viewportH: number): Layout {
   const w = Math.max(0, Math.floor(viewportW));
   const h = Math.max(0, Math.floor(viewportH));

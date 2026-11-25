@@ -78,7 +78,7 @@ export const STR = {
   orientation: {
     portrait: "가로 화면으로 돌려 주세요",
     tooSmall: "창을 더 넓혀 주세요",
-    detail: "이 게임은 가로 800 × 세로 360 이상의 가로 화면에서 플레이할 수 있습니다.",
+    detail: "이 게임은 가로 640 × 세로 320 이상의 가로 화면에서 플레이할 수 있습니다.",
   },
   errorDetailTitle: "진단",
 } as const;

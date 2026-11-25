@@ -71,6 +71,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // MOB-01: Capacitor Android 프로젝트(빌드 산출물·복사된 웹 자산 포함)
+    "android/**",
   ]),
 ]);
 
