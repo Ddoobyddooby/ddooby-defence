@@ -165,6 +165,7 @@ QA 상위 게이트는 **CORE/ECON/DATA/STATE/UI**. 설계됨/실행 대기/의�
 
 ## 8. 배포·복구 방향 (미승인)
 
+- **[MOB-01, 2026-11-25] Android 앱:** `output: "export"` 정적 빌드(`out/`)를 Capacitor 8.6.0(`capacitor.config.ts`, `android/`)으로 APK에 포장. 가로 고정(`sensorLandscape`)·몰입 전체 화면(`MainActivity`). 빌드 `npm run android:apk`(JDK 21·`ANDROID_HOME` 필요), 설치 `npm run android:install`. 정적 내보내기와 충돌하는 `cacheComponents`·`partialPrefetching`은 제거. 서명·스토어 배포·iOS는 미정.
 - **Next.js 기반 웹 배포**를 전제로, 실제 사용하는 Next.js 기능과 라우팅·데이터 요구에 맞춰 정적 출력 또는 서버 실행 배포를 검토한다. 배포 방식·호스팅은 **미승인**이다. 빌드 산출물 버전 식별과 롤백 가능성을 고려한다.
 - 실제 플랫폼, 호스팅, 백업/복구, 외부 비용, CI/CD, 보안 헤더 등은 환경 확정 후 설계.
 - 배포 전 콘텐츠 검사, 스모크, 필수 회귀, 사용자 승인·QA 보류 해제 확인. 저장된 로컬 진행 기록의 기존 버전 처리 정책은 별도 기술 검토 필요.
@@ -191,7 +192,7 @@ QA 상위 게이트는 **CORE/ECON/DATA/STATE/UI**. 설계됨/실행 대기/의�
 | TBD-PROJECTILE | 투사체 이동·명중·TTL·VFX TTL |
 | TBD-ENEMY | HP 비율 반올림/오버플로·저항률 경계 |
 | TBD-ECON | 정수 범위, 환급률 표현, 적 특성의 kill reward 영향 |
-| TBD-UI | ~~렌더 해상도·HUD 크기·최소 지원 화면~~ `docs/UI-CONTRACT.md` 3절(최소 800×360 가로, HUD 폭 비율·정수 타일, 사용자 결정 2026-11-25) |
+| TBD-UI | ~~렌더 해상도·HUD 크기·최소 지원 화면~~ `docs/UI-CONTRACT.md` 3절(최소 640×320 가로(MOB-01에서 800×360에서 낮춤), HUD 폭 비율·정수 타일, 사용자 결정 2026-11-25) |
 | TBD-ART | 사용자 승인된 시안·저작권/출처 처리 |
 
 내용 확정 권한 및 항목별 완료 조건은 `SPEC.md` 12절을 참조.

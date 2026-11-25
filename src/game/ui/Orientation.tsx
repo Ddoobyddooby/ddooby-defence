@@ -1,6 +1,6 @@
 import { STR } from "./strings.ko";
 
-/** 세로 방향·800×360 미만: 게임 대신 안내(UI-CONTRACT 3절). */
+/** 세로 방향·640×320 미만: 게임 대신 안내(UI-CONTRACT 3절). */
 export function OrientationNotice({ problem }: { problem: "portrait" | "tooSmall" }) {
   return (
     <main className="flex h-dvh w-full flex-col items-center justify-center gap-3 bg-neutral-950 p-6 text-center text-neutral-100" role="alert">
