@@ -1,10 +1,15 @@
 "use client";
 
+import type { TargetingMode } from "../core/sim/commands";
+import { DEV_PLACEHOLDER_LABEL } from "../content/devBundle";
+import { menuView, type HudView, type TowerDetail } from "../session/hudView";
 import type { BattleState } from "../session/session";
 import type { GameSession } from "../session/session";
-import { STR } from "./strings.ko";
+import { STR, TARGETING_NAMES } from "./strings.ko";
 
 const BTN = "min-h-10 min-w-24 rounded border px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40";
+// 정보 창·작은 버튼용(오버레이 버튼의 min-w-24 는 4열 타깃 버튼이 넘치게 한다). 터치 영역은 최소 40×40 유지.
+const SMALL_BTN = "min-h-10 min-w-10 rounded border px-1 text-xs font-medium leading-tight disabled:cursor-not-allowed disabled:opacity-40";
 const BACKDROP = "absolute inset-0 z-10 touch-manipulation flex items-center justify-center bg-black/55 p-3";
 const PANEL = "w-full max-w-xs rounded-lg border border-neutral-600 bg-neutral-900 p-4 text-center text-neutral-100 shadow-xl";
 
@@ -18,16 +23,113 @@ export function FeedbackToast({ text }: { text: string | null }) {
   );
 }
 
-export function PauseOverlay({ session }: { session: GameSession }) {
+/** ⚙ 메뉴(일시정지 화면 겸용, UI-CONTRACT 7절): 스테이지 이름·임시 수치 배지·단계·전투 중 생성 진행·생존 적 수 + `계속하기`·`스테이지 선택`(확인 1회). */
+export function MenuOverlay({ session, hud }: { session: GameSession; hud: HudView }) {
+  const m = menuView(hud);
   return (
-    <div className={BACKDROP} data-testid="pause-overlay">
+    <div className={BACKDROP} data-testid="menu-overlay">
       <div className={PANEL}>
-        <h2 className="text-xl font-bold">{STR.pauseOverlayTitle}</h2>
-        <p className="mt-1 text-xs text-neutral-400">{STR.pauseOverlayHint}</p>
-        <button type="button" className={`${BTN} mt-3 border-emerald-500 bg-emerald-700 hover:bg-emerald-600`} onClick={() => session.resume()} data-testid="resume-button">
-          {STR.hud.resume}
+        {hud.leaveConfirm ? (
+          <div data-testid="leave-confirm">
+            <h2 className="text-lg font-bold">{STR.menu.leaveTitle}</h2>
+            <p className="mt-1 text-sm text-neutral-300">{STR.menu.leaveBody}</p>
+            <div className="mt-3 flex justify-center gap-2">
+              <button type="button" className={`${BTN} border-neutral-500 bg-neutral-800 hover:bg-neutral-700`} onClick={() => session.cancelLeave()} data-testid="leave-cancel">
+                {STR.hud.cancel}
+              </button>
+              <button type="button" className={`${BTN} border-red-500 bg-red-800 hover:bg-red-700`} onClick={() => session.confirmLeave()} data-testid="leave-ok">
+                {STR.menu.leaveConfirm}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h2 className="text-lg font-bold">{STR.menu.title}</h2>
+            <div className="mt-1 flex items-center justify-center gap-2 text-sm">
+              <span className="font-semibold" data-testid="menu-stage">
+                {m.stageName}
+              </span>
+              <span className="rounded bg-yellow-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-yellow-300" data-testid="placeholder-badge">
+                {DEV_PLACEHOLDER_LABEL}
+              </span>
+            </div>
+            <dl className="mt-2 grid grid-cols-2 gap-x-2 gap-y-0.5 text-sm text-neutral-300" data-testid="menu-info">
+              <dt>{STR.hud.phase}</dt>
+              <dd data-testid="menu-phase">{m.phaseLabel}</dd>
+              {m.spawnText !== null && (
+                <>
+                  <dt>{STR.hud.spawnProgress}</dt>
+                  <dd data-testid="menu-spawn">{m.spawnText}</dd>
+                  <dt>{STR.hud.aliveEnemies}</dt>
+                  <dd data-testid="menu-alive">{m.alive}</dd>
+                </>
+              )}
+            </dl>
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
+              <button type="button" className={`${BTN} border-emerald-500 bg-emerald-700 hover:bg-emerald-600`} onClick={() => session.closeMenu()} data-testid="resume-button">
+                {STR.menu.resume}
+              </button>
+              <button type="button" className={`${BTN} border-neutral-500 bg-neutral-800 hover:bg-neutral-700`} onClick={() => session.requestLeave()} data-testid="leave-button">
+                {STR.menu.toSelect}
+              </button>
+            </div>
+            <p className="mt-2 text-[11px] text-neutral-500">{STR.menu.hint}</p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const TARGET_MODES: readonly TargetingMode[] = ["first", "last", "close", "strong"];
+
+/**
+ * 타워 정보 창(UI-CONTRACT 7절): 일시정지하지 않는 작은 창. 능력치·타깃 4버튼·판매 조건 안내·닫기.
+ * 맵 영역 위에 얹으며 열려 있는 동안 세션이 맵 입력을 무시한다. 선택 타워가 사라지면 세션이 닫는다.
+ */
+export function InfoWindow({ session, detail, hud }: { session: GameSession; detail: TowerDetail; hud: HudView }) {
+  const row = (label: string, value: string, testId?: string) => (
+    <>
+      <dt className="text-neutral-400">{label}</dt>
+      <dd data-testid={testId}>{value}</dd>
+    </>
+  );
+  return (
+    <div className="absolute left-2 top-2 z-[5] w-[min(300px,calc(100%-1rem))] touch-manipulation rounded-lg border border-neutral-600 bg-neutral-900/95 p-2 text-xs text-neutral-100 shadow-xl" data-testid="info-window">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-bold">
+          {detail.name} <span className="text-neutral-400">{STR.hud.level}{detail.level}</span>
+        </h2>
+        <button type="button" className={`${SMALL_BTN} border-neutral-500 bg-neutral-800 hover:bg-neutral-700`} onClick={() => session.closeInfo()} data-testid="info-close">
+          {STR.hud.close}
         </button>
       </div>
+      <dl className="mt-1 grid grid-cols-[auto_1fr_auto_1fr] gap-x-2 gap-y-0.5" data-testid="info-stats">
+        {row(STR.hud.damage, String(detail.damage), "detail-damage")}
+        {row(STR.hud.period, `${detail.periodText}${STR.hud.seconds}`, "detail-period")}
+        {row(STR.hud.range, detail.rangeText, "detail-range")}
+        {detail.aoeText !== null && row(STR.hud.aoe, detail.aoeText, "detail-aoe")}
+        {detail.slowText !== null && row(STR.hud.slow, detail.slowText, "detail-slow")}
+      </dl>
+      <div className="mt-1 text-neutral-400">{STR.hud.targeting}</div>
+      <div className="mt-0.5 grid grid-cols-4 gap-1">
+        {TARGET_MODES.map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            disabled={!hud.controlsEnabled}
+            onClick={() => session.setTargeting(detail.towerId, mode)}
+            aria-pressed={detail.targetingMode === mode}
+            data-testid={`target-${mode}`}
+            className={`${SMALL_BTN} ${detail.targetingMode === mode ? "border-yellow-300 bg-neutral-700" : "border-neutral-600 bg-neutral-800 hover:bg-neutral-700"}`}
+          >
+            {TARGETING_NAMES[mode]}
+          </button>
+        ))}
+      </div>
+      <p className="mt-1 text-neutral-500" data-testid="info-sell-note">
+        {STR.hud.sellOnlyPrep}
+      </p>
     </div>
   );
 }

@@ -75,6 +75,11 @@ interface Battle {
   pending: Set<string>;
 }
 
+/** 정보 창은 선택한 타워가 있을 때만 열려 있을 수 있다(타워가 사라지거나 선택이 해제되면 닫힘). */
+function normalizeUi(ui: UiState): UiState {
+  return ui.infoOpen && ui.selectedTowerId === null ? { ...ui, infoOpen: false } : ui;
+}
+
 export class GameSession {
   private readonly bundle: unknown;
   private readonly store: ProgressStore;
@@ -197,11 +202,15 @@ export class GameSession {
 
   // ───────── 시간 ─────────
 
-  /** 숨김(visibilitychange hidden) 동안은 누적하지 않고, 복귀 시 누적은 0부터 시작한다. 자동 일시정지는 하지 않는다. */
+  /**
+   * 숨김(visibilitychange hidden) 동안은 누적하지 않고, 복귀 시 누적은 0부터 시작한다.
+   * 숨겨질 때 진행 중 시도(준비·전투, 아직 일시정지 아님)는 자동 일시정지한다(UI-CONTRACT 5절, MOB-02). 결과 단계는 코어가 pause 를 오류로 보므로 건드리지 않는다.
+   */
   setHidden(hidden: boolean): void {
     if (!hidden && this.hidden) this.skipNextAdvance = true;
     this.hidden = hidden;
     this.acc = 0;
+    if (hidden) this.pause();
   }
 
   get isRunning(): boolean {
@@ -279,23 +288,51 @@ export class GameSession {
 
   // ───────── 일시정지 ─────────
 
+  /** 일시정지 = 메뉴 열림(UI-CONTRACT 7절). 메뉴가 판매 확인창과 겹치지 않게 판매 확인은 취소한다. 결과 단계에서는 하지 않는다(코어 오류). */
   pause(): void {
     const b = this.battle;
     if (b === null || b.rec.core.isResult() || b.rec.core.paused) return;
     b.rec.core.pause();
+    b.ui = { ...b.ui, sellConfirmId: null };
     this.refresh(b);
   }
 
+  /** 재개 = 메뉴 닫기. 메뉴 안 확인창(스테이지 선택)은 닫는다. */
   resume(): void {
     const b = this.battle;
     if (b === null || !b.rec.core.paused) return;
     b.rec.core.resume();
+    b.ui = { ...b.ui, leaveConfirm: false };
     this.refresh(b);
   }
 
   togglePause(): void {
     if (this.battle?.rec.core.paused) this.resume();
     else this.pause();
+  }
+
+  /** `⚙` 메뉴 열기/닫기(= 일시정지/재개). 결과 단계에서는 열 수 없다. */
+  openMenu(): void {
+    this.pause();
+  }
+  closeMenu(): void {
+    this.resume();
+  }
+
+  /** 메뉴의 `스테이지 선택`: 확인창을 연다(메뉴가 열려 있을 때만). */
+  requestLeave(): void {
+    const b = this.battle;
+    if (b === null || !b.rec.core.paused || b.rec.core.isResult()) return;
+    this.setUi(b, { ...b.ui, leaveConfirm: true });
+  }
+  cancelLeave(): void {
+    const b = this.battle;
+    if (b !== null && b.ui.leaveConfirm) this.setUi(b, { ...b.ui, leaveConfirm: false });
+  }
+  /** 확인 1회 뒤 현재 시도를 버리고 스테이지 선택으로(클리어 플래그는 그대로). */
+  confirmLeave(): void {
+    const b = this.battle;
+    if (b !== null && b.ui.leaveConfirm) this.toStageSelect();
   }
 
   /** 코어 상태(paused)가 스냅샷에 들어 있으므로 다시 읽어 알린다. */
@@ -357,7 +394,7 @@ export class GameSession {
   // ───────── UI 선택 상태 (코어 밖, UI-CONTRACT 6절) ─────────
 
   private setUi(b: Battle, ui: UiState): void {
-    b.ui = ui;
+    b.ui = normalizeUi(ui);
     this.emit();
   }
 
@@ -374,16 +411,51 @@ export class GameSession {
       this.emit();
       return;
     }
-    this.setUi(b, b.ui.placeType === type ? { ...EMPTY_UI } : { placeType: type, selectedTowerId: null, sellConfirmId: null });
+    this.setUi(b, b.ui.placeType === type ? { ...EMPTY_UI } : { ...EMPTY_UI, placeType: type });
   }
 
-  /** Esc: 판매 확인 → 설치 모드 → 선택 순으로 한 단계 해제. */
+  /**
+   * Android 뒤로가기(UI-CONTRACT 8.1절). 우선순위: 판매 확인 취소 → 정보 창 닫기 → 메뉴 닫고 재개(메뉴 안 확인창이 있으면 그것부터 닫음)
+   * → 전투 화면이면 메뉴 열기 → 결과면 스테이지 선택 → 스테이지 선택 화면이면 "exit"(앱 종료는 호출한 쪽이 한다).
+   */
+  handleBack(): "handled" | "exit" {
+    const b = this.battle;
+    if (b === null) return "exit";
+    if (b.rec.core.isResult()) {
+      this.toStageSelect();
+      return "handled";
+    }
+    if (b.ui.sellConfirmId !== null) this.setUi(b, { ...b.ui, sellConfirmId: null });
+    else if (b.ui.infoOpen) this.setUi(b, { ...b.ui, infoOpen: false });
+    else if (b.rec.core.paused) {
+      if (b.ui.leaveConfirm) this.setUi(b, { ...b.ui, leaveConfirm: false });
+      else this.resume();
+    } else this.pause();
+    return "handled";
+  }
+
+  /**
+   * Esc: 뒤로가기와 같은 순서이되, 메뉴·판매 확인·정보 창이 없을 때는 기존대로 설치 모드 → 선택 해제가 먼저다.
+   * 스테이지 선택 화면의 "exit" 는 웹에서는 아무 일도 하지 않는다.
+   */
   cancel(): void {
     const b = this.battle;
-    if (b === null) return;
-    if (b.ui.sellConfirmId !== null) this.setUi(b, { ...b.ui, sellConfirmId: null });
-    else if (b.ui.placeType !== null) this.setUi(b, { ...b.ui, placeType: null });
-    else if (b.ui.selectedTowerId !== null) this.setUi(b, { ...b.ui, selectedTowerId: null });
+    if (b !== null && !b.rec.core.isResult() && !b.rec.core.paused && b.ui.sellConfirmId === null && !b.ui.infoOpen) {
+      if (b.ui.placeType !== null) return this.setUi(b, { ...b.ui, placeType: null });
+      if (b.ui.selectedTowerId !== null) return this.setUi(b, { ...b.ui, selectedTowerId: null });
+    }
+    this.handleBack();
+  }
+
+  /** 타워 정보 창 열기(일시정지 없음). 선택한 타워가 있고 메뉴·결과가 아닐 때만. */
+  openInfo(): void {
+    const b = this.battle;
+    if (b === null || b.rec.core.isResult() || b.rec.core.paused || b.ui.selectedTowerId === null) return;
+    this.setUi(b, { ...b.ui, infoOpen: true });
+  }
+  closeInfo(): void {
+    const b = this.battle;
+    if (b !== null && b.ui.infoOpen) this.setUi(b, { ...b.ui, infoOpen: false });
   }
 
   /**
@@ -393,7 +465,7 @@ export class GameSession {
   tapCell(cell: Cell | null): void {
     const b = this.battle;
     if (b === null || b.rec.core.isResult()) return;
-    if (b.ui.sellConfirmId !== null) return;
+    if (b.ui.sellConfirmId !== null || b.ui.infoOpen) return; // 판매 확인·정보 창이 열린 동안 맵 입력 무시
     if (b.ui.placeType !== null) {
       if (cell === null) return this.setUi(b, { ...b.ui, placeType: null });
       const out = this.build(b.ui.placeType, cell);
@@ -407,7 +479,7 @@ export class GameSession {
   selectTower(towerId: number | null): void {
     const b = this.battle;
     if (b === null || b.rec.core.isResult()) return;
-    this.setUi(b, { placeType: null, selectedTowerId: towerId, sellConfirmId: null });
+    this.setUi(b, { ...EMPTY_UI, selectedTowerId: towerId });
   }
 
   /** 판매 확인창 열기: 준비 단계에서만(전투 중에는 안내 피드백). */
@@ -446,6 +518,6 @@ export class GameSession {
     if (ui.selectedTowerId !== null && !exists(ui.selectedTowerId)) ui = { ...ui, selectedTowerId: null };
     if (ui.sellConfirmId !== null && (!exists(ui.sellConfirmId) || b.curr.phase !== "preparation")) ui = { ...ui, sellConfirmId: null };
     if (b.curr.outcome !== null) ui = EMPTY_UI;
-    b.ui = ui;
+    b.ui = normalizeUi(ui);
   }
 }

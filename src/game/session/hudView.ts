@@ -46,7 +46,7 @@ export interface HudView {
   readonly waveTotal: number;
   readonly phase: Phase;
   readonly paused: boolean;
-  /** 표시용 단계명(일시정지면 "일시정지"). */
+  /** 단계 짧은 표시(`준비`·`전투`·`승리`·`패배`). 일시정지는 메뉴가 대신 보여 주므로 여기에 섞지 않는다. */
   readonly phaseLabel: string;
   readonly gold: number;
   readonly baseHp: number;
@@ -59,6 +59,10 @@ export interface HudView {
   readonly detail: TowerDetail | null;
   readonly mode: UiMode;
   readonly placeType: TowerType | null;
+  /** 타워 정보 창이 열려 있다(선택한 타워가 실제로 있을 때만 true). */
+  readonly infoOpen: boolean;
+  /** 메뉴의 `스테이지 선택` 확인창. */
+  readonly leaveConfirm: boolean;
   /** 게임플레이 조작 가능(일시정지·결과 단계가 아님). */
   readonly controlsEnabled: boolean;
   readonly isResult: boolean;
@@ -124,6 +128,7 @@ export function hudView(snapshot: Snapshot, content: StageContent, ui: UiState, 
   const isResult = snapshot.phase === "victory" || snapshot.phase === "defeat";
   const controlsEnabled = !snapshot.paused && !isResult;
   const wave = content.stage.waves[snapshot.waveIndex - 1];
+  const detail = ui.selectedTowerId === null ? null : towerDetailOf(snapshot, content, ui.selectedTowerId, controlsEnabled, pending);
   // 이번 웨이브 총 생성 수는 코어가 쓰는 전개 함수(expandWave)의 결과 길이에서 파생한다(segments.count 를 직접 합하지 않는다, 리뷰 F4).
   const totalSpawn = wave === undefined ? 0 : expandWave(wave, 0).length;
   return {
@@ -132,7 +137,7 @@ export function hudView(snapshot: Snapshot, content: StageContent, ui: UiState, 
     waveTotal: content.stage.waves.length,
     phase: snapshot.phase,
     paused: snapshot.paused,
-    phaseLabel: snapshot.paused && !isResult ? "일시정지" : PHASE_NAMES[snapshot.phase],
+    phaseLabel: PHASE_NAMES[snapshot.phase],
     gold: snapshot.gold,
     baseHp: snapshot.baseHp,
     maxBaseHp: content.stage.baseHp,
@@ -142,10 +147,30 @@ export function hudView(snapshot: Snapshot, content: StageContent, ui: UiState, 
       const cost = towerDef(content, type).buildCost;
       return { type, name: TOWER_NAMES[type], cost, affordable: snapshot.gold >= cost, selected: ui.placeType === type };
     }),
-    detail: ui.selectedTowerId === null ? null : towerDetailOf(snapshot, content, ui.selectedTowerId, controlsEnabled, pending),
+    detail,
     mode: uiModeOf(ui),
     placeType: ui.placeType,
+    infoOpen: ui.infoOpen && detail !== null,
+    leaveConfirm: ui.leaveConfirm,
     controlsEnabled,
     isResult,
+  };
+}
+
+/** ⚙ 메뉴(일시정지 화면) 내용(UI-CONTRACT 7절): HUD 에서 뺀 스테이지 이름·단계·전투 중 생성 진행·생존 적 수. */
+export interface MenuView {
+  readonly stageName: string;
+  /** `준비`·`전투`. */
+  readonly phaseLabel: string;
+  /** 전투 중이면 `k / 전체`, 아니면 null. */
+  readonly spawnText: string | null;
+  readonly alive: number | null;
+}
+export function menuView(hud: HudView): MenuView {
+  return {
+    stageName: hud.stageName,
+    phaseLabel: hud.phaseLabel,
+    spawnText: hud.combat === null ? null : `${hud.combat.spawned} / ${hud.combat.totalSpawn}`,
+    alive: hud.combat === null ? null : hud.combat.alive,
   };
 }

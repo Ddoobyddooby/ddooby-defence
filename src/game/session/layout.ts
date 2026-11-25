@@ -44,7 +44,8 @@ export function computeMapRect(areaW: number, areaH: number): MapRect {
 export function computeLayout(viewportW: number, viewportH: number): Layout {
   const w = Math.max(0, Math.floor(viewportW));
   const h = Math.max(0, Math.floor(viewportH));
-  const hudW = clamp(Math.round(w * 0.24), 176, 320);
+  // MOB-02(2026-11-26): HUD 를 줄여 18×10 격자는 유지하고 칸을 키운다(이전 × 0.24, 176~320).
+  const hudW = clamp(Math.round(w * 0.17), 136, 240);
   const areaW = Math.max(0, w - hudW);
   const problem: ViewportProblem | null = h > w ? "portrait" : w < MIN_VIEWPORT_W || h < MIN_VIEWPORT_H ? "tooSmall" : null;
   return { supported: problem === null, problem, viewportW: w, viewportH: h, hudW, areaW, areaH: h, map: computeMapRect(areaW, h) };

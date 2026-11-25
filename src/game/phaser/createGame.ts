@@ -18,6 +18,9 @@ export async function createGame(parent: HTMLElement, session: GameSession) {
     scale: { mode: Phaser.Scale.NONE },
     input: { touch: { capture: true } },
     disableContextMenu: true,
+    // 소리가 없는 게임이다. 숨김·복귀(visibilitychange)마다 Phaser 가 AudioContext 를 suspend/resume 하다 파괴된 컨텍스트에서
+    // `InvalidStateError: Cannot suspend a closed AudioContext` 미처리 거부가 나는 것을 막는다(MOB-02 자동 일시정지 검증 중 발견).
+    audio: { noAudio: true },
     scene: [createBattleScene(Phaser, session)],
   });
 }
