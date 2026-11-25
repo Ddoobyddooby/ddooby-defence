@@ -462,7 +462,7 @@ Stage 1                Stage 2                Stage 3
 - 골든 형식(정규 JSON): `{ scenario, record(15.1 기록), tickHashes: [틱 0..endTick 해시], outcome(null|victory|defeat), finalGold, finalBaseHp, ledger(경제 원장 전체) }`.
 - 테스트: 골든의 `record`를 `runReplay`(새 코어)로 실행해 (1) `tickHashes`를 **틱마다** 비교하고 다르면 첫 불일치 틱·실제 그 틱의 이벤트 type 목록·상태 요약을 메시지로 낸다, (2) `outcome`·`finalGold`·`finalBaseHp`·`ledger`를 비교, (3) 같은 기록을 새 코어로 한 번 더 실행해 trace 전체가 같음(`firstMismatch == null`), (4) 매 틱 불변식(15.4) 검사.
 - **골든 갱신 규칙:** 골든의 `record.codeVersion`이 현재 `ATTEMPT_CODE_VERSION`과 다르면 테스트는 "골든이 오래됨"으로 **실패**한다(조용히 통과·자동 갱신 금지). 갱신은 명시적 명령 `npm run golden:update`(환경변수로 갱신 모드 실행, POSIX 셸 기준)로만 하고, 갱신 커밋은 코드 버전 변경 또는 시나리오 변경 사유를 메시지에 적는다. 같은 코드 버전에서 해시가 바뀌면 그것은 **회귀**이며 골든 갱신으로 덮지 않는다.
-- **시나리오 변경 판정(리뷰 SIM-03 F1):** "시나리오가 바뀌었다"는 **입력 정의**만으로 판단한다: 콘텐츠(`contentHash`), `stageId`·`attemptId`, 명령 스크립트(명령 목록), 종료 정책(고정 `endTick` 값 또는 "결과 틱까지"). 실행 결과로 계산되는 값(결과 틱으로 정해진 `endTick`, `initialStateHash`, 해시·원장)의 변화는 시나리오 변경 사유가 **아니다**. 같은 `codeVersion`에서 입력 정의가 같은데 결과가 다르면 갱신을 거부한다. 이를 위해 골든에 입력 정의(`input`: 위 항목)를 별도로 저장한다.
+- **시나리오 변경 판정(리뷰 SIM-03 F1):** "시나리오가 바뀌었다"는 **입력 정의**만으로 판단한다: 콘텐츠(`contentHash`), `stageId`·`attemptId`, 명령 스크립트(명령 목록), 종료 정책(고정 `endTick` 값 또는 "결과 틱까지"). 실행 결과로 계산되는 값(결과 틱으로 정해진 `endTick`, `initialStateHash`, 해시·원장)의 변화는 시나리오 변경 사유가 **아니다**. 같은 `codeVersion`에서 입력 정의가 같은데 결과가 다르면 갱신을 거부한다. 이를 위해 골든에 입력 정의(`input`: 위 항목)를 별도로 저장한다. 같은 `codeVersion`인 이전 골든에 `input`이 없으면(구형식·필드 삭제) 갱신을 **거부**한다. 허용은 이전 골든 없음(최초 생성)·`codeVersion` 변경·`input` 변경뿐(재리뷰 1 RR1-F1).
 - **원자적 갱신:** 갱신 모드는 모든 시나리오의 생성·가드 검사를 **먼저 끝낸 뒤** 하나라도 거부되면 어떤 파일도 쓰지 않는다.
 - **최소 시나리오** (모두 시드·난수 없이 고정 스크립트):
 
