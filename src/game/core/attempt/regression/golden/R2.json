@@ -1,6 +1,7 @@
 {
 "finalBaseHp": 0,
 "finalGold": 202,
+"input": {"attemptId":2,"commands":[{"kind":"build","payload":{"tile":{"col":3,"row":2},"towerType":"archer"},"tick":1},{"kind":"build","payload":{"tile":{"col":6,"row":2},"towerType":"mage"},"tick":1},{"kind":"build","payload":{"tile":{"col":9,"row":2},"towerType":"frost"},"tick":1},{"kind":"startWave","payload":{},"tick":1},{"kind":"setTargeting","payload":{"mode":"last","towerId":1},"tick":10}],"contentHash":"2fd775ff09291412","endPolicy":"result","stageId":"stage-2-snowfall-pass"},
 "ledger": [{"delta":-100,"eventSeq":2,"goldAfter":500,"key":"a2:build:c1","tick":1},{"delta":-180,"eventSeq":4,"goldAfter":320,"key":"a2:build:c2","tick":1},{"delta":-120,"eventSeq":6,"goldAfter":200,"key":"a2:build:c3","tick":1},{"delta":2,"eventSeq":27,"goldAfter":202,"key":"a2:kill:e2","tick":34}],
 "outcome": "defeat",
 "record": {"attemptId":2,"codeVersion":"attempt-v3","commands":[{"applyTick":1,"kind":"build","payload":{"tile":{"col":3,"row":2},"towerType":"archer"},"seq":1},{"applyTick":1,"kind":"build","payload":{"tile":{"col":6,"row":2},"towerType":"mage"},"seq":2},{"applyTick":1,"kind":"build","payload":{"tile":{"col":9,"row":2},"towerType":"frost"},"seq":3},{"applyTick":1,"kind":"startWave","payload":{},"seq":4},{"applyTick":10,"kind":"setTargeting","payload":{"mode":"last","towerId":1},"seq":5}],"contentHash":"2fd775ff09291412","endTick":259,"formatVersion":1,"initialStateHash":"25fc52fac95b7d17","stageId":"stage-2-snowfall-pass"},

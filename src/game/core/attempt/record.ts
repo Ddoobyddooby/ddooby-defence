@@ -18,7 +18,7 @@ export type RecordedCore = Pick<
 
 export interface RecordedAttempt {
   readonly core: RecordedCore;
-  /** 지금까지의 기록(endTick = 현재 completedTick). 깊은 복사·동결. step() 실행 중 호출은 오류. */
+  /** 지금까지의 기록(endTick = 현재 completedTick, applyTick ≤ endTick 명령만). 깊은 복사·동결. step() 실행 중 호출은 오류. */
   finish(): ReplayRecord;
   /** 원 실행의 틱 0..completedTick 상태·이벤트·해시(7.4절 비교 대상). */
   trace(): ReplayTrace;
@@ -102,7 +102,11 @@ export function recordAttempt(core: AttemptCore): RecordedAttempt {
         attemptId: core.attemptId,
         initialStateHash,
         endTick: core.completedTick,
-        commands: commands.map((c) => ({ applyTick: c.applyTick, seq: c.seq, kind: c.kind, payload: cloneCanonical(c.payload, "payload") })),
+        // 15.1 미적용 명령: applyTick ≤ completedTick 인 명령만 낸다. 아직 적용 전인 명령(접수 직후·일시정지 중·step 실패 후)은
+        // 내부 목록과 코어 큐에 남겨 두었다가 그 틱이 실행된 뒤의 finish() 에 포함한다. finish() 는 step 도 endTick 증가도 하지 않는다.
+        commands: commands
+          .filter((c) => c.applyTick <= core.completedTick)
+          .map((c) => ({ applyTick: c.applyTick, seq: c.seq, kind: c.kind, payload: cloneCanonical(c.payload, "payload") })),
       });
     },
     trace(): ReplayTrace {

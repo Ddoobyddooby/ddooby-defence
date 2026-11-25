@@ -3,7 +3,8 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
 import { ATTEMPT_CODE_VERSION } from "../attempt";
-import { assertUpdateAllowed, buildGolden, goldenFilePath, playScenario, serializeGolden, verifyGolden, type Golden } from "./golden";
+import { canonicalize } from "../../sim/canonical";
+import { goldenFilePath, inputOf, playScenario, updateGoldens, verifyGolden, type Golden } from "./golden";
 import { SCENARIOS, type Scenario } from "./scenarios";
 
 const UPDATE = process.env.GOLDEN_UPDATE === "1";
@@ -16,12 +17,13 @@ function loadGolden(id: Scenario["id"]): Golden {
 
 beforeAll(() => {
   if (!UPDATE) return;
-  for (const sc of SCENARIOS) {
-    const next = buildGolden(sc);
-    const previous = existsSync(goldenFilePath(sc.id)) ? loadGolden(sc.id) : null;
-    assertUpdateAllowed(previous, next);
-    writeFileSync(goldenFilePath(sc.id), serializeGolden(next));
-  }
+  updateGoldens(
+    SCENARIOS,
+    {
+      read: (id) => (existsSync(goldenFilePath(id)) ? loadGolden(id) : null),
+      write: (id, text) => writeFileSync(goldenFilePath(id), text),
+    },
+  );
 });
 
 type Ev = Record<string, unknown>;
@@ -39,6 +41,10 @@ describe.each(SCENARIOS)("골든 회귀 $id", (sc) => {
     const { trace } = verifyGolden(loadGolden(sc.id), sc);
     const types = new Set(eventsOf(trace).map((e) => e.type as string));
     for (const type of sc.requiredEvents) expect(types.has(type), `${sc.id}: ${type} 이벤트가 나와야 함`).toBe(true);
+  });
+
+  it("골든 input 은 시나리오의 현재 입력 정의(콘텐츠 해시·스크립트·종료 정책)와 같다", () => {
+    expect(canonicalize(loadGolden(sc.id).input)).toBe(canonicalize(inputOf(sc)));
   });
 
   it("골든 record 는 스크립트를 기록기로 다시 실행한 기록과 같다(시나리오만 바꾸고 골든을 안 갱신하는 실수 방지)", () => {

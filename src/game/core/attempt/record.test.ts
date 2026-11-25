@@ -109,11 +109,75 @@ describe("createRecordedAttempt (15.1)", () => {
     expect(() => rec.core.step()).toThrow(SimStateError);
     expect(core.completedTick).toBe(0);
     expect(rec.trace().ticks).toHaveLength(1);
-    expect(rec.finish().endTick).toBe(0); // step 이 끝난 뒤에는 다시 호출 가능
+    // 실패한 step 뒤: 미적용 startWave(applyTick 1)는 기록에 넣지 않고(endTick 0) 큐에 남아 있다
+    expect(rec.finish()).toMatchObject({ endTick: 0, commands: [] });
 
     const used = createAttempt(bundle(), STAGE2_ID, 1);
     used.step();
     expect(() => recordAttempt(used)).toThrow(SimStateError);
     expect(createRecordedAttempt.length).toBe(3);
+  });
+});
+
+describe("finish() 와 미적용 명령 (리뷰 SIM-03 F2, 15.1)", () => {
+  const expectation = (core: { contentHash: string }) => ({ formatVersion: 1, codeVersion: ATTEMPT_CODE_VERSION, contentHash: core.contentHash });
+  /** finish() 결과는 항상 검증을 통과하고, 새 코어 재생이 원 실행의 틱 0..endTick trace 와 같다. */
+  function expectConsistent(rec: ReturnType<typeof createRecordedAttempt>, b: unknown = bundle()): ReturnType<ReturnType<typeof createRecordedAttempt>["finish"]> {
+    const record = rec.finish();
+    expect(() => validateReplayRecord(record, expectation(rec.core))).not.toThrow();
+    const replayed = runReplay(record, expectation(rec.core), (r) => createAttempt(b, r.stageId, r.attemptId));
+    expect(replayed.ticks).toHaveLength(record.endTick + 1);
+    expect(firstMismatch({ ticks: rec.trace().ticks.slice(0, record.endTick + 1) }, replayed)).toBeNull();
+    for (const c of record.commands) expect(c.applyTick).toBeLessThanOrEqual(record.endTick);
+    return record;
+  }
+
+  it("최초 접수 직후(step 없음): 기록에는 명령이 없고 endTick 0, step 뒤 finish 에 포함", () => {
+    const rec = createRecordedAttempt(bundle(), STAGE2_ID, 1);
+    rec.core.submit("startWave", {});
+    expect(expectConsistent(rec)).toMatchObject({ endTick: 0, commands: [] });
+    expect(rec.core.snapshot().queue).toHaveLength(1); // 코어 큐에 보존
+    rec.core.step();
+    expect(expectConsistent(rec)).toMatchObject({ endTick: 1, commands: [{ applyTick: 1, seq: 1, kind: "startWave", payload: {} }] });
+  });
+
+  it("진행 중 다음 틱 명령을 접수한 직후: 그 명령만 빠지고 앞선 명령은 포함, step 뒤 포함", () => {
+    const rec = createRecordedAttempt(bundle(), STAGE2_ID, 1);
+    rec.core.submit("startWave", {});
+    for (let t = 0; t < 3; t++) rec.core.step();
+    rec.core.submit("build", { towerType: "archer", tile: { col: 0, row: 0 } }); // applyTick 4
+    expect(expectConsistent(rec)).toMatchObject({ endTick: 3, commands: [{ seq: 1, applyTick: 1 }] });
+    rec.core.step();
+    expect(expectConsistent(rec)).toMatchObject({ endTick: 4, commands: [{ seq: 1 }, { seq: 2, applyTick: 4, kind: "build" }] });
+  });
+
+  it("접수 후 일시정지: 큐에 남은 명령은 기록에서 빠지고, 재개해 step 한 뒤 포함", () => {
+    const rec = createRecordedAttempt(bundle(), STAGE2_ID, 1);
+    rec.core.step();
+    rec.core.submit("startWave", {}); // applyTick 2
+    rec.core.pause();
+    expect(expectConsistent(rec)).toMatchObject({ endTick: 1, commands: [] });
+    rec.core.resume();
+    rec.core.step();
+    expect(expectConsistent(rec)).toMatchObject({ endTick: 2, commands: [{ applyTick: 2, kind: "startWave" }] });
+  });
+
+  it("step 실패(예외) 뒤: 큐에 남은 명령은 빠지고, 재시도에 성공한 뒤 포함", () => {
+    let armed = true;
+    const core = createAttempt(bundle(), STAGE2_ID, 1, {
+      fire(ctx: { tick: number }) {
+        if (armed && ctx.tick === 2) throw new Error("hook boom");
+        return undefined;
+      },
+    });
+    const rec = recordAttempt(core);
+    rec.core.submit("startWave", {});
+    rec.core.step(); // 틱 1 성공
+    rec.core.submit("build", { towerType: "archer", tile: { col: 0, row: 0 } }); // applyTick 2
+    expect(() => rec.core.step()).toThrow("hook boom");
+    expect(expectConsistent(rec)).toMatchObject({ endTick: 1, commands: [{ seq: 1 }] });
+    armed = false;
+    rec.core.step();
+    expect(expectConsistent(rec)).toMatchObject({ endTick: 2, commands: [{ seq: 1 }, { seq: 2, applyTick: 2 }] });
   });
 });

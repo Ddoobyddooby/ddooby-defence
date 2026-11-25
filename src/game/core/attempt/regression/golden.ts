@@ -8,8 +8,20 @@ import type { LedgerEntry } from "../types";
 import { InvariantChecker } from "../testing/invariants";
 import type { Scenario, ScenarioId } from "./scenarios";
 
+/** 시나리오 입력 정의(15.2 "시나리오 변경 판정"). 실행 결과로 계산되는 값(endTick·initialStateHash·해시·원장)은 넣지 않는다. */
+export interface GoldenInput {
+  readonly contentHash: string;
+  readonly stageId: string;
+  readonly attemptId: number;
+  /** 명령 스크립트(시나리오 정의 그대로). */
+  readonly commands: readonly { readonly tick: number; readonly kind: string; readonly payload: unknown }[];
+  /** 종료 정책: 고정 endTick 값 또는 "result"(결과 틱까지). */
+  readonly endPolicy: number | "result";
+}
+
 export interface Golden {
   readonly scenario: ScenarioId;
+  readonly input: GoldenInput;
   readonly record: ReplayRecord;
   /** 틱 0..endTick 의 틱 해시. */
   readonly tickHashes: readonly string[];
@@ -78,6 +90,19 @@ function finalState(trace: ReplayTrace): { outcome: Golden["outcome"]; gold: num
   return { outcome: s.outcome, gold: s.gold, baseHp: s.baseHp };
 }
 
+export function inputOf(sc: Scenario): GoldenInput {
+  return cloneCanonical(
+    {
+      contentHash: createAttempt(sc.bundle(), sc.stageId, sc.attemptId).contentHash,
+      stageId: sc.stageId,
+      attemptId: sc.attemptId,
+      commands: sc.commands.map((c) => ({ tick: c.tick, kind: c.kind, payload: c.payload })),
+      endPolicy: sc.endTick === null ? "result" : sc.endTick,
+    },
+    "input",
+  ) as GoldenInput;
+}
+
 export function buildGolden(sc: Scenario): Golden {
   const played = playScenario(sc);
   const derived = ledgerFromTrace(played.trace);
@@ -86,6 +111,7 @@ export function buildGolden(sc: Scenario): Golden {
   return cloneCanonical(
     {
       scenario: sc.id,
+      input: inputOf(sc),
       record: played.record,
       tickHashes: played.trace.ticks.map((t) => t.hash),
       outcome: f.outcome,
@@ -168,14 +194,38 @@ export function verifyGolden(golden: Golden, sc: Scenario): Verified {
 }
 
 /**
- * 갱신 가드: 같은 코드 버전에서 같은 시나리오(record 동일)인데 틱 해시가 달라졌다면 코어 회귀이므로 덮어쓰지 않는다.
- * 코드 버전이 오르거나 시나리오(record)가 바뀐 경우에만 갱신을 허용한다.
+ * 갱신 가드(15.2, 리뷰 SIM-03 F1): 같은 코드 버전에서 **입력 정의**(input)가 같은데 결과(record·tickHashes·outcome·finalGold·finalBaseHp·ledger)가
+ * 달라졌다면 코어 회귀이므로 덮어쓰지 않는다. 입력 정의가 바뀌었거나 코드 버전이 바뀐 경우, 이전 골든이 없거나 입력 정의가 없는(구형식) 경우만 허용한다.
+ * endTick(결과 틱)·initialStateHash 는 결과 값이라 시나리오 변경 판정에 쓰지 않는다.
  */
 export function assertUpdateAllowed(previous: Golden | null, next: Golden): void {
   if (previous === null) return;
   if (previous.record.codeVersion !== next.record.codeVersion) return;
-  if (canonicalize(previous.record) !== canonicalize(next.record)) return;
-  if (canonicalize(previous.tickHashes) !== canonicalize(next.tickHashes)) {
-    throw new GoldenMismatchError(`${next.scenario}: 같은 코드 버전(${next.record.codeVersion})·같은 시나리오에서 틱 해시가 달라짐 = 회귀. 골든 갱신으로 덮지 않습니다.`);
+  if (previous.input === undefined || canonicalize(previous.input) !== canonicalize(next.input)) return;
+  const { input: _a, scenario: _b, ...before } = previous;
+  const { input: _c, scenario: _d, ...after } = next;
+  void [_a, _b, _c, _d];
+  if (canonicalize(before) !== canonicalize(after)) {
+    throw new GoldenMismatchError(
+      `${next.scenario}: 같은 코드 버전(${next.record.codeVersion})·같은 입력 정의에서 결과가 달라짐 = 회귀 (endTick ${previous.record.endTick} → ${next.record.endTick}). 골든 갱신으로 덮지 않습니다.`,
+    );
   }
+}
+
+export interface GoldenIo {
+  read(id: ScenarioId): Golden | null;
+  write(id: ScenarioId, text: string): void;
+}
+
+/**
+ * 원자적 갱신(15.2): 모든 시나리오의 골든 생성·가드 검사를 먼저 끝내고, 하나라도 거부되면 어떤 파일도 쓰지 않는다.
+ * `build` 는 테스트가 후보 골든을 주입할 수 있게 열어 둔 것이다(기본 buildGolden).
+ */
+export function updateGoldens(scenarios: readonly Scenario[], io: GoldenIo, build: (sc: Scenario) => Golden = buildGolden): void {
+  const planned = scenarios.map((sc) => {
+    const next = build(sc);
+    assertUpdateAllowed(io.read(sc.id), next);
+    return { id: sc.id, text: serializeGolden(next) };
+  });
+  for (const p of planned) io.write(p.id, p.text);
 }

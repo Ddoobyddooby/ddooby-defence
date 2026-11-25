@@ -14,7 +14,7 @@ import {
   type ReplayTrace,
 } from "../../sim/replay";
 import { seg, STAGE2_ID, uniformStage2, withValues } from "../testing/bundles";
-import { assertUpdateAllowed, GoldenMismatchError, playScenario, StaleGoldenError, verifyGolden, buildGolden, type Golden } from "./golden";
+import { assertUpdateAllowed, GoldenMismatchError, playScenario, serializeGolden, StaleGoldenError, updateGoldens, verifyGolden, buildGolden, type Golden } from "./golden";
 import { SCENARIOS, type Scenario } from "./scenarios";
 import { InvariantChecker, InvariantViolation } from "../testing/invariants";
 
@@ -335,19 +335,87 @@ describe("F8 골든 오래됨·변조·갱신 가드", () => {
     const changed: Scenario = { ...R3, bundle: () => withValues([["towers[0].levels.base.damage", 31]], R3.bundle()) };
     expect(() => verifyGolden(golden(), changed)).toThrow(ReplayCompatibilityError);
   });
-  it("갱신 가드: 같은 코드 버전·같은 시나리오에서 해시가 달라지면 거부(회귀), 코드 버전이 오르거나 시나리오가 바뀌면 허용, 같으면 허용", () => {
-    const prev = golden();
-    const sameButHashChanged = { ...structuredClone(prev), tickHashes: prev.tickHashes.map((h, i) => (i === 5 ? "ffffffffffffffff" : h)) } as Golden;
-    expect(() => assertUpdateAllowed(prev, sameButHashChanged)).toThrow(GoldenMismatchError);
-    expect(() => assertUpdateAllowed(prev, sameButHashChanged)).toThrow(/회귀/);
-    expect(() => assertUpdateAllowed(prev, prev)).not.toThrow();
-    expect(() => assertUpdateAllowed(null, prev)).not.toThrow();
-    const newVersion = structuredClone(sameButHashChanged) as any;
-    newVersion.record.codeVersion = "attempt-v4";
-    expect(() => assertUpdateAllowed(prev, newVersion)).not.toThrow();
-    const newScenario = structuredClone(sameButHashChanged) as any;
-    newScenario.record.commands[0].payload.tile.col += 1;
-    expect(() => assertUpdateAllowed(prev, newScenario)).not.toThrow();
+});
+
+describe("F9 골든 갱신 가드: 입력 정의가 같은데 결과가 달라지면 거부, 원자적 갱신 (리뷰 SIM-03 F1, 15.2)", () => {
+  const files = (): Map<string, string> => new Map(SCENARIOS.map((sc) => [sc.id, serializeGolden(buildGolden(sc))]));
+  const memoryIo = (store: Map<string, string>) => {
+    const writes: string[] = [];
+    return {
+      writes,
+      io: {
+        read: (id: Scenario["id"]): Golden | null => (store.has(id) ? (JSON.parse(store.get(id)!) as Golden) : null),
+        write: (id: Scenario["id"], text: string): void => {
+          writes.push(id);
+          store.set(id, text);
+        },
+      },
+    };
+  };
+  /** 코어 동작만 바뀐 것처럼, 같은 input 으로 결과(endTick·해시)만 다른 후보 골든. 이동 +1 변이에서 R1 이 1093 → 1086 이 되는 것과 같은 모양. */
+  const regressed = (g: Golden, deltaTicks: number): Golden => ({
+    ...g,
+    record: { ...g.record, endTick: g.record.endTick - deltaTicks, initialStateHash: g.record.initialStateHash },
+    tickHashes: g.tickHashes.slice(0, g.tickHashes.length - deltaTicks).map((h, i) => (i >= 5 ? h.replace(/^./, h[0] === "0" ? "1" : "0") : h)),
+  });
+  const candidates = (mutate: (sc: Scenario, g: Golden) => Golden) => (sc: Scenario): Golden => mutate(sc, buildGolden(sc));
+
+  it("결과 틱(endTick)이 바뀐 R1·R2 후보(같은 input) → 거부", () => {
+    for (const [id, delta] of [["R1", 7], ["R2", 1]] as const) {
+      const sc = scenario(id);
+      const prev = buildGolden(sc);
+      const next = regressed(prev, delta);
+      expect(next.input).toEqual(prev.input);
+      expect(next.record.endTick).toBe(prev.record.endTick - delta);
+      expect(() => assertUpdateAllowed(prev, next)).toThrow(GoldenMismatchError);
+      expect(() => assertUpdateAllowed(prev, next)).toThrow(new RegExp(`endTick ${prev.record.endTick} → ${next.record.endTick}`));
+    }
+  });
+  it("계산값만 바뀐 경우도 거부: initialStateHash·outcome·finalGold·ledger", () => {
+    const prev = buildGolden(R2);
+    const variants: Golden[] = [
+      { ...prev, record: { ...prev.record, initialStateHash: "0123456789abcdef" } },
+      { ...prev, outcome: "victory" },
+      { ...prev, finalGold: prev.finalGold + 1 },
+      { ...prev, ledger: prev.ledger.map((e, i) => (i === 0 ? { ...e, delta: e.delta + 1 } : e)) },
+    ];
+    for (const v of variants) expect(() => assertUpdateAllowed(prev, v)).toThrow(/회귀/);
+  });
+  it("원자적 갱신: R3 후보가 거부되면 R1(입력 변경으로 허용될 후보)·R2 파일도 바이트 그대로이고 쓰기 0회", () => {
+    const store = files();
+    const before = new Map(store);
+    const { io, writes } = memoryIo(store);
+    const inputChangedR1 = (sc: Scenario, g: Golden): Golden => {
+      if (sc.id === "R1") return { ...g, input: { ...g.input, commands: [...g.input.commands, { tick: 9999, kind: "startWave", payload: {} }] } };
+      if (sc.id === "R3") return regressed(g, 3);
+      return g;
+    };
+    expect(() => updateGoldens(SCENARIOS, io, candidates(inputChangedR1))).toThrow(GoldenMismatchError);
+    expect(writes).toEqual([]);
+    expect([...store]).toEqual([...before]);
+  });
+  it("입력 정의 변경(명령 추가)·코드 버전 변경은 결과가 달라도 허용되고 모든 시나리오를 쓴다", () => {
+    for (const mutate of [
+      (_: Scenario, g: Golden): Golden => ({ ...regressed(g, 1), input: { ...g.input, endPolicy: 123_456 } }),
+      (_: Scenario, g: Golden): Golden => ({ ...regressed(g, 1), record: { ...regressed(g, 1).record, codeVersion: "attempt-v4" } }),
+    ]) {
+      const store = files();
+      const { io, writes } = memoryIo(store);
+      updateGoldens(SCENARIOS, io, candidates(mutate));
+      expect(writes).toEqual(["R1", "R2", "R3"]);
+    }
+  });
+  it("변경 없음·골든 없음·구형식(input 없음) 골든은 허용(정상 갱신·최초 생성)", () => {
+    const store = files();
+    const { io, writes } = memoryIo(store);
+    updateGoldens(SCENARIOS, io);
+    expect(writes).toEqual(["R1", "R2", "R3"]);
+    const fresh = memoryIo(new Map());
+    updateGoldens(SCENARIOS, fresh.io);
+    expect(fresh.writes).toEqual(["R1", "R2", "R3"]);
+    const old = structuredClone(buildGolden(R2)) as any;
+    delete old.input;
+    expect(() => assertUpdateAllowed(old, regressed(buildGolden(R2), 1))).not.toThrow();
   });
 });
 

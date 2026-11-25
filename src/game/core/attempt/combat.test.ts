@@ -227,26 +227,30 @@ describe("타깃 모드 4종 (14.6) — 틱 61 에 적 4명: 진행도 3000/2000
 });
 
 describe("발사 후 타깃 변경 (REQ-TOWER-09, 15.5)", () => {
-  // e1 은 틱 1, e2 는 틱 21 생성. 타워는 틱 1 에 first 로 e1 을 쏜다. 틱 2 에 setTargeting last 가 적용된다.
-  const segments = [seg(0, 0, 1), seg(1000, 0, 1)];
+  // e1 은 틱 1, e2 는 틱 2 생성. 타워(0,0)는 틱 1 에 후보가 e1 하나뿐이라 first 로 e1 을 쏜다.
+  // 틱 2 의 1단계에 setTargeting last 가 적용되는 시점에 e1(진행도 50)·e2(방금 생성, 진행도 0)가 둘 다 사거리 안에 있다:
+  // first 라면 e1, last 라면 e2 로 서로 다르다 → 비행 중 투사체를 새 모드로 재선택하는 구현을 구분한다.
+  const segments = [seg(0, 0, 1), seg(50, 0, 1)];
   const run = (changeToLast: boolean): Sim => {
     const sim = start(bundle(segments), [["archer", 0, 0]]).to(1);
     if (changeToLast) sim.submit("setTargeting", { towerId: 1, mode: "last" });
     return sim;
   };
-  it("비행 중 투사체의 대상·스탯은 불변, nextFireTick 도 불변", () => {
+  it("변경 시점(틱 2)에 후보 2명이 사거리 안: 기존 투사체는 원래 적 e1 에 명중하고 e2 는 맞지 않는다, 스탯·nextFireTick 불변", () => {
     const sim = run(true);
     const before = sim.s.projectiles[0];
     expect(before).toMatchObject({ projectileId: 1, targetEnemyId: 1, damage: 10, expireTick: 41, speedPerTick: 500 });
     sim.to(2);
     expect(sim.ev(2, "targetingChanged")).toMatchObject([{ towerId: 1, mode: "last" }]);
     expect(sim.s.towers[0]).toMatchObject({ targetingMode: "last", nextFireTick: 21 });
-    const after = sim.s.projectiles[0];
-    expect(after).toMatchObject({ projectileId: 1, targetEnemyId: 1, damage: 10, expireTick: 41, speedPerTick: 500, kind: "single", impact: null });
+    // 변경 시점의 후보: e1(진행도 50, 위치 (550,1500))·e2(진행도 0, (500,1500)) 모두 타워 (500,500) 사거리 5000 안(거리² ≈ 1.0e6)
+    expect(sim.s.enemies.map((e) => [e.id, e.pathProgress])).toEqual([[1, 100], [2, 50]]); // 틱 2 의 6단계 이동 뒤. 4단계(후보 판정) 시점에는 [50, 0]
+    expect(sim.s.projectiles[0]).toMatchObject({ projectileId: 1, targetEnemyId: 1, damage: 10, expireTick: 41, speedPerTick: 500, kind: "single", impact: null });
     sim.to(4);
-    expect(sim.ev(4, "enemyDamaged")).toMatchObject([{ projectileId: 1, enemyId: 1, damage: 10 }]); // 여전히 e1 에 명중
+    expect(sim.ev(4, "enemyDamaged")).toMatchObject([{ projectileId: 1, enemyId: 1, damage: 10 }]);
+    expect(sim.s.enemies.find((e) => e.id === 2)?.hp).toBe(100);
   });
-  it("다음 발사(틱 21)는 새 모드로 선택한다: last → 방금 생성된 e2, 변경 없으면(first) e1", () => {
+  it("다음 발사(틱 21)는 새 모드로 선택한다: last → e2(진행도 950), 변경 없으면(first) e1(진행도 1000)", () => {
     expect(run(true).to(21).ev(21, "projectileFired")).toMatchObject([{ targetEnemyId: 2 }]);
     expect(run(false).to(21).ev(21, "projectileFired")).toMatchObject([{ targetEnemyId: 1 }]);
   });
@@ -484,6 +488,7 @@ describe("14.8 불변식 — 무작위 명령(시드 고정, 시도 코어 입�
         }
         sim.to(tick);
         checker.check(tick, sim.s, sim.log[tick]);
+        expect(sim.s.gold, `tick ${tick}`).toBe(3000 + sim.core.ledger().reduce((acc, l) => acc + l.delta, 0)); // 실제 코어 원장과도 대조
         if (sim.core.isResult()) break;
       }
       expect(checker.firedCount).toBeGreaterThan(0);
