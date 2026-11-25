@@ -121,7 +121,7 @@
   - 결과: 시도 코어가 build·upgrade·sell·setTargeting 직접 처리, 스냅샷 `towers`, 명령 훅 제거, `ATTEMPT_CODE_VERSION` attempt-v2. lint/typecheck/test(439 passed)/build exit 0. codex-main 리뷰 F1(음수 좌표 접수) 수정 → **재리뷰 1 통과**(@`cc4059a`, `.codex-out/ECON-01-review.md`)
 
 - [ ] **SIM-03 — 결정적 리플레이·실패 주입·회귀 기반**
-  - 담당: 구현 담당 claude-main 배정, codex-main 테스트 전략/독립 리뷰
+  - 담당: claude-main 계약(`docs/SIM-CONTRACT.md` 15절), 구현 claude-1(worktree `../ddooby-defence-sim-03`, 브랜치 `feat/sim-03`), codex-main 독립 리뷰
   - 선행: SIM-01, SIM-02, ECON-01
   - 범위: code/content version + input sequence, tick별 핵심 상태·경제 이벤트·최종 결과 비교, 최초 불일치 탐색
   - QA: DATA, INT, TSTR-05~16, COREG-13~14
