@@ -193,15 +193,47 @@ export function verifyGolden(golden: Golden, sc: Scenario): Verified {
   return { trace, second };
 }
 
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+const hasExactKeys = (o: Record<string, unknown>, keys: readonly string[]): boolean => {
+  const own = Object.keys(o);
+  return own.length === keys.length && keys.every((k) => own.includes(k));
+};
+const isSafeInt = (v: unknown, min: number): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= min;
+
+/** 입력 정의의 정확한 형태(계약 15.2): 알 수 없는 필드·누락·잘못된 타입이 있으면 false. null·빈 객체·배열·문자열 등도 false. */
+export function isValidGoldenInput(v: unknown): v is GoldenInput {
+  if (!isRecord(v) || !hasExactKeys(v, ["attemptId", "commands", "contentHash", "endPolicy", "stageId"])) return false;
+  if (typeof v.contentHash !== "string" || !/^[0-9a-f]{16}$/.test(v.contentHash)) return false;
+  if (typeof v.stageId !== "string" || v.stageId.length === 0 || !isSafeInt(v.attemptId, 1)) return false;
+  if (!(v.endPolicy === "result" || isSafeInt(v.endPolicy, 0))) return false;
+  if (!Array.isArray(v.commands)) return false;
+  return v.commands.every((c: unknown) => isRecord(c) && hasExactKeys(c, ["kind", "payload", "tick"]) && isSafeInt(c.tick, 1) && typeof c.kind === "string" && isRecord(c.payload));
+}
+
+/** 골든이 갱신 가드가 읽을 수 있는 최소 형태(시나리오 ID·record.codeVersion 문자열·tickHashes 배열)인지. */
+function hasGoldenShape(v: unknown): v is Golden {
+  return isRecord(v) && typeof v.scenario === "string" && isRecord(v.record) && typeof v.record.codeVersion === "string" && Array.isArray(v.tickHashes);
+}
+
 /**
- * 갱신 가드(15.2, 리뷰 SIM-03 F1): 같은 코드 버전에서 **입력 정의**(input)가 같은데 결과(record·tickHashes·outcome·finalGold·finalBaseHp·ledger)가
- * 달라졌다면 코어 회귀이므로 덮어쓰지 않는다. 입력 정의가 바뀌었거나 코드 버전이 바뀐 경우, 이전 골든이 없거나 입력 정의가 없는(구형식) 경우만 허용한다.
+ * 갱신 가드(15.2, 리뷰 SIM-03 F1·RR1-F1). 허용은 (1) 이전 골든 없음(최초 생성) (2) codeVersion 변경 (3) 같은 버전에서 입력 정의(input) 변경 뿐이다.
+ * 같은 codeVersion·같은 input 인데 결과(record·tickHashes·outcome·finalGold·finalBaseHp·ledger)가 다르면 회귀이므로 거부한다.
+ * 같은 codeVersion 의 이전 골든에 유효한 input 이 없으면(삭제·null·빈 객체·잘못된 타입·알 수 없는 필드) 거부한다 — 구형식 허용 분기는 없다.
  * endTick(결과 틱)·initialStateHash 는 결과 값이라 시나리오 변경 판정에 쓰지 않는다.
+ * 한계: 골든 파일을 직접 편집해 codeVersion 을 낮추는 위조는 코드로 구분할 수 없다(커밋 diff 리뷰 몫).
  */
 export function assertUpdateAllowed(previous: Golden | null, next: Golden): void {
   if (previous === null) return;
+  if (!hasGoldenShape(previous)) throw new GoldenMismatchError(`${next.scenario}: 이전 골든 형식이 손상되어 갱신을 거부합니다(시나리오 ID·record.codeVersion·tickHashes 필요).`);
+  if (previous.scenario !== next.scenario) throw new GoldenMismatchError(`${next.scenario}: 이전 골든의 시나리오 ID(${previous.scenario})가 다릅니다. 파일이 섞였을 수 있어 갱신을 거부합니다.`);
+  if (!isValidGoldenInput(next.input)) throw new GoldenMismatchError(`${next.scenario}: 새 골든의 input 이 유효하지 않습니다.`);
   if (previous.record.codeVersion !== next.record.codeVersion) return;
-  if (previous.input === undefined || canonicalize(previous.input) !== canonicalize(next.input)) return;
+  if (!isValidGoldenInput(previous.input)) {
+    throw new GoldenMismatchError(
+      `${next.scenario}: 같은 코드 버전(${next.record.codeVersion})의 이전 골든에 유효한 input 이 없어 입력 변경 여부를 판정할 수 없습니다. 같은 버전 회귀를 덮을 수 있으므로 갱신을 거부합니다.`,
+    );
+  }
+  if (canonicalize(previous.input) !== canonicalize(next.input)) return;
   const { input: _a, scenario: _b, ...before } = previous;
   const { input: _c, scenario: _d, ...after } = next;
   void [_a, _b, _c, _d];

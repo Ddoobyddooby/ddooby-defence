@@ -19,6 +19,7 @@ import { SCENARIOS, type Scenario } from "./scenarios";
 import { InvariantChecker, InvariantViolation } from "../testing/invariants";
 
 const scenario = (id: Scenario["id"]): Scenario => SCENARIOS.find((s) => s.id === id)!;
+const R1 = scenario("R1");
 const R3 = scenario("R3");
 const R2 = scenario("R2");
 
@@ -405,7 +406,7 @@ describe("F9 골든 갱신 가드: 입력 정의가 같은데 결과가 달라�
       expect(writes).toEqual(["R1", "R2", "R3"]);
     }
   });
-  it("변경 없음·골든 없음·구형식(input 없음) 골든은 허용(정상 갱신·최초 생성)", () => {
+  it("변경 없음·골든 없음은 허용(정상 갱신·최초 생성)", () => {
     const store = files();
     const { io, writes } = memoryIo(store);
     updateGoldens(SCENARIOS, io);
@@ -413,9 +414,85 @@ describe("F9 골든 갱신 가드: 입력 정의가 같은데 결과가 달라�
     const fresh = memoryIo(new Map());
     updateGoldens(SCENARIOS, fresh.io);
     expect(fresh.writes).toEqual(["R1", "R2", "R3"]);
-    const old = structuredClone(buildGolden(R2)) as any;
-    delete old.input;
-    expect(() => assertUpdateAllowed(old, regressed(buildGolden(R2), 1))).not.toThrow();
+  });
+
+  describe("RR1-F1: 같은 코드 버전의 이전 골든에 input 이 없거나 유효하지 않으면 거부", () => {
+    const withoutInput = (g: Golden): any => {
+      const old = structuredClone(g) as any;
+      delete old.input;
+      return old;
+    };
+    it("(1) 재현: input 삭제 + 같은 버전·같은 명령으로 tickHashes[1] 만 변경 → 거부, updateGoldens 쓰기 0회·파일 불변", () => {
+      const store = files();
+      const before = new Map(store);
+      const old = withoutInput(JSON.parse(store.get("R1")!));
+      store.set("R1", JSON.stringify(old));
+      const snapshot = new Map(store);
+      const { io, writes } = memoryIo(store);
+      const changed = (sc: Scenario): Golden => {
+        const g = buildGolden(sc);
+        return sc.id === "R1" ? { ...g, tickHashes: g.tickHashes.map((h, i) => (i === 1 ? "ffffffffffffffff" : h)) } : g;
+      };
+      expect(() => updateGoldens(SCENARIOS, io, changed)).toThrow(GoldenMismatchError);
+      expect(() => updateGoldens(SCENARIOS, io, changed)).toThrow(/유효한 input 이 없어/);
+      expect(writes).toEqual([]);
+      expect([...store]).toEqual([...snapshot]);
+      expect(before.get("R2")).toBe(store.get("R2"));
+    });
+    it("(2) input 삭제만 하고 결과가 완전히 같은 후보도 같은 버전이면 거부", () => {
+      const prev = buildGolden(R2);
+      expect(() => assertUpdateAllowed(withoutInput(prev), buildGolden(R2))).toThrow(/유효한 input 이 없어/);
+    });
+    it("(3) input 없는 구형식이어도 codeVersion 이 다르면 허용", () => {
+      const prev = withoutInput(buildGolden(R2));
+      prev.record.codeVersion = "attempt-v2";
+      expect(() => assertUpdateAllowed(prev, buildGolden(R2))).not.toThrow();
+    });
+    it("(4) 최초 생성·input 변경 허용 유지(위 F9 테스트)와 함께, input 변경 후보는 결과가 달라도 허용", () => {
+      const prev = buildGolden(R2);
+      const next = { ...regressed(prev, 1), input: { ...prev.input, attemptId: prev.input.attemptId + 1 } };
+      expect(() => assertUpdateAllowed(prev, next)).not.toThrow();
+      expect(() => assertUpdateAllowed(null, prev)).not.toThrow();
+    });
+    it("우회 경로: input 을 null·빈 객체·배열·문자열·숫자·알 수 없는 필드·필드 누락·잘못된 타입으로 바꾼 이전 골든은 같은 버전에서 모두 거부", () => {
+      const prev = buildGolden(R2);
+      const bad: unknown[] = [
+        null,
+        {},
+        [],
+        "x",
+        7,
+        { ...prev.input, extra: 1 },
+        Object.fromEntries(Object.entries(prev.input).filter(([k]) => k !== "commands")),
+        { ...prev.input, contentHash: "not-a-hash" },
+        { ...prev.input, attemptId: "2" },
+        { ...prev.input, endPolicy: -1 },
+        { ...prev.input, endPolicy: "never" },
+        { ...prev.input, commands: [{ tick: 1, kind: "build" }] },
+        { ...prev.input, commands: [{ tick: 1.5, kind: "build", payload: {} }] },
+      ];
+      for (const input of bad) {
+        const old = { ...structuredClone(prev), input } as unknown as Golden;
+        expect(() => assertUpdateAllowed(old, regressed(prev, 1)), JSON.stringify(input)).toThrow(GoldenMismatchError);
+      }
+    });
+    it("우회 경로: 이전 골든 자체가 손상(null·record 없음·codeVersion 비문자열·tickHashes 없음)되었거나 다른 시나리오 파일이면 거부", () => {
+      const prev = buildGolden(R2);
+      const next = regressed(prev, 1);
+      for (const old of [{}, { scenario: "R2" }, { ...prev, record: null }, { ...prev, record: { ...prev.record, codeVersion: 3 } }, { ...prev, tickHashes: "x" }, "x", 5]) {
+        expect(() => assertUpdateAllowed(old as unknown as Golden, next), JSON.stringify(old).slice(0, 40)).toThrow(/손상/);
+      }
+      expect(() => assertUpdateAllowed(buildGolden(R1), next)).toThrow(/시나리오 ID/);
+    });
+    it("새 후보의 input 이 유효하지 않아도 거부(주입된 build 가 형식을 깨는 경우)", () => {
+      const prev = buildGolden(R2);
+      expect(() => assertUpdateAllowed(prev, { ...prev, input: null } as unknown as Golden)).toThrow(/새 골든의 input/);
+    });
+    it("한계(문서화): 골든 파일을 직접 편집해 이전 골든의 codeVersion 을 낮추면 코드로 구분할 수 없어 허용된다 — 커밋 diff 리뷰로만 막는다", () => {
+      const forged = structuredClone(buildGolden(R2)) as any;
+      forged.record.codeVersion = "attempt-v2";
+      expect(() => assertUpdateAllowed(forged, buildGolden(R2))).not.toThrow();
+    });
   });
 });
 
