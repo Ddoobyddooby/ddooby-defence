@@ -32,6 +32,7 @@ export interface SnapProjectile {
   readonly pos: { readonly x: number; readonly y: number };
   readonly impact: { readonly x: number; readonly y: number } | null;
   readonly slowBp: number | null;
+  readonly aoeRadiusMt: number | null;
 }
 export type Phase = "preparation" | "combat" | "victory" | "defeat";
 export interface Snapshot {
