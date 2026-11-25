@@ -1,14 +1,14 @@
 // HUD 뷰 모델 (UI-CONTRACT 7절): 코어 스냅샷 + 스테이지 콘텐츠 + UI 상태에서만 파생하는 순수 함수. HUD 가 따로 값을 계산·누적하지 않는다.
 // 능력치·환급액은 코어의 helper(towerLevelStats·refundFor)를 그대로 읽는다(규칙 재구현 금지).
 import type { StageContent, TowerDef, TowerType } from "../core/content/types";
+import { expandWave } from "../core/content/expandWave";
 import { towerLevelStats } from "../core/content/levelStats";
 import type { TargetingMode } from "../core/sim/commands";
 import { refundFor } from "../core/sim/formulas";
-import { PHASE_NAMES, TOWER_NAMES } from "../ui/strings.ko";
+import { PHASE_NAMES, STR, TOWER_NAMES } from "../ui/strings.ko";
 import { uiModeOf, type Phase, type Snapshot, type UiMode, type UiState } from "./types";
 
 export const TOWER_ORDER: readonly TowerType[] = ["archer", "ballista", "mage", "frost"];
-export const WAVES_TOTAL = 5;
 
 export interface TowerListItem {
   readonly type: TowerType;
@@ -64,6 +64,12 @@ export interface HudView {
   readonly isResult: boolean;
 }
 
+/** 정수 hundredths → "0.75". 공격 주기·사거리는 50ms·250mt 단위라 소수 1자리로는 변화가 가려진다(리뷰 UI-01 F5). */
+export function formatHundredths(hundredths: number): string {
+  const t = Math.max(0, Math.round(hundredths));
+  return `${Math.floor(t / 100)}.${String(t % 100).padStart(2, "0")}`;
+}
+
 /** 정수 tenths → "1.5". */
 export function formatTenths(tenths: number): string {
   const t = Math.max(0, Math.round(tenths));
@@ -80,7 +86,16 @@ function towerDef(content: StageContent, type: TowerType): TowerDef {
   return def;
 }
 
-export function towerDetailOf(snapshot: Snapshot, content: StageContent, towerId: number, controlsEnabled: boolean): TowerDetail | null {
+/** 제출했지만 아직 틱에 적용되지 않은 명령 키(세션이 관리). 같은 명령의 이중 제출을 막는 표시용이다(리뷰 UI-01 F6). */
+export type PendingKeys = ReadonlySet<string>;
+export const NO_PENDING: PendingKeys = new Set<string>();
+export const pendingKey = {
+  startWave: "startWave",
+  upgrade: (towerId: number): string => `upgrade:${towerId}`,
+  sell: (towerId: number): string => `sell:${towerId}`,
+} as const;
+
+export function towerDetailOf(snapshot: Snapshot, content: StageContent, towerId: number, controlsEnabled: boolean, pending: PendingKeys = NO_PENDING): TowerDetail | null {
   const t = snapshot.towers.find((x) => x.towerId === towerId);
   if (t === undefined) return null;
   const def = towerDef(content, t.type);
@@ -92,41 +107,42 @@ export function towerDetailOf(snapshot: Snapshot, content: StageContent, towerId
     name: TOWER_NAMES[t.type],
     level: t.level,
     damage: stats.damage,
-    periodText: formatTenths(Math.round(stats.attackPeriodMs / 100)),
-    rangeText: formatTenths(Math.round(stats.rangeMt / 100)),
-    aoeText: stats.aoeRadiusMt === undefined ? null : formatTenths(Math.round(stats.aoeRadiusMt / 100)),
-    slowText: stats.slowBp === undefined ? null : `${Math.round((stats.slowBp as number) / 100)}% / ${formatTenths(Math.round((stats.slowDurationMs as number) / 100))}`,
+    periodText: formatHundredths(stats.attackPeriodMs / 10),
+    rangeText: formatHundredths(stats.rangeMt / 10),
+    aoeText: stats.aoeRadiusMt === undefined ? null : formatHundredths(stats.aoeRadiusMt / 10),
+    slowText: stats.slowBp === undefined ? null : `${Math.round((stats.slowBp as number) / 100)}% / ${formatHundredths((stats.slowDurationMs as number) / 10)}${STR.hud.seconds}`,
     targetingMode: t.targetingMode,
     upgradeCost,
     canAffordUpgrade: upgradeCost !== null && snapshot.gold >= upgradeCost,
-    canUpgrade: controlsEnabled && upgradeCost !== null,
+    canUpgrade: controlsEnabled && upgradeCost !== null && !pending.has(pendingKey.upgrade(t.towerId)),
     refund: refundFor(t.actuallyPaid, content.global.economy.refundRateBp),
-    canSell: controlsEnabled && snapshot.phase === "preparation",
+    canSell: controlsEnabled && snapshot.phase === "preparation" && !pending.has(pendingKey.sell(t.towerId)),
   };
 }
 
-export function hudView(snapshot: Snapshot, content: StageContent, ui: UiState, stageName: string): HudView {
+export function hudView(snapshot: Snapshot, content: StageContent, ui: UiState, stageName: string, pending: PendingKeys = NO_PENDING): HudView {
   const isResult = snapshot.phase === "victory" || snapshot.phase === "defeat";
   const controlsEnabled = !snapshot.paused && !isResult;
   const wave = content.stage.waves[snapshot.waveIndex - 1];
-  const totalSpawn = wave === undefined ? 0 : wave.segments.reduce((a, s) => a + s.count, 0);
+  // 이번 웨이브 총 생성 수는 코어가 쓰는 전개 함수(expandWave)의 결과 길이에서 파생한다(segments.count 를 직접 합하지 않는다, 리뷰 F4).
+  const totalSpawn = wave === undefined ? 0 : expandWave(wave, 0).length;
   return {
     stageName,
     waveIndex: snapshot.waveIndex,
-    waveTotal: WAVES_TOTAL,
+    waveTotal: content.stage.waves.length,
     phase: snapshot.phase,
     paused: snapshot.paused,
     phaseLabel: snapshot.paused && !isResult ? "일시정지" : PHASE_NAMES[snapshot.phase],
     gold: snapshot.gold,
     baseHp: snapshot.baseHp,
     maxBaseHp: content.stage.baseHp,
-    prep: snapshot.phase === "preparation" ? { remainingText: prepRemainingText(snapshot.prepTicksRemaining), canStartNow: controlsEnabled } : null,
+    prep: snapshot.phase === "preparation" ? { remainingText: prepRemainingText(snapshot.prepTicksRemaining), canStartNow: controlsEnabled && !pending.has(pendingKey.startWave) } : null,
     combat: snapshot.phase === "combat" ? { spawned: snapshot.waveSpawnCursor, totalSpawn, alive: snapshot.enemies.length } : null,
     towers: TOWER_ORDER.map((type) => {
       const cost = towerDef(content, type).buildCost;
       return { type, name: TOWER_NAMES[type], cost, affordable: snapshot.gold >= cost, selected: ui.placeType === type };
     }),
-    detail: ui.selectedTowerId === null ? null : towerDetailOf(snapshot, content, ui.selectedTowerId, controlsEnabled),
+    detail: ui.selectedTowerId === null ? null : towerDetailOf(snapshot, content, ui.selectedTowerId, controlsEnabled, pending),
     mode: uiModeOf(ui),
     placeType: ui.placeType,
     controlsEnabled,

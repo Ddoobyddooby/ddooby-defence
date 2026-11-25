@@ -122,9 +122,33 @@ describe("advance: 벽시계 → 50ms 틱 (SIM-CONTRACT 2절·UI-CONTRACT 5절)"
     session.setHidden(true);
     expect(session.advance(5000)).toBe(0);
     session.setHidden(false);
-    expect(session.advance(49)).toBe(0);
+    expect(session.advance(49)).toBe(0); // 복귀 직후 첫 입력은 버린다(F1)
     expect(battle(session).hud.paused).toBe(false);
+    expect(session.advance(49)).toBe(0); // 누적은 0부터
     expect(session.advance(1)).toBe(1);
+  });
+  it("리뷰 F1: 숨김 복귀 직후 첫 advance 는 얼마나 커도 0틱(기준만 재설정), 그다음 정상 진행", () => {
+    const { session } = make();
+    session.startStage(0);
+    session.advance(40);
+    session.setHidden(true);
+    session.setHidden(false);
+    expect(session.advance(10000)).toBe(0); // 숨김 시간이 섞인 첫 프레임
+    expect(tick(session)).toBe(0);
+    expect(session.advance(50)).toBe(1);
+    expect(session.advance(49)).toBe(0);
+    expect(session.advance(1)).toBe(1);
+  });
+  it("리뷰 F1: 숨김 상태가 아니었다면 setHidden(false)는 첫 입력을 버리지 않고, 연속 setHidden(true) 뒤 복귀해도 한 번만 버린다", () => {
+    const { session } = make();
+    session.startStage(0);
+    session.setHidden(false); // 숨김이 아니었으므로 변화 없음
+    expect(session.advance(50)).toBe(1);
+    session.setHidden(true);
+    session.setHidden(true);
+    session.setHidden(false);
+    expect(session.advance(50)).toBe(0);
+    expect(session.advance(50)).toBe(1);
   });
   it("스테이지 선택 화면에서는 틱이 없다", () => {
     const { session } = make();
@@ -382,7 +406,7 @@ describe("결과·재도전·진행 상태", () => {
     run(s, 200);
     const b = battle(s);
     expect(b.hud.phase).toBe("victory");
-    expect(b.result).toMatchObject({ outcome: "victory", reachedWave: 5, baseHp: 70, maxBaseHp: 100, hasNext: true, nextEnabled: true });
+    expect(b.result).toMatchObject({ outcome: "victory", reachedWave: 5, waveTotal: 5, baseHp: 70, maxBaseHp: 100, hasNext: true, nextEnabled: true });
     expect(store.getCleared()).toEqual([DEV_PLACEHOLDER.stages[0].stageId]);
     expect(s.getState().cards.map((c) => c.state)).toEqual(["cleared", "available", "locked"]);
   });
@@ -445,5 +469,64 @@ describe("결과·재도전·진행 상태", () => {
     off();
     s.advance(50);
     expect(n).toBe(2);
+  });
+});
+
+describe("리뷰 UI-01 F6: 같은 명령 이중 제출 방지(적용 틱까지)", () => {
+  const start = () => {
+    const m = make();
+    m.session.startStage(0);
+    return m.session;
+  };
+  it("지금 시작 두 번 연속: 두 번째는 pending 으로 거부(코어에 안 보냄), 거부 문구 없음, 적용 후 전투", () => {
+    const s = start();
+    expect(s.startWave()).toEqual({ ok: true });
+    expect(battle(s).hud.prep?.canStartNow).toBe(false);
+    expect(s.startWave()).toEqual({ ok: false, reason: "pending" });
+    s.advance(50);
+    expect(battle(s).hud).toMatchObject({ phase: "combat", prep: null });
+    expect(battle(s).feedback).toBeNull();
+  });
+  it("강화 두 번 연속: 골드 한 번만 차감(300-100-80=120), 거부 문구 없음, 적용 후 다시 활성", () => {
+    const s = start();
+    s.build("archer", { col: 0, row: 0 });
+    s.advance(50);
+    s.selectTower(1);
+    expect(s.upgrade(1)).toEqual({ ok: true });
+    expect(battle(s).hud.detail?.canUpgrade).toBe(false);
+    expect(s.upgrade(1)).toEqual({ ok: false, reason: "pending" });
+    s.advance(50);
+    expect(battle(s).hud.gold).toBe(120);
+    expect(battle(s).hud.detail).toMatchObject({ level: 2, canUpgrade: true });
+    expect(battle(s).feedback).toBeNull();
+  });
+  it("판매 확인 두 번 연속: 한 번만 판매(골드 200+70=270), 거부 문구 없음", () => {
+    const s = start();
+    s.build("archer", { col: 0, row: 0 });
+    s.advance(50);
+    expect(s.sell(1)).toEqual({ ok: true });
+    expect(s.sell(1)).toEqual({ ok: false, reason: "pending" });
+    s.advance(50);
+    expect(battle(s).hud.gold).toBe(270);
+    expect(battle(s).feedback).toBeNull();
+  });
+  it("대기 중에 일시정지해도 pending 은 다음 step 까지 유지, 재개 후 첫 틱에 해제", () => {
+    const s = start();
+    s.startWave();
+    s.pause();
+    expect(s.startWave()).toEqual({ ok: false, reason: "paused" });
+    s.resume();
+    expect(s.startWave()).toEqual({ ok: false, reason: "pending" });
+    s.advance(50);
+    expect(battle(s).hud.phase).toBe("combat");
+  });
+  it("서로 다른 타워·다른 종류 명령은 막지 않는다", () => {
+    const s = start();
+    s.build("archer", { col: 0, row: 0 });
+    s.build("archer", { col: 1, row: 0 });
+    s.advance(50);
+    expect(s.upgrade(1)).toEqual({ ok: true });
+    expect(s.upgrade(2)).toEqual({ ok: true });
+    expect(s.setTargeting(1, "last")).toEqual({ ok: true });
   });
 });

@@ -2,7 +2,8 @@
 import { describe, expect, it } from "vitest";
 import { DEV_PLACEHOLDER } from "../content/devBundle";
 import { createAttempt } from "../core/attempt";
-import { formatTenths, hudView, prepRemainingText } from "./hudView";
+import { expandWave } from "../core/content/expandWave";
+import { formatHundredths, formatTenths, hudView, NO_PENDING, pendingKey, prepRemainingText } from "./hudView";
 import { EMPTY_UI, type Snapshot } from "./types";
 
 const STAGE1 = DEV_PLACEHOLDER.stages[0].stageId;
@@ -63,7 +64,7 @@ describe("hudView (UI-CONTRACT 7절)", () => {
     core.step();
     const h = hudView(snap(), content, { ...EMPTY_UI, selectedTowerId: 1 }, "x");
     expect(h.detail).toMatchObject({
-      towerId: 1, type: "archer", name: "궁수탑", level: 1, damage: 12, periodText: "0.8", rangeText: "3.5", aoeText: null, slowText: null,
+      towerId: 1, type: "archer", name: "궁수탑", level: 1, damage: 12, periodText: "0.80", rangeText: "3.50", aoeText: null, slowText: null,
       targetingMode: "first", upgradeCost: 80, canAffordUpgrade: true, canUpgrade: true, refund: 70, canSell: true,
     });
   });
@@ -73,8 +74,8 @@ describe("hudView (UI-CONTRACT 7절)", () => {
     core.submit("build", { towerType: "frost", tile: { col: 1, row: 0 } });
     core.step();
     const s = snap();
-    expect(hudView(s, content, { ...EMPTY_UI, selectedTowerId: 1 }, "x").detail).toMatchObject({ aoeText: "1.2", slowText: null, damage: 18 });
-    expect(hudView(s, content, { ...EMPTY_UI, selectedTowerId: 2 }, "x").detail).toMatchObject({ aoeText: null, slowText: "35% / 2.0", damage: 4 });
+    expect(hudView(s, content, { ...EMPTY_UI, selectedTowerId: 1 }, "x").detail).toMatchObject({ aoeText: "1.20", slowText: null, damage: 18 });
+    expect(hudView(s, content, { ...EMPTY_UI, selectedTowerId: 2 }, "x").detail).toMatchObject({ aoeText: null, slowText: "35% / 2.00초", damage: 4 });
   });
   it("Lv4 는 강화 불가(upgradeCost null), 전투 중에는 판매 불가", () => {
     const rich = structuredClone(DEV_PLACEHOLDER) as unknown as { stages: { initialGold: number }[] };
@@ -104,5 +105,65 @@ describe("hudView (UI-CONTRACT 7절)", () => {
     expect(h).toMatchObject({ mode: "place", placeType: "mage" });
     expect(h.towers.find((t) => t.selected)?.type).toBe("mage");
     expect(hudView(snap(), content, { ...EMPTY_UI, sellConfirmId: 1 }, "x").mode).toBe("sellConfirm");
+  });
+});
+
+describe("리뷰 UI-01 F4: 총 웨이브·총 생성 수는 콘텐츠·expandWave 에서 파생", () => {
+  it("waveTotal = content.stage.waves.length (콘텐츠가 3웨이브면 3)", () => {
+    const { content, snap } = fresh();
+    const three = { ...content, stage: { ...content.stage, waves: content.stage.waves.slice(0, 3) } };
+    expect(hudView(snap(), three, EMPTY_UI, "x").waveTotal).toBe(3);
+    expect(hudView(snap(), content, EMPTY_UI, "x").waveTotal).toBe(5);
+  });
+  it("전투 중 총 생성 수 = expandWave 길이(웨이브 1: 6, 웨이브 2: 6+3=9)", () => {
+    const { core, content, snap } = fresh();
+    core.submit("startWave", {});
+    core.step();
+    const h = hudView(snap(), content, EMPTY_UI, "x");
+    expect(h.combat?.totalSpawn).toBe(6);
+    expect(expandWave(content.stage.waves[0], 0)).toHaveLength(6);
+    expect(expandWave(content.stage.waves[1], 0)).toHaveLength(9);
+    expect(expandWave(content.stage.waves[2], 0)).toHaveLength(13);
+  });
+});
+
+describe("리뷰 UI-01 F5: 50ms·250mt 단위가 보이는 표기", () => {
+  it("formatHundredths: 750ms → 0.75, 800 → 0.80, 3750mt → 3.75", () => {
+    expect(formatHundredths(75)).toBe("0.75");
+    expect(formatHundredths(80)).toBe("0.80");
+    expect(formatHundredths(375)).toBe("3.75");
+    expect(formatHundredths(0)).toBe("0.00");
+  });
+  it("archer 공격 주기 Lv1..4 = 0.80·0.80·0.75·0.70초(Lv3 강화가 변화 없는 것처럼 보이지 않는다), 사거리 3.50→3.75→4.00→4.25", () => {
+    const rich = structuredClone(DEV_PLACEHOLDER) as unknown as { stages: { initialGold: number }[] };
+    rich.stages[0].initialGold = 1000;
+    const core = createAttempt(rich, STAGE1, 1);
+    core.submit("build", { towerType: "archer", tile: { col: 0, row: 0 } });
+    core.step();
+    const seen: string[][] = [];
+    for (let lv = 1; lv <= 4; lv++) {
+      const d = hudView(core.snapshot() as unknown as Snapshot, core.stageContent, { ...EMPTY_UI, selectedTowerId: 1 }, "x").detail!;
+      seen.push([d.periodText, d.rangeText]);
+      core.submit("upgrade", { towerId: 1 });
+      core.step();
+    }
+    expect(seen).toEqual([["0.80", "3.50"], ["0.80", "3.75"], ["0.75", "4.00"], ["0.70", "4.25"]]);
+  });
+});
+
+describe("리뷰 UI-01 F6: 대기 중 같은 명령은 버튼 비활성", () => {
+  it("pending 키가 있으면 조기 시작·강화·판매가 비활성(코어 판정과 무관한 표시)", () => {
+    const { core, content, snap } = fresh();
+    core.submit("build", { towerType: "archer", tile: { col: 0, row: 0 } });
+    core.step();
+    const ui = { ...EMPTY_UI, selectedTowerId: 1 };
+    const free = hudView(snap(), content, ui, "x", NO_PENDING);
+    expect(free.prep?.canStartNow).toBe(true);
+    expect(free.detail).toMatchObject({ canUpgrade: true, canSell: true });
+    const busy = hudView(snap(), content, ui, "x", new Set([pendingKey.startWave, pendingKey.upgrade(1), pendingKey.sell(1)]));
+    expect(busy.prep?.canStartNow).toBe(false);
+    expect(busy.detail).toMatchObject({ canUpgrade: false, canSell: false });
+    // 다른 타워의 대기는 영향 없음
+    expect(hudView(snap(), content, ui, "x", new Set([pendingKey.upgrade(2)])).detail?.canUpgrade).toBe(true);
   });
 });

@@ -6,6 +6,7 @@ import { towerLevelStats } from "../core/content/levelStats";
 import type { TowerType } from "../core/content/types";
 import { progressToPosition } from "../core/map/stageMap";
 import { cellAtAreaPoint, computeMapRect, type Layout } from "../session/layout";
+import { frameDelta } from "../session/frameTime";
 import type { GameSession, RenderFrame } from "../session/session";
 import type { Snapshot } from "../session/types";
 import {
@@ -57,7 +58,10 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
       this.scale.on("resize", () => this.relayout());
       // Phaser 가 변환한 p.x/p.y 는 캔버스 경계(canvasBounds)가 낡으면 어긋난다(레이아웃이 마운트 직후 바뀌는 경우 실측: 클릭 (530,293) → (563,-491)).
       // 그래서 DOM 이벤트의 clientX/Y 와 그 순간의 캔버스 위치로 맵 영역 좌표를 직접 구한다.
-      this.input.on("pointerdown", (p: PhaserNS.Input.Pointer) => session.tapCell(cellAtAreaPoint(this.layoutLike(), ...this.areaPoint(p))));
+      this.input.on("pointerdown", (p: PhaserNS.Input.Pointer) => {
+        if (p.button !== 0) return; // 주 버튼·터치(항상 0)만 맵 입력. 우클릭·휠 클릭이 설치·선택 명령이 되지 않게 한다(리뷰 F3)
+        session.tapCell(cellAtAreaPoint(this.layoutLike(), ...this.areaPoint(p)));
+      });
       this.input.on("pointermove", (p: PhaserNS.Input.Pointer) => {
         this.hover = p.wasTouch ? null : cellAtAreaPoint(this.layoutLike(), ...this.areaPoint(p));
       });
@@ -116,7 +120,7 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
       // Phaser 의 delta 는 평활화·상한이 걸려 실제 경과 시간과 다르다(실측: 게임이 실시간의 약 25% 속도로 진행). 세션은 "실제 경과 ms"를
       // 받아야 하므로 rAF 타임스탬프(time)로 직접 계산한다. 비정상 값은 세션이 걸러내고, 폭주는 세션의 5틱 상한이 막는다.
       this.syncSize();
-      const delta = this.lastTime === null ? 0 : Math.max(0, time - this.lastTime);
+      const delta = frameDelta(time, this.lastTime); // 첫 프레임·역행은 0, 탭 복귀 뒤 큰 값은 250ms 상한(세션은 복귀 첫 입력도 버린다)
       this.lastTime = time;
       session.advance(delta);
       const frame = session.getRenderFrame();

@@ -14,7 +14,7 @@ const BTN = "min-h-10 min-w-10 rounded border px-2 text-sm font-medium disabled:
 /** 상단 고정 영역(골드·기지 HP·웨이브·단계·일시정지, SPEC 9절) + 아래 스크롤 영역(단계 정보·타워 목록·상세). */
 export function Hud({ session, hud, width }: { session: GameSession; hud: HudView; width: number }) {
   return (
-    <aside style={{ width }} className="flex h-full shrink-0 flex-col border-l border-neutral-800 bg-neutral-900 text-neutral-100" data-testid="hud">
+    <aside style={{ width }} className="flex h-full shrink-0 touch-manipulation flex-col border-l border-neutral-800 bg-neutral-900 text-neutral-100" data-testid="hud">
       <div className="shrink-0 border-b border-neutral-800 p-2" data-testid="hud-top">
         <div className="flex items-center justify-between gap-1">
           <span className="truncate text-sm font-semibold" data-testid="hud-stage">

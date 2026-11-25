@@ -5,7 +5,7 @@ import type { GameSession } from "../session/session";
 import { STR } from "./strings.ko";
 
 const BTN = "min-h-10 min-w-24 rounded border px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40";
-const BACKDROP = "absolute inset-0 z-10 flex items-center justify-center bg-black/55 p-3";
+const BACKDROP = "absolute inset-0 z-10 touch-manipulation flex items-center justify-center bg-black/55 p-3";
 const PANEL = "w-full max-w-xs rounded-lg border border-neutral-600 bg-neutral-900 p-4 text-center text-neutral-100 shadow-xl";
 
 /** 맵 영역 위에 얹는 거부 피드백(2초). 맵 입력을 막지 않는다. */
@@ -63,7 +63,7 @@ export function ResultOverlay({ session, battle }: { session: GameSession; battl
           <dt>{STR.result.stage}</dt>
           <dd data-testid="result-stage">{r.stageName}</dd>
           <dt>{STR.result.reachedWave}</dt>
-          <dd data-testid="result-wave">{r.reachedWave} / 5</dd>
+          <dd data-testid="result-wave">{r.reachedWave} / {r.waveTotal}</dd>
           <dt>{STR.result.baseHp}</dt>
           <dd data-testid="result-hp">{r.baseHp} / {r.maxBaseHp}</dd>
         </dl>

@@ -62,6 +62,13 @@ export function GameApp() {
     };
   }, [session]);
 
+  // 지원 크기 미달·세로로 바뀌면 안내 화면이 되어 전투 캔버스가 내려가고(Phaser 재생성 허용) 그동안 시간이 흐르지 않는다.
+  // 돌아왔을 때 갑자기 진행되지 않도록 안내로 바뀌는 순간 일시정지한다(재개는 사용자가, 리뷰 F2).
+  const unsupported = viewport !== null && !computeLayout(viewport.w, viewport.h).supported;
+  useEffect(() => {
+    if (unsupported) session.pause();
+  }, [unsupported, session]);
+
   if (viewport === null) return <div className="h-dvh w-full bg-neutral-950" />;
   const layout: Layout = computeLayout(viewport.w, viewport.h);
   if (!layout.supported) return <OrientationNotice problem={layout.problem!} />;

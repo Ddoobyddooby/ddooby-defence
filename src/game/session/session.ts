@@ -7,7 +7,7 @@ import { createRecordedAttempt, type RecordedAttempt } from "../core/attempt/rec
 import type { AttemptEvent } from "../core/attempt/types";
 import type { TargetingMode } from "../core/sim/commands";
 import { rejectText, STAGE_NAMES, STR } from "../ui/strings.ko";
-import { hudView, type HudView } from "./hudView";
+import { hudView, pendingKey, type HudView } from "./hudView";
 import { deriveStageCards, isEnterable, type ProgressStore, type StageCard } from "./progress";
 import { EMPTY_UI, type Snapshot, type UiState } from "./types";
 
@@ -20,6 +20,7 @@ export interface ResultView {
   readonly outcome: "victory" | "defeat";
   readonly stageName: string;
   readonly reachedWave: number;
+  readonly waveTotal: number;
   readonly baseHp: number;
   readonly maxBaseHp: number;
   readonly hasNext: boolean;
@@ -42,7 +43,7 @@ export interface SessionState {
   readonly battle: BattleState | null;
 }
 
-export type CommandOutcome = { readonly ok: true } | { readonly ok: false; readonly reason: "notBattle" | "paused" | "result" | "invalid" };
+export type CommandOutcome = { readonly ok: true } | { readonly ok: false; readonly reason: "notBattle" | "paused" | "result" | "invalid" | "pending" };
 
 /** 렌더러가 매 프레임 읽는 값. alpha = 틱 사이 보간 비율(시각 전용). */
 export interface RenderFrame {
@@ -70,6 +71,8 @@ interface Battle {
   ui: UiState;
   feedback: { text: string; until: number } | null;
   markedClear: boolean;
+  /** 제출했지만 아직 적용 틱이 오지 않은 명령 키(startWave·upgrade:id·sell:id). 다음 step 뒤에 비운다(명령은 항상 다음 틱에 적용). */
+  pending: Set<string>;
 }
 
 export class GameSession {
@@ -88,6 +91,8 @@ export class GameSession {
   /** UI 시계(피드백 만료용). 일시정지 중에도 흐르지만 숨김 중에는 멈춘다. */
   private uiClock = 0;
   private hidden = false;
+  /** 숨김에서 복귀한 직후 첫 advance 입력(숨김·정지 시간이 섞였을 수 있음)은 버리고 기준만 다시 잡는다(UI-CONTRACT 5절, 리뷰 F1). */
+  private skipNextAdvance = false;
   private events: AttemptEvent[] = [];
 
   constructor(options: SessionOptions) {
@@ -132,7 +137,7 @@ export class GameSession {
     const core = b.rec.core;
     const content = core.stageContent;
     const name = STAGE_NAMES[b.stageIndex] ?? content.stage.stageId;
-    const hud = hudView(b.curr, content, b.ui, name);
+    const hud = hudView(b.curr, content, b.ui, name, b.pending);
     const feedback = b.feedback !== null && this.uiClock < b.feedback.until ? b.feedback.text : null;
     let result: ResultView | null = null;
     if (b.curr.outcome !== null) {
@@ -141,6 +146,7 @@ export class GameSession {
         outcome: b.curr.outcome,
         stageName: name,
         reachedWave: b.curr.waveIndex,
+        waveTotal: content.stage.waves.length,
         baseHp: b.curr.baseHp,
         maxBaseHp: content.stage.baseHp,
         hasNext: next !== undefined,
@@ -166,7 +172,7 @@ export class GameSession {
     this.attemptCounter += 1;
     const rec = createRecordedAttempt(this.bundle, card.stageId, this.attemptCounter);
     const curr = rec.core.snapshot() as unknown as Snapshot;
-    this.battle = { stageIndex: index, rec, prev: null, curr, ui: EMPTY_UI, feedback: null, markedClear: false };
+    this.battle = { stageIndex: index, rec, prev: null, curr, ui: EMPTY_UI, feedback: null, markedClear: false, pending: new Set() };
     this.acc = 0;
     this.events = [];
     this.emit();
@@ -193,6 +199,7 @@ export class GameSession {
 
   /** 숨김(visibilitychange hidden) 동안은 누적하지 않고, 복귀 시 누적은 0부터 시작한다. 자동 일시정지는 하지 않는다. */
   setHidden(hidden: boolean): void {
+    if (!hidden && this.hidden) this.skipNextAdvance = true;
     this.hidden = hidden;
     this.acc = 0;
   }
@@ -208,6 +215,10 @@ export class GameSession {
    */
   advance(elapsedMs: number): number {
     if (this.hidden || !Number.isFinite(elapsedMs) || elapsedMs < 0) return 0;
+    if (this.skipNextAdvance) {
+      this.skipNextAdvance = false;
+      return 0;
+    }
     const before = this.visibleFeedback();
     this.uiClock += elapsedMs;
     let changed = before !== this.visibleFeedback();
@@ -235,6 +246,7 @@ export class GameSession {
 
   private stepOnce(b: Battle): void {
     const events = b.rec.core.step();
+    b.pending.clear();
     b.prev = b.curr;
     b.curr = b.rec.core.snapshot() as unknown as Snapshot;
     for (const e of events) {
@@ -306,12 +318,18 @@ export class GameSession {
     return { b };
   }
 
-  private send(kind: string, payload: unknown): CommandOutcome {
+  private send(kind: string, payload: unknown, pendingKeyOf: string | null = null): CommandOutcome {
     const g = this.gate();
     if ("fail" in g) return g.fail;
+    // 같은 명령이 아직 적용 전이면 다시 보내지 않는다(이중 제출·두 번째 거부 문구 방지, 리뷰 F6). 최종 판정은 항상 코어.
+    if (pendingKeyOf !== null && g.b.pending.has(pendingKeyOf)) return { ok: false, reason: "pending" };
     try {
       const r = g.b.rec.core.submit(kind, payload);
       if (!r.ok) return { ok: false, reason: r.reason === "paused" ? "paused" : "result" };
+      if (pendingKeyOf !== null) {
+        g.b.pending.add(pendingKeyOf);
+        this.emit();
+      }
     } catch {
       this.setFeedback(g.b, rejectText("invalid"));
       this.emit();
@@ -324,16 +342,16 @@ export class GameSession {
     return this.send("build", { towerType: type, tile: { col: cell.col, row: cell.row } });
   }
   upgrade(towerId: number): CommandOutcome {
-    return this.send("upgrade", { towerId });
+    return this.send("upgrade", { towerId }, pendingKey.upgrade(towerId));
   }
   sell(towerId: number): CommandOutcome {
-    return this.send("sell", { towerId });
+    return this.send("sell", { towerId }, pendingKey.sell(towerId));
   }
   setTargeting(towerId: number, mode: TargetingMode): CommandOutcome {
     return this.send("setTargeting", { towerId, mode });
   }
   startWave(): CommandOutcome {
-    return this.send("startWave", {});
+    return this.send("startWave", {}, pendingKey.startWave);
   }
 
   // ───────── UI 선택 상태 (코어 밖, UI-CONTRACT 6절) ─────────
