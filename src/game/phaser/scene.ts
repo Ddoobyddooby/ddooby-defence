@@ -44,6 +44,7 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
     private lastProjectilePos = new Map<number, { x: number; y: number }>();
     private projectileRadius = new Map<number, number>();
     private towerTypeById = new Map<number, TowerType>();
+    private lastTime: number | null = null;
 
     constructor() {
       super("battle");
@@ -54,11 +55,47 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
       this.dynG = this.add.graphics();
       this.relayout();
       this.scale.on("resize", () => this.relayout());
-      this.input.on("pointerdown", (p: PhaserNS.Input.Pointer) => session.tapCell(cellAtAreaPoint(this.layoutLike(), p.x, p.y)));
+      // Phaser 가 변환한 p.x/p.y 는 캔버스 경계(canvasBounds)가 낡으면 어긋난다(레이아웃이 마운트 직후 바뀌는 경우 실측: 클릭 (530,293) → (563,-491)).
+      // 그래서 DOM 이벤트의 clientX/Y 와 그 순간의 캔버스 위치로 맵 영역 좌표를 직접 구한다.
+      this.input.on("pointerdown", (p: PhaserNS.Input.Pointer) => session.tapCell(cellAtAreaPoint(this.layoutLike(), ...this.areaPoint(p))));
       this.input.on("pointermove", (p: PhaserNS.Input.Pointer) => {
-        this.hover = p.wasTouch ? null : cellAtAreaPoint(this.layoutLike(), p.x, p.y);
+        this.hover = p.wasTouch ? null : cellAtAreaPoint(this.layoutLike(), ...this.areaPoint(p));
       });
       this.input.on("pointerout", () => (this.hover = null));
+    }
+
+    /** 포인터 → 맵 영역(캔버스 좌상단 기준) 좌표. 이벤트 시점의 캔버스 위치를 직접 읽는다. */
+    private areaPoint(p: PhaserNS.Input.Pointer): [number, number] {
+      const ev = p.event as MouseEvent | TouchEvent | undefined;
+      const canvas = this.game.canvas as HTMLCanvasElement;
+      const r = canvas.getBoundingClientRect();
+      let cx = p.x + r.left;
+      let cy = p.y + r.top;
+      if (ev !== undefined) {
+        const touch = "changedTouches" in ev && ev.changedTouches.length > 0 ? ev.changedTouches[0] : null;
+        if (touch !== null) {
+          cx = touch.clientX;
+          cy = touch.clientY;
+        } else if ("clientX" in ev) {
+          cx = ev.clientX;
+          cy = ev.clientY;
+        }
+      }
+      const sx = r.width > 0 ? this.areaW / r.width : 1;
+      const sy = r.height > 0 ? this.areaH / r.height : 1;
+      return [(cx - r.left) * sx, (cy - r.top) * sy];
+    }
+
+    /**
+     * 호스트 요소(부모) 실측 크기와 캔버스 크기가 다르면 맞춘다. React 레이아웃(HUD 폭)이 resize 이벤트보다 늦게 확정되는 경우가 있어
+     * 이벤트·ResizeObserver 만으로는 낡은 폭이 남는 것이 실측됐다(1000×500 에서 693 vs 760). 읽기만 하고 같으면 아무것도 하지 않는다.
+     */
+    private syncSize(): void {
+      const host = (this.game.canvas as HTMLCanvasElement).parentElement;
+      if (host === null) return;
+      const w = Math.max(1, host.clientWidth);
+      const h = Math.max(1, host.clientHeight);
+      if (w !== this.scale.width || h !== this.scale.height) this.scale.resize(w, h);
     }
 
     /** 리사이즈·회전: 다시 배치만 한다(상태·인스턴스는 그대로). */
@@ -75,7 +112,12 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
       return { areaW: this.areaW, areaH: this.areaH, map: { tile: g.tile, x: g.originX, y: g.originY, width: 18 * g.tile, height: 10 * g.tile } };
     }
 
-    update(_time: number, delta: number): void {
+    update(time: number): void {
+      // Phaser 의 delta 는 평활화·상한이 걸려 실제 경과 시간과 다르다(실측: 게임이 실시간의 약 25% 속도로 진행). 세션은 "실제 경과 ms"를
+      // 받아야 하므로 rAF 타임스탬프(time)로 직접 계산한다. 비정상 값은 세션이 걸러내고, 폭주는 세션의 5틱 상한이 막는다.
+      this.syncSize();
+      const delta = this.lastTime === null ? 0 : Math.max(0, time - this.lastTime);
+      this.lastTime = time;
       session.advance(delta);
       const frame = session.getRenderFrame();
       this.dynG.clear();
@@ -86,7 +128,9 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
       }
       this.ensureMap(frame);
       this.collectVfx(frame);
-      const dt = frame.running ? delta : 0; // 일시정지·결과·숨김에서는 VFX 도 멈춘다
+      // 일시정지·숨김에서는 VFX 도 멈춘다. 결과 단계(게임 상태는 정지)에서는 남은 VFX 가 끝까지 재생돼 링이 화면에 얼어붙지 않는다.
+      const result = frame.curr.phase === "victory" || frame.curr.phase === "defeat";
+      const dt = frame.running || (result && !frame.curr.paused) ? delta : 0;
       this.drawFrame(frame, dt);
     }
 

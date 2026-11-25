@@ -13,8 +13,9 @@ export async function createGame(parent: HTMLElement, session: GameSession) {
     width,
     height,
     backgroundColor: "#101820",
-    // 부모 크기를 따라가는 RESIZE: 창 크기·회전이 바뀌면 같은 인스턴스가 다시 배치한다(재생성 금지).
-    scale: { mode: Phaser.Scale.RESIZE },
+    // 크기는 BattleCanvas 의 ResizeObserver 가 호스트 요소 실측값으로 scale.resize() 한다(재생성 금지).
+    // Phaser 자체의 부모 추적(RESIZE)은 React 레이아웃보다 먼저 부모를 읽어 낡은 폭(HUD 폭 반영 전)이 남는 문제가 실측돼 쓰지 않는다.
+    scale: { mode: Phaser.Scale.NONE },
     input: { touch: { capture: true } },
     disableContextMenu: true,
     scene: [createBattleScene(Phaser, session)],

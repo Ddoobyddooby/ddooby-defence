@@ -11,17 +11,30 @@ import { OrientationNotice } from "./Orientation";
 import { FeedbackToast, PauseOverlay, ResultOverlay, SellConfirm } from "./Overlays";
 import { StageSelect } from "./StageSelect";
 
-/** 창 크기(회전 포함). 마운트 전에는 null(서버 렌더와 첫 클라이언트 렌더가 같도록). */
+/**
+ * 창 크기(회전 포함). 마운트 전에는 null(서버 렌더와 첫 클라이언트 렌더가 같도록).
+ * resize 이벤트 시점에 innerWidth 가 아직 갱신 전인 환경(에뮬레이션·회전 직후)이 있어, 이벤트 직후 rAF 로 한 번 더 읽고
+ * ResizeObserver·visualViewport 도 함께 구독한다.
+ */
 function useViewport(): { w: number; h: number } | null {
   const [vp, setVp] = useState<{ w: number; h: number } | null>(null);
   useEffect(() => {
-    const read = () => setVp({ w: window.innerWidth, h: window.innerHeight });
+    const read = () => setVp((prev) => (prev !== null && prev.w === window.innerWidth && prev.h === window.innerHeight ? prev : { w: window.innerWidth, h: window.innerHeight }));
+    const readSoon = () => {
+      read();
+      requestAnimationFrame(read);
+    };
     read();
-    window.addEventListener("resize", read);
-    window.addEventListener("orientationchange", read);
+    window.addEventListener("resize", readSoon);
+    window.addEventListener("orientationchange", readSoon);
+    window.visualViewport?.addEventListener("resize", readSoon);
+    const ro = new ResizeObserver(readSoon);
+    ro.observe(document.documentElement);
     return () => {
-      window.removeEventListener("resize", read);
-      window.removeEventListener("orientationchange", read);
+      window.removeEventListener("resize", readSoon);
+      window.removeEventListener("orientationchange", readSoon);
+      window.visualViewport?.removeEventListener("resize", readSoon);
+      ro.disconnect();
     };
   }, []);
   return vp;
