@@ -1,0 +1,84 @@
+// 화면 문구 모음 (UI-CONTRACT 7절: 한 파일에 모은다). 세션(순수 TS)도 거부 피드백 문구를 여기서 읽는다.
+export const STAGE_NAMES = ["초원 전초기지", "눈 내리는 협곡", "어스름 폐허"] as const;
+export const TOWER_NAMES = { archer: "궁수탑", ballista: "발리스타", mage: "마법탑", frost: "서리탑" } as const;
+export const ENEMY_NAMES = { normal: "일반형", fast: "고속형", heavy: "중장형", swarm: "군집형" } as const;
+export const TRAIT_NAMES = { controlResistance: "저항", hpBoost: "강인", speedBoost: "질주" } as const;
+export const TARGETING_NAMES = { first: "선두", last: "후미", close: "가까운", strong: "강한" } as const;
+export const PHASE_NAMES = { preparation: "준비", combat: "전투", victory: "승리", defeat: "패배" } as const;
+
+/** 거부 사유 → 짧은 문구 (UI-CONTRACT 7절 표). */
+export const REJECT_TEXT: Readonly<Record<string, string>> = {
+  insufficientGold: "골드가 부족합니다",
+  notBuildable: "여기에는 설치할 수 없습니다",
+  occupied: "이미 타워가 있습니다",
+  outOfGrid: "맵 밖입니다",
+  maxLevel: "최고 레벨입니다",
+  wrongPhase: "지금은 할 수 없습니다",
+  towerNotFound: "타워가 없습니다",
+};
+export const rejectText = (reason: string): string => REJECT_TEXT[reason] ?? `명령이 거부되었습니다(${reason})`;
+
+export const STR = {
+  title: "Ddooby Defence",
+  placeholderBadge: "임시 수치",
+  stageSelect: "스테이지 선택",
+  pickStage: "플레이할 스테이지를 고르세요",
+  card: { locked: "잠김", available: "선택 가능", cleared: "클리어", contentError: "콘텐츠 오류" },
+  cardHintLocked: "이전 스테이지를 클리어하면 열립니다",
+  cardHintError: "데이터 검증에 실패해 시작할 수 없습니다",
+  progressNote: "클리어 기록은 이 탭에만 유지됩니다. 새로고침하면 사라질 수 있습니다.",
+  hud: {
+    wave: "웨이브",
+    gold: "골드",
+    baseHp: "기지",
+    pause: "일시정지",
+    resume: "재개",
+    prepRemaining: "남은 시간",
+    startNow: "지금 시작",
+    spawnProgress: "생성",
+    aliveEnemies: "생존 적",
+    towers: "타워",
+    selected: "선택한 타워",
+    level: "Lv",
+    damage: "공격력",
+    period: "공격 주기",
+    range: "사거리",
+    aoe: "폭발 반경",
+    slow: "둔화",
+    targeting: "타깃",
+    upgrade: "강화",
+    maxLevel: "최고 레벨",
+    sell: "판매",
+    sellOnlyPrep: "준비 단계에서만 판매",
+    refund: "환급",
+    placeHint: "맵에서 설치할 칸을 탭하세요",
+    selectHint: "맵에서 타워를 탭하면 상세가 보입니다",
+    cancel: "취소",
+    paused: "일시정지",
+    seconds: "초",
+  },
+  sellConfirmTitle: "타워를 판매할까요?",
+  sellConfirmBody: (name: string, refund: number) => `${name}을(를) 판매하고 ${refund} 골드를 돌려받습니다.`,
+  sellConfirm: "판매",
+  pauseOverlayTitle: "일시정지",
+  pauseOverlayHint: "재개 버튼, Space 또는 P 키로 계속합니다",
+  result: {
+    victory: "승리!",
+    defeat: "패배",
+    stage: "스테이지",
+    reachedWave: "도달 웨이브",
+    baseHp: "남은 기지 HP",
+    retry: "재도전",
+    toSelect: "스테이지 선택",
+    next: "다음 스테이지",
+  },
+  paused_blocked: "일시정지 중에는 할 수 없습니다",
+  notBattle: "지금은 할 수 없습니다",
+  sellPrepOnly: "준비 단계에서만 판매할 수 있습니다",
+  orientation: {
+    portrait: "가로 화면으로 돌려 주세요",
+    tooSmall: "창을 더 넓혀 주세요",
+    detail: "이 게임은 가로 800 × 세로 360 이상의 가로 화면에서 플레이할 수 있습니다.",
+  },
+  errorDetailTitle: "진단",
+} as const;

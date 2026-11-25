@@ -1,0 +1,449 @@
+// UI-01 — 세션: advance(50ms·최대 5틱)·일시정지/숨김/결과, 명령·거부 피드백, UI 상태 전이, 결과·재도전·진행 상태.
+// 기대값은 DEV_PLACEHOLDER 리터럴(Stage 1: 골드 300, archer 설치 100·환급 70, 길은 행 2)로 직접 계산한다.
+import { describe, expect, it } from "vitest";
+import { DEV_PLACEHOLDER } from "../content/devBundle";
+import { MemoryProgressStore } from "./progress";
+import { FEEDBACK_MS, GameSession } from "./session";
+
+type Bundle = { stages: { baseHp: number; initialGold: number; waves: unknown[] }[]; enemies: { speedMtPerSec: number }[] };
+const clone = (): Bundle => structuredClone(DEV_PLACEHOLDER) as unknown as Bundle;
+const make = (bundle: unknown = DEV_PLACEHOLDER, store = new MemoryProgressStore()) => ({ session: new GameSession({ bundle, store }), store });
+const tick = (s: GameSession): number => s.getRenderFrame()?.curr.tick ?? -1;
+const battle = (s: GameSession) => s.getState().battle!;
+/** 50ms 단위로 n틱 진행(한 번에 5틱 이하). */
+const run = (s: GameSession, ticks: number): void => {
+  for (let i = 0; i < ticks; i++) s.advance(50);
+};
+
+/**
+ * 적이 즉시(5000mt/틱) 달려 기지에 닿는 묶음: 웨이브마다 4종·3특성이 1마리씩(Stage 1 등장 조건 충족), 준비 50ms.
+ * 방어가 없으면 웨이브당 기지 피해 = normal 1 + fast 1 + heavy 3 + swarm 1 = 6.
+ */
+function sprint(baseHp: number): Bundle {
+  const b = clone();
+  for (const e of b.enemies) e.speedMtPerSec = 100000;
+  const one = (enemyType: string, trait: string | null) => ({ startMs: 0, intervalMs: 0, count: 1, enemyType, trait });
+  const segments = [one("normal", "controlResistance"), one("fast", "speedBoost"), one("heavy", "hpBoost"), one("swarm", null)];
+  const w = (i: number) => ({ waveIndex: i + 1, role: ["basic", "focus", "newMix", "complex", "finale"][i], prepMs: 50, clearReward: 10, segments });
+  for (const st of b.stages) {
+    st.baseHp = baseHp;
+    st.waves = [0, 1, 2, 3, 4].map(w);
+  }
+  return b;
+}
+
+describe("초기·화면 흐름", () => {
+  it("처음에는 스테이지 선택 화면, 카드 [선택 가능, 잠김, 잠김], 전투 없음", () => {
+    const { session } = make();
+    const st = session.getState();
+    expect(st.screen).toBe("stageSelect");
+    expect(st.cards.map((c) => c.state)).toEqual(["available", "locked", "locked"]);
+    expect(st.battle).toBeNull();
+    expect(session.getState()).toBe(st); // 변경이 없으면 같은 객체(useSyncExternalStore)
+  });
+  it("잠긴 스테이지는 시작할 수 없다", () => {
+    const { session } = make();
+    expect(session.startStage(1)).toBe(false);
+    expect(session.getState().screen).toBe("stageSelect");
+  });
+  it("Stage 1 시작: 전투 화면·HUD 초기값", () => {
+    const { session } = make();
+    expect(session.startStage(0)).toBe(true);
+    expect(battle(session)).toMatchObject({ stageIndex: 0, attemptId: 1, feedback: null, result: null });
+    expect(battle(session).hud).toMatchObject({ stageName: "초원 전초기지", gold: 300, baseHp: 20, phase: "preparation", waveIndex: 1 });
+  });
+  it("진입 재검증 실패: 카드가 콘텐츠 오류가 되고 전투가 시작되지 않는다(검증 통과 뒤 묶음을 망가뜨린 경우)", () => {
+    const b = clone();
+    const { session } = make(b);
+    b.stages[0].baseHp = 0; // 생성 시 사전 검증은 통과했고 그 뒤 원본이 오염됨 → 진입 재검증이 잡는다
+    expect(session.startStage(0)).toBe(false);
+    const st = session.getState();
+    expect(st.cards[0].state).toBe("contentError");
+    expect(st.cards[0].diagnostics[0]).toContain("stages[0].baseHp");
+    expect(st.screen).toBe("stageSelect");
+  });
+  it("사전 검증 실패 스테이지는 처음부터 contentError 이고 시작 불가, 다른 스테이지는 영향 없음", () => {
+    const b = clone();
+    b.stages[0].baseHp = 0;
+    const { session } = make(b);
+    expect(session.getState().cards.map((c) => c.state)).toEqual(["contentError", "locked", "locked"]);
+    expect(session.startStage(0)).toBe(false);
+  });
+});
+
+describe("advance: 벽시계 → 50ms 틱 (SIM-CONTRACT 2절·UI-CONTRACT 5절)", () => {
+  it("49ms 는 0틱, 1ms 더하면 1틱, 120ms 는 2틱(20ms 남음)", () => {
+    const { session } = make();
+    session.startStage(0);
+    expect(session.advance(49)).toBe(0);
+    expect(tick(session)).toBe(0);
+    expect(session.advance(1)).toBe(1);
+    expect(session.advance(120)).toBe(2);
+    expect(tick(session)).toBe(3);
+    expect(session.advance(30)).toBe(1); // 20 + 30 = 50
+  });
+  it("한 번에 최대 5틱, 한도를 넘은 누적은 버린다(다음 49ms 는 0틱)", () => {
+    const { session } = make();
+    session.startStage(0);
+    expect(session.advance(1000)).toBe(5);
+    expect(tick(session)).toBe(5);
+    expect(session.advance(49)).toBe(0);
+  });
+  it("음수·NaN·Infinity 입력은 무시", () => {
+    const { session } = make();
+    session.startStage(0);
+    for (const v of [-50, Number.NaN, Number.POSITIVE_INFINITY]) expect(session.advance(v)).toBe(0);
+    expect(tick(session)).toBe(0);
+  });
+  it("일시정지 중 0틱(코어 paused), 재개하면 진행하고 누적은 일시정지 전 값에서 이어진다", () => {
+    const { session } = make();
+    session.startStage(0);
+    session.advance(40);
+    session.pause();
+    expect(battle(session).hud).toMatchObject({ paused: true, phaseLabel: "일시정지", controlsEnabled: false });
+    expect(session.advance(500)).toBe(0);
+    expect(tick(session)).toBe(0);
+    session.resume();
+    expect(session.advance(10)).toBe(1); // 40 + 10
+    expect(battle(session).hud.paused).toBe(false);
+  });
+  it("togglePause 와 결과 단계에서의 pause 무시", () => {
+    const { session } = make();
+    session.startStage(0);
+    session.togglePause();
+    expect(battle(session).hud.paused).toBe(true);
+    session.togglePause();
+    expect(battle(session).hud.paused).toBe(false);
+  });
+  it("숨김(hidden) 동안 0틱·누적 안 함, 복귀 시 누적은 0부터(40ms 쌓아 둔 값도 버려짐), 자동 일시정지는 하지 않는다", () => {
+    const { session } = make();
+    session.startStage(0);
+    session.advance(40);
+    session.setHidden(true);
+    expect(session.advance(5000)).toBe(0);
+    session.setHidden(false);
+    expect(session.advance(49)).toBe(0);
+    expect(battle(session).hud.paused).toBe(false);
+    expect(session.advance(1)).toBe(1);
+  });
+  it("스테이지 선택 화면에서는 틱이 없다", () => {
+    const { session } = make();
+    expect(session.advance(1000)).toBe(0);
+  });
+  it("보간 비율 alpha = 남은 누적 / 50", () => {
+    const { session } = make();
+    session.startStage(0);
+    session.advance(70);
+    expect(session.getRenderFrame()?.alpha).toBeCloseTo(0.4, 5);
+  });
+});
+
+describe("명령·거부 피드백 (UI-CONTRACT 5·7절)", () => {
+  const start = () => {
+    const m = make();
+    m.session.startStage(0);
+    return m.session;
+  };
+  it("설치 성공: 다음 틱에 골드 300 → 200, 타워 1개, 피드백 없음", () => {
+    const s = start();
+    expect(s.build("archer", { col: 0, row: 0 })).toEqual({ ok: true });
+    s.advance(50);
+    expect(battle(s).hud.gold).toBe(200);
+    expect(s.getRenderFrame()?.curr.towers).toHaveLength(1);
+    expect(battle(s).feedback).toBeNull();
+  });
+  it("경로 칸(행 2) 설치 → '여기에는 설치할 수 없습니다', 골드·타워 불변", () => {
+    const s = start();
+    s.build("archer", { col: 0, row: 2 });
+    s.advance(50);
+    expect(battle(s).feedback).toBe("여기에는 설치할 수 없습니다");
+    expect(battle(s).hud.gold).toBe(300);
+    expect(s.getRenderFrame()?.curr.towers).toHaveLength(0);
+  });
+  it("골드 부족: 3개 설치(300) 뒤 4번째 → '골드가 부족합니다'", () => {
+    const s = start();
+    for (const col of [0, 1, 2]) s.build("archer", { col, row: 0 });
+    s.advance(50);
+    expect(battle(s).hud.gold).toBe(0);
+    s.build("archer", { col: 3, row: 0 });
+    s.advance(50);
+    expect(battle(s).feedback).toBe("골드가 부족합니다");
+  });
+  it("이미 타워가 있는 칸 → '이미 타워가 있습니다', 맵 밖 → '맵 밖입니다'", () => {
+    const s = start();
+    s.build("archer", { col: 0, row: 0 });
+    s.advance(50);
+    s.build("archer", { col: 0, row: 0 });
+    s.advance(50);
+    expect(battle(s).feedback).toBe("이미 타워가 있습니다");
+    s.build("archer", { col: 99, row: 0 });
+    s.advance(50);
+    expect(battle(s).feedback).toBe("맵 밖입니다");
+  });
+  it("최고 레벨·타워 없음 거부 문구, 전투 중 판매 거부(지금은 할 수 없습니다)", () => {
+    const b = clone();
+    b.stages[0].initialGold = 1000;
+    const { session: s } = make(b);
+    s.startStage(0);
+    s.build("archer", { col: 0, row: 0 });
+    s.advance(50);
+    for (let i = 0; i < 3; i++) {
+      s.upgrade(1);
+      s.advance(50);
+    }
+    s.upgrade(1);
+    s.advance(50);
+    expect(battle(s).feedback).toBe("최고 레벨입니다");
+    s.upgrade(77);
+    s.advance(50);
+    expect(battle(s).feedback).toBe("타워가 없습니다");
+    s.startWave();
+    s.advance(50);
+    s.sell(1);
+    s.advance(50);
+    expect(battle(s).feedback).toBe("지금은 할 수 없습니다");
+  });
+  it("피드백은 2초(UI 시계) 뒤 사라진다 — 일시정지 중에도 시간은 흐른다", () => {
+    const s = start();
+    s.build("archer", { col: 0, row: 2 });
+    s.advance(50);
+    expect(battle(s).feedback).not.toBeNull();
+    s.pause();
+    s.advance(FEEDBACK_MS - 1);
+    expect(battle(s).feedback).not.toBeNull();
+    s.advance(1);
+    expect(battle(s).feedback).toBeNull();
+  });
+  it("일시정지 중 명령은 제출되지 않고 안내 피드백", () => {
+    const s = start();
+    s.pause();
+    expect(s.build("archer", { col: 0, row: 0 })).toEqual({ ok: false, reason: "paused" });
+    expect(battle(s).feedback).toBe("일시정지 중에는 할 수 없습니다");
+    s.resume();
+    s.advance(50);
+    expect(s.getRenderFrame()?.curr.towers).toHaveLength(0);
+  });
+  it("조기 시작: 준비 → 전투, 준비 중이 아닐 때 다시 보내면 wrongPhase 거부", () => {
+    const s = start();
+    s.startWave();
+    s.advance(50);
+    expect(battle(s).hud).toMatchObject({ phase: "combat", phaseLabel: "전투" });
+    s.startWave();
+    s.advance(50);
+    expect(battle(s).feedback).toBe("지금은 할 수 없습니다");
+  });
+  it("타깃 변경 명령이 코어에 반영된다", () => {
+    const s = start();
+    s.build("archer", { col: 0, row: 0 });
+    s.advance(50);
+    s.setTargeting(1, "strong");
+    s.advance(50);
+    expect(s.getRenderFrame()?.curr.towers[0].targetingMode).toBe("strong");
+  });
+});
+
+describe("UI 상태 전이 (UI-CONTRACT 6절)", () => {
+  const start = () => {
+    const m = make();
+    m.session.startStage(0);
+    return m.session;
+  };
+  it("설치 모드: 같은 항목 다시 탭하면 해제, 다른 종류로 바꿀 수 있고 선택은 해제", () => {
+    const s = start();
+    s.togglePlaceMode("archer");
+    expect(battle(s).ui.placeType).toBe("archer");
+    s.togglePlaceMode("mage");
+    expect(battle(s).ui.placeType).toBe("mage");
+    s.togglePlaceMode("mage");
+    expect(battle(s).ui.placeType).toBeNull();
+  });
+  it("설치 모드에서 칸 탭: build 제출 후 모드 종료(성공·실패 무관) — 경로 칸 실패여도 종료", () => {
+    const s = start();
+    s.togglePlaceMode("archer");
+    s.tapCell({ col: 0, row: 0 });
+    expect(battle(s).ui.placeType).toBeNull();
+    s.advance(50);
+    expect(s.getRenderFrame()?.curr.towers).toHaveLength(1);
+    s.togglePlaceMode("archer");
+    s.tapCell({ col: 0, row: 2 }); // 경로 칸
+    expect(battle(s).ui.placeType).toBeNull();
+    s.advance(50);
+    expect(battle(s).feedback).toBe("여기에는 설치할 수 없습니다");
+  });
+  it("설치 모드에서 맵 밖(null) 탭: 명령 없이 모드만 해제, 골드·타워 불변", () => {
+    const s = start();
+    s.togglePlaceMode("archer");
+    s.tapCell(null);
+    expect(battle(s).ui.placeType).toBeNull();
+    s.advance(50);
+    expect(battle(s).hud.gold).toBe(300);
+    expect(s.getRenderFrame()?.curr.towers).toHaveLength(0);
+  });
+  it("기본 모드: 타워 칸 탭 → 선택(상세), 빈 칸 탭 → 선택 해제, Esc 로도 해제", () => {
+    const s = start();
+    s.build("archer", { col: 0, row: 0 });
+    s.advance(50);
+    s.tapCell({ col: 0, row: 0 });
+    expect(battle(s).ui.selectedTowerId).toBe(1);
+    expect(battle(s).hud.detail?.name).toBe("궁수탑");
+    s.tapCell({ col: 5, row: 0 });
+    expect(battle(s).ui.selectedTowerId).toBeNull();
+    s.tapCell({ col: 0, row: 0 });
+    s.cancel();
+    expect(battle(s).ui.selectedTowerId).toBeNull();
+  });
+  it("Esc 순서: 판매 확인 → 설치 모드 → 선택 순으로 한 단계씩", () => {
+    const s = start();
+    s.build("archer", { col: 0, row: 0 });
+    s.advance(50);
+    s.selectTower(1);
+    s.requestSell(1);
+    expect(battle(s).ui).toMatchObject({ selectedTowerId: 1, sellConfirmId: 1 });
+    s.cancel();
+    expect(battle(s).ui).toMatchObject({ selectedTowerId: 1, sellConfirmId: null });
+    s.cancel();
+    expect(battle(s).ui.selectedTowerId).toBeNull();
+    s.togglePlaceMode("frost");
+    s.cancel();
+    expect(battle(s).ui.placeType).toBeNull();
+  });
+  it("판매 확인: 확인창 중에는 맵 입력 무시, 취소하면 닫힘, 확인하면 다음 틱에 판매(환급 70)·선택 해제", () => {
+    const s = start();
+    s.build("archer", { col: 0, row: 0 });
+    s.advance(50);
+    s.selectTower(1);
+    s.requestSell(1);
+    s.tapCell({ col: 5, row: 0 }); // 확인창 중 맵 탭은 무시
+    expect(battle(s).ui).toMatchObject({ selectedTowerId: 1, sellConfirmId: 1 });
+    s.cancelSell();
+    expect(battle(s).ui.sellConfirmId).toBeNull();
+    s.requestSell(1);
+    s.confirmSell();
+    s.advance(50);
+    expect(battle(s).hud.gold).toBe(270); // 200 + floor(100 × 0.7)
+    expect(s.getRenderFrame()?.curr.towers).toHaveLength(0);
+    expect(battle(s).ui).toMatchObject({ selectedTowerId: null, sellConfirmId: null });
+  });
+  it("판매 확인은 준비 → 전투 전환 시 자동 취소(선택은 유지)", () => {
+    const s = start();
+    s.build("archer", { col: 0, row: 0 });
+    s.advance(50);
+    s.selectTower(1);
+    s.requestSell(1);
+    s.startWave();
+    s.advance(50);
+    expect(battle(s).hud.phase).toBe("combat");
+    expect(battle(s).ui).toMatchObject({ selectedTowerId: 1, sellConfirmId: null });
+  });
+  it("전투 중 판매 요청은 확인창을 열지 않고 안내 피드백", () => {
+    const s = start();
+    s.build("archer", { col: 0, row: 0 });
+    s.startWave();
+    s.advance(50);
+    s.selectTower(1);
+    s.requestSell(1);
+    expect(battle(s).ui.sellConfirmId).toBeNull();
+    expect(battle(s).feedback).toBe("준비 단계에서만 판매할 수 있습니다");
+  });
+  it("일시정지 중 설치 모드 진입 불가(안내), 일시정지 전에 정해 둔 선택은 재개 후에도 유지", () => {
+    const s = start();
+    s.build("archer", { col: 0, row: 0 });
+    s.advance(50);
+    s.selectTower(1);
+    s.pause();
+    s.togglePlaceMode("mage");
+    expect(battle(s).ui.placeType).toBeNull();
+    s.resume();
+    expect(battle(s).ui.selectedTowerId).toBe(1);
+  });
+});
+
+describe("결과·재도전·진행 상태", () => {
+  it("패배(기지 HP 1, 방어 없음): 결과 뷰·입력 차단·틱 정지, 클리어 플래그 없음, 다음 스테이지는 잠겨 비활성", () => {
+    const { session: s, store } = make(sprint(1));
+    s.startStage(0);
+    s.startWave();
+    run(s, 30);
+    const b = battle(s);
+    expect(b.hud).toMatchObject({ phase: "defeat", phaseLabel: "패배", isResult: true, controlsEnabled: false });
+    expect(b.result).toMatchObject({ outcome: "defeat", stageName: "초원 전초기지", reachedWave: 1, baseHp: 0, maxBaseHp: 1, hasNext: true, nextEnabled: false });
+    expect(store.getCleared()).toEqual([]);
+    const t = tick(s);
+    expect(s.advance(1000)).toBe(0);
+    expect(tick(s)).toBe(t);
+    expect(s.build("archer", { col: 0, row: 0 })).toEqual({ ok: false, reason: "result" });
+    s.pause(); // 결과 단계에서는 무시
+    expect(battle(s).hud.paused).toBe(false);
+  });
+  it("승리(5웨이브 모두 통과): 클리어 플래그·다음 스테이지 해금, 결과에 도달 웨이브 5·다음 활성", () => {
+    const { session: s, store } = make(sprint(100));
+    s.startStage(0);
+    s.startWave();
+    run(s, 200);
+    const b = battle(s);
+    expect(b.hud.phase).toBe("victory");
+    expect(b.result).toMatchObject({ outcome: "victory", reachedWave: 5, baseHp: 70, maxBaseHp: 100, hasNext: true, nextEnabled: true });
+    expect(store.getCleared()).toEqual([DEV_PLACEHOLDER.stages[0].stageId]);
+    expect(s.getState().cards.map((c) => c.state)).toEqual(["cleared", "available", "locked"]);
+  });
+  it("재도전: 같은 스테이지·새 attemptId·새 상태(골드·타워 초기화), 클리어 플래그 유지", () => {
+    const { session: s, store } = make(sprint(100));
+    s.startStage(0);
+    s.build("archer", { col: 0, row: 0 });
+    s.startWave();
+    run(s, 200);
+    expect(battle(s).result?.outcome).toBe("victory");
+    expect(s.retry()).toBe(true);
+    expect(battle(s)).toMatchObject({ stageIndex: 0, attemptId: 2, result: null });
+    expect(battle(s).hud).toMatchObject({ gold: 300, phase: "preparation", waveIndex: 1 });
+    expect(s.getRenderFrame()?.curr.towers).toEqual([]);
+    expect(store.getCleared()).toHaveLength(1);
+  });
+  it("스테이지 선택으로 돌아가면 화면이 바뀌고 클리어 표시 유지, 다음 스테이지로 진행하면 stageIndex 1", () => {
+    const { session: s } = make(sprint(100));
+    s.startStage(0);
+    s.startWave();
+    run(s, 200);
+    s.toStageSelect();
+    expect(s.getState().screen).toBe("stageSelect");
+    expect(s.getState().cards[0].state).toBe("cleared");
+    s.startStage(0);
+    s.startWave();
+    run(s, 200);
+    expect(s.nextStage()).toBe(true);
+    expect(battle(s)).toMatchObject({ stageIndex: 1, attemptId: 3 });
+    expect(battle(s).hud.stageName).toBe("눈 내리는 협곡");
+  });
+  it("Stage 3 결과에는 다음 스테이지가 없다(hasNext false)", () => {
+    const { session: s, store } = make(sprint(100));
+    for (const st of DEV_PLACEHOLDER.stages.slice(0, 2)) store.markCleared(st.stageId);
+    s.startStage(2);
+    s.startWave();
+    run(s, 200);
+    expect(battle(s).result).toMatchObject({ outcome: "victory", hasNext: false, nextEnabled: false });
+    expect(s.nextStage()).toBe(false);
+  });
+  it("VFX 이벤트는 drainEvents 로 한 번만 가져간다", () => {
+    const { session: s } = make();
+    s.startStage(0);
+    s.build("archer", { col: 0, row: 0 });
+    s.advance(50);
+    const first = s.drainEvents();
+    expect(first.map((e) => e.type)).toEqual(["towerBuilt", "economySettled"]);
+    expect(s.drainEvents()).toEqual([]);
+  });
+  it("구독: 상태가 바뀔 때만 알리고 해제할 수 있다", () => {
+    const { session: s } = make();
+    let n = 0;
+    const off = s.subscribe(() => n++);
+    s.startStage(0);
+    expect(n).toBe(1);
+    s.advance(10); // 틱 없음 → 알리지 않음
+    expect(n).toBe(1);
+    s.advance(40);
+    expect(n).toBe(2);
+    off();
+    s.advance(50);
+    expect(n).toBe(2);
+  });
+});
