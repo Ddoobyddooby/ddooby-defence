@@ -443,3 +443,58 @@ Stage 1                Stage 2                Stage 3
 - 한 투사체는 명중·폭발·취소·만료 중 **정확히 하나**로 끝난다. 타워는 한 틱에 최대 1발.
 - 4단계에서 HP가 0이 된 적은 같은 틱의 이후 발사 대상·명중·폭발 피해 대상이 아니다.
 - 같은 입력이면 전투 상태 포함 틱별 해시가 같다(7.4절). 13.3절 경제 불변식은 그대로 유지.
+
+## 15. 리플레이 기록·회귀 기반·실패 주입 (SIM-03)
+
+> 7.3·7.4절(TECH-02 기록·검증기)을 실제 시도 코어의 **기록 생성기·골든 회귀·실패 주입 테스트**로 완성한다. 게임 규칙·스냅샷 형식은 바꾸지 않으므로 `ATTEMPT_CODE_VERSION`은 그대로 둔다. 수치는 모두 TEST_ONLY.
+
+### 15.1 기록 생성기 (제품 코드)
+
+- `createRecordedAttempt(bundle, stageId, attemptId)` → `{ core, finish() }`. `core`는 `createAttempt`와 같은 시도 코어이고, 기록기는 `submit` 결과가 **접수 성공(`ok`)인 명령만** `{applyTick, seq, kind, payload}`로 기록한다(payload는 접수 시 동결 사본). 접수 즉시 거부(일시정지·결과 단계)는 기록하지 않고, 적용 시 거부된 명령은 seq를 받았으므로 기록한다(7.3절).
+- 생성 시 스냅샷 0으로 `initialStateHash`를, 코어의 `contentHash`·`ATTEMPT_CODE_VERSION`·`formatVersion 1`을 기록한다. 기록 생성기는 훅을 받지 않는다(제품 경로).
+- `finish()` = 현재 `completedTick`을 `endTick`으로 하는 `ReplayRecord`(깊은 복사·동결). `step()` 실행 중 호출은 오류. 결과가 난 시도는 자연히 `endTick = R`(7.3절).
+- **미적용 명령(리뷰 SIM-03 F2):** `finish()` 결과에는 `applyTick ≤ completedTick`인 명령만 넣는다. 아직 적용되지 않은 명령(접수 직후·일시정지 중·step 실패 후 큐에 남은 명령)은 기록기 내부와 코어 큐에 **그대로 보존**하고, 이후 그 틱이 실행된 뒤의 `finish()`에 포함한다. `finish()`는 step을 대신 실행하거나 `endTick`을 늘리지 않는다. 따라서 `finish()`가 돌려준 모든 기록은 `validateReplayRecord`를 통과하고 원 실행의 틱 0..endTick trace와 같다.
+- 기록은 `validateReplayRecord`를 통과해야 하며, `runReplay`로 새 코어에서 재생하면 원 실행의 틱 0..endTick 상태·이벤트·해시와 **완전히 같아야** 한다(원 실행 trace는 기록기가 틱마다 `snapshot()`과 `step()` 이벤트로 수집할 수 있게 `trace()` 제공, 7.4절 비교 대상).
+
+### 15.2 골든 회귀 시나리오
+
+- 위치: `src/game/core/attempt/regression/` — 시나리오 정의(`scenarios.ts`, TEST_ONLY 묶음·명령 스크립트), 골든 파일 `golden/<scenario>.json`, 테스트 `regression.test.ts`.
+- 골든 형식(정규 JSON): `{ scenario, record(15.1 기록), tickHashes: [틱 0..endTick 해시], outcome(null|victory|defeat), finalGold, finalBaseHp, ledger(경제 원장 전체) }`.
+- 테스트: 골든의 `record`를 `runReplay`(새 코어)로 실행해 (1) `tickHashes`를 **틱마다** 비교하고 다르면 첫 불일치 틱·실제 그 틱의 이벤트 type 목록·상태 요약을 메시지로 낸다, (2) `outcome`·`finalGold`·`finalBaseHp`·`ledger`를 비교, (3) 같은 기록을 새 코어로 한 번 더 실행해 trace 전체가 같음(`firstMismatch == null`), (4) 매 틱 불변식(15.4) 검사.
+- **골든 갱신 규칙:** 골든의 `record.codeVersion`이 현재 `ATTEMPT_CODE_VERSION`과 다르면 테스트는 "골든이 오래됨"으로 **실패**한다(조용히 통과·자동 갱신 금지). 갱신은 명시적 명령 `npm run golden:update`(환경변수로 갱신 모드 실행, POSIX 셸 기준)로만 하고, 갱신 커밋은 코드 버전 변경 또는 시나리오 변경 사유를 메시지에 적는다. 같은 코드 버전에서 해시가 바뀌면 그것은 **회귀**이며 골든 갱신으로 덮지 않는다.
+- **시나리오 변경 판정(리뷰 SIM-03 F1):** "시나리오가 바뀌었다"는 **입력 정의**만으로 판단한다: 콘텐츠(`contentHash`), `stageId`·`attemptId`, 명령 스크립트(명령 목록), 종료 정책(고정 `endTick` 값 또는 "결과 틱까지"). 실행 결과로 계산되는 값(결과 틱으로 정해진 `endTick`, `initialStateHash`, 해시·원장)의 변화는 시나리오 변경 사유가 **아니다**. 같은 `codeVersion`에서 입력 정의가 같은데 결과가 다르면 갱신을 거부한다. 이를 위해 골든에 입력 정의(`input`: 위 항목)를 별도로 저장한다. 같은 `codeVersion`인 이전 골든에 `input`이 없으면(구형식·필드 삭제) 갱신을 **거부**한다. 허용은 이전 골든 없음(최초 생성)·`codeVersion` 변경·`input` 변경뿐(재리뷰 1 RR1-F1).
+- **원자적 갱신:** 갱신 모드는 모든 시나리오의 생성·가드 검사를 **먼저 끝낸 뒤** 하나라도 거부되면 어떤 파일도 쓰지 않는다.
+- **최소 시나리오** (모두 시드·난수 없이 고정 스크립트):
+
+| ID | 맵 | 내용 | 기대 |
+|---|---|---|---|
+| R1 | Stage 1 | 준비 단계 설치 4종·강화·타깃 변경·판매, 5웨이브 전부 | `victory` |
+| R2 | Stage 2 | 적은 방어로 기지 HP 소진 | `defeat`, 패배 틱의 웨이브 완료 보상 없음 |
+| R3 | Stage 3 | 조기 시작, 전투 중 설치·강화·`setTargeting`, 특성 3종(저항·체력·속도)과 frost·mage 포함 | 결과 무관(endTick 고정 또는 결과 틱) |
+
+  - Stage 1 맵의 Stage 1 등장 조건(11.3)을 만족하는 TEST_ONLY 묶음을 쓴다. 시나리오마다 필요한 이벤트가 **나왔는지** 단언한다(빈 시나리오로 통과 방지). 시나리오별 분담: 세 시나리오를 합쳐 투사체·폭발·둔화·처치 보상·웨이브 보상·기지 피해를 모두 덮고, 예외는 R2(패배 우선이라 패배 틱 웨이브 보상이 **없음**을 단언)·R3(고정 endTick이라 기지 피해 미요구).
+
+### 15.3 실패 주입·의도적 불일치
+
+각 경우는 **어떤 오류가 어느 시점에 나는지**를 정확히 단언한다.
+
+| ID | 주입 | 기대 |
+|---|---|---|
+| F1 | 기록 명령 변조(payload 값·kind·applyTick 1틱 이동) | 구조 유효하면 실행되고 `firstMismatch.tick`이 변조한 명령의 (원래·새 중 이른) applyTick |
+| F2 | 구조 위반(seq 빈틈·applyTick 감소·endTick 초과·알 수 없는 필드) | 실행 전 `ReplayStructureError`(필드 경로) |
+| F3 | `codeVersion`·`formatVersion`·`contentHash` 불일치, 콘텐츠 값 1개 바뀐 묶음 | 실행 전 `ReplayCompatibilityError`, `step()` 0회 |
+| F4 | 초기 상태 해시 변조 | `ReplayInitialStateError` |
+| F5 | 전투 중(투사체·둔화가 있는 틱) TEST_ONLY `fire` 훅 예외 | 상태·원장·카운터 불변, 같은 틱 재시도 후 이어지는 trace가 예외 없는 실행과 같음 |
+| F6 | trace 한 틱의 상태 필드 1개·이벤트 필드 1개를 의도적으로 바꿈 | `firstMismatch`가 그 틱·필드 경로(이벤트는 `eventSeq`)를 정확히 보고 |
+| F7 | 결과 틱 뒤로 늘린 `endTick` | `ReplayEndMismatchError`(결과 틱에서 멈춤) |
+| F8 | 골든 `codeVersion`을 다르게 한 사본 | 15.2 "골든이 오래됨" 실패 경로가 동작 |
+| F9 | 같은 코드 버전·같은 입력 정의에서 코어 동작만 달라져 결과 틱(`endTick`)이 바뀐 골든 후보 | 갱신 거부, 다른 시나리오 파일도 쓰지 않음(원자성). 입력 정의 변경·코드 버전 변경은 허용 |
+
+### 15.4 틱 불변식 helper (TEST_ONLY)
+
+- `testing/invariants.ts`로 13.3·14.8 불변식 검사를 모은다(현재 `combat.test.ts`·`econ.test.ts`의 지역 helper를 옮겨 재사용, 두 테스트도 이것을 쓰게 정리). 위반 시 틱·불변식 이름·값을 담은 오류.
+- 포함: 골드 ≥ 0 및 `gold == initialGold + Σ원장 delta`, 타워 `actuallyPaid`·점유·경로 칸, 경제 키 1회, single 투사체 대상 존재, 둔화 `expireTick > T`·출처 중복 없음, 투사체 `expireTick ≥ T`.
+
+### 15.5 SIM-02 보강
+
+- **발사 후 타깃 변경(REQ-TOWER-09) 전용 단언:** 틱 T 발사 → T+1 `setTargeting` 적용 → 비행 중 투사체의 `targetEnemyId`·스탯 불변, 다음 발사는 새 모드로 대상 선택. 모드 변경 시점에 **새 모드라면 다른 적을 고를 후보가 사거리 안에 2명 이상** 있어야 한다(재선택 구현을 구분하기 위해, 리뷰 SIM-03).

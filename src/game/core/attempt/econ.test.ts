@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { createAttempt } from "./attempt";
 import { killAt } from "./testing/inject";
+import { InvariantChecker } from "./testing/invariants";
 import { seg, STAGE2_ID, uniformStage2, withValues } from "./testing/bundles";
 import { CommandStructureError } from "../sim/commands";
 
@@ -358,6 +359,7 @@ describe("불변식(13.3): 무작위(시드 고정) 명령 열 + 각 틱 후 검
       const types = ["archer", "ballista", "mage", "frost"] as const;
       const modes = ["first", "last", "close", "strong"] as const;
       const paid = new Map<number, number>();
+      const checker = new InvariantChecker(core.stageContent);
       for (let tick = 1; tick <= 60; tick++) {
         const n = rnd() % 4;
         for (let i = 0; i < n; i++) {
@@ -369,15 +371,14 @@ describe("불변식(13.3): 무작위(시드 고정) 명령 열 + 각 틱 후 검
           else if (pick === 4) core.submit("setTargeting", { towerId, mode: modes[rnd() % 4] });
           else if (tick === 5) core.submit("startWave", {});
         }
-        core.step();
+        const stepEvents = core.step();
         const s = core.snapshot() as {
           gold: number;
           towers: { towerId: number; type: keyof typeof BUILD; level: number; actuallyPaid: number; cell: { col: number; row: number } }[];
         };
-        // gold == initialGold + Σ delta, 골드 ≥ 0
-        expect(s.gold).toBe(600 + core.ledger().reduce((a, l) => a + l.delta, 0));
-        expect(s.gold).toBeGreaterThanOrEqual(0);
-        expect(Number.isSafeInteger(s.gold)).toBe(true);
+        // 공유 불변식(15.4): gold == initialGold + Σ원장 delta·골드 ≥ 0·경제 키 1회·actuallyPaid·점유·경로 칸 + 전투 불변식
+        checker.check(tick, s, stepEvents);
+        expect(s.gold).toBe(600 + core.ledger().reduce((a, l) => a + l.delta, 0)); // 코어 원장과도 독립 대조
         const cells = new Set<string>();
         for (const t of s.towers) {
           const expectedPaid = BUILD[t.type] + UPG[t.type].slice(0, t.level - 1).reduce((a, b) => a + b, 0);
@@ -389,9 +390,6 @@ describe("불변식(13.3): 무작위(시드 고정) 명령 열 + 각 틱 후 검
           cells.add(`${t.cell.col},${t.cell.row}`);
           paid.set(t.towerId, t.actuallyPaid);
         }
-        // 소비 키는 한 번만
-        const keys = core.snapshot().consumedEconomyEvents as string[];
-        expect(new Set(keys).size).toBe(keys.length);
         if (core.isResult()) break;
       }
       expect(core.ledger().length).toBeGreaterThan(0);

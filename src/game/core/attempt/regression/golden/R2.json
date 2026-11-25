@@ -1,0 +1,33 @@
+{
+"finalBaseHp": 0,
+"finalGold": 202,
+"input": {"attemptId":2,"commands":[{"kind":"build","payload":{"tile":{"col":3,"row":2},"towerType":"archer"},"tick":1},{"kind":"build","payload":{"tile":{"col":6,"row":2},"towerType":"mage"},"tick":1},{"kind":"build","payload":{"tile":{"col":9,"row":2},"towerType":"frost"},"tick":1},{"kind":"startWave","payload":{},"tick":1},{"kind":"setTargeting","payload":{"mode":"last","towerId":1},"tick":10}],"contentHash":"2fd775ff09291412","endPolicy":"result","stageId":"stage-2-snowfall-pass"},
+"ledger": [{"delta":-100,"eventSeq":2,"goldAfter":500,"key":"a2:build:c1","tick":1},{"delta":-180,"eventSeq":4,"goldAfter":320,"key":"a2:build:c2","tick":1},{"delta":-120,"eventSeq":6,"goldAfter":200,"key":"a2:build:c3","tick":1},{"delta":2,"eventSeq":27,"goldAfter":202,"key":"a2:kill:e2","tick":34}],
+"outcome": "defeat",
+"record": {"attemptId":2,"codeVersion":"attempt-v3","commands":[{"applyTick":1,"kind":"build","payload":{"tile":{"col":3,"row":2},"towerType":"archer"},"seq":1},{"applyTick":1,"kind":"build","payload":{"tile":{"col":6,"row":2},"towerType":"mage"},"seq":2},{"applyTick":1,"kind":"build","payload":{"tile":{"col":9,"row":2},"towerType":"frost"},"seq":3},{"applyTick":1,"kind":"startWave","payload":{},"seq":4},{"applyTick":10,"kind":"setTargeting","payload":{"mode":"last","towerId":1},"seq":5}],"contentHash":"2fd775ff09291412","endTick":259,"formatVersion":1,"initialStateHash":"25fc52fac95b7d17","stageId":"stage-2-snowfall-pass"},
+"scenario": "R2",
+"tickHashes": [
+  "25fc52fac95b7d17","0f3453a9630b4c87","0b7454d4f7587de3","156af18ecb6dfdef","fe2f814bcae99430","7745ac687252379e","dc92f01c9852a98a","2e450da357c2410b","64dd9ab6e1671f1c","5c1750e5e8e08b44","406329127ff41b47","9434f1d8f3c618b4",
+  "b1092118299253c3","9dfc04c3c9a058ad","902569ab860df292","fe32584aa7c1c656","21ee1465ff3e9ebb","48120815dfe14fcf","42b018a8364cb8e5","e747d50e58a04bcf","0aef77323dc9cfdb","277c4dfb9f48a798","24ac617f8bffdaa3","dd7792d585069b09",
+  "d2b017e4221186da","31b757875643cd2e","8cc4cc323dc37e67","126cbbef683f296a","956c738415567c86","d7842cbf07d029fa","5556f5e2b200f312","8e8613aab8b0e4c7","e9f83d54b39bd080","f9f97395572a61dd","f0fe2bfe042c29bc","3879ffffd33d62a3",
+  "788b4d55a4029274","47016361b0a2f6e5","dc47a6e1e0cf2076","63a87d664c499bf7","bcebb6576d59449d","4ea629b81596b165","53ad68c835f0d943","88cd8826c2024b32","da26133c3fa82f69","c528abd714691231","63a964b1f43a3ed9","9d3d5ae598e6fe1d",
+  "71cf5d9bd25d02cb","5513291ae6ca9633","0caecaecc7b29785","7fd9d351978170a6","a798c1446c48b4a4","a20161404bd3f97f","cc514e2293af4428","44ee3d783b64ab79","69a9471c2686831f","a28cae089aa153d4","70e9a4d0b5a35695","029d58163bb59473",
+  "9c06636234948f36","fdb63a0eaf9b88a1","67bb461c4c48d643","00473d49108e968c","c566e25ac9c419f8","bbc414a22450273a","66d4c7a20d47d198","b67d4cdf759adb16","1c9247506e85a62d","ca56564a704388b1","b1658ae5e52b8d87","68dbb055507794bf",
+  "96f963214f69b910","8f17849b9c9491de","03f0ca448a6ba3c6","7179a8a9b6db91cf","1503d059d6283889","ac6695bc89274254","8d069397079ab0c0","2e39c76b73e34291","6bf96de9909bb174","e9059572e98ced60","72966d20c3b9bb92","9ff377ee982f0f7c",
+  "09bde550f1557b94","16d6d729662ec9ad","0c354b0e0b9018f4","995ade1587344de3","d5b64ee12d2ac34c","00cdd93ce0da9067","7062b34ca078e2c6","b29fdf4d87fbed37","6d3b31b70732863a","4e753f41529ec7ee","fc9407db0b44f3df","07047b86f09468ab",
+  "af30778e0112e209","04126e10a02a0dba","60aea50d8f900fc3","b56537851057bbb5","b69cad7e5d09ec89","5b0dd81c48c35b42","28b8d398c9654438","1d544b594ed44b73","cf3702f72e9ff8bc","afe64dcd90dea9ea","58c7439791b47660","d22522b040d6d932",
+  "82d180d074e2921a","999e6ffda2f45c3c","a715f1cbefe26a9e","9e2fa72041e1b066","2dfec88e031b89da","0e63a91a98bd0045","17b186f5de8598e9","7c80b3cab046ec55","f522c4d4513f5c32","14d114da51ba5ef8","c45582d2cca6590a","21d8f021c7800703",
+  "e5bb66f6b0b2f058","d926014de9c92774","ab76d2264c6e910a","f7875d52eaf20dfc","798c55e6aebdb108","3b44b4a701632a2f","e7686c9ce337b661","871dee60470b30f5","9d73d816392499fa","8760fae57af58026","e1bfff751a994524","7d088ecec6325429",
+  "6ceebd949941a144","561c00e754793305","5fdebbd62c8c74c4","c49a76751db5161e","feadff717ced214a","b552d06a2b11c431","8235b9e1f2503c91","06be3a891e6ef877","2e24e4d584b435ec","63b1520ec61de747","b2fe856ea0a369f1","863182766d28370d",
+  "fb8df1fed9c1fe94","2e19d5d6830da708","a8a3f2c36110df7a","d0b690c98f2d054d","30c0698d9e62ded7","a7b4eef8f717796a","c9d1b8cc278a2128","9edf5a14011113e7","1d0e288a7e6d052a","745de4af025be556","6f420cf388f51b43","9cb5b9948bb1a15b",
+  "86b9c89ff44a5330","e31ad302981b35fa","ab64dde47c7978d9","c30697eeab63bca0","e2bb85ab5c20fe24","5a568225a1613489","b2185b65272309bb","0bc1e85019f341de","fa83b2a5506b30c9","0625c360e1e57185","eff5dc1cc8a5a4dc","47e527aef5cc9d82",
+  "7e1f2ab35c72d867","9e3271cdfd8cef34","cd04da5fa55caab0","5858bc28776c8fd9","b242709c07fdf4c0","038099c66afe8027","165356f937226eed","b657aea748c16676","dc1f9f98f40535e6","1fdf4b2ec037b4d5","fe96b4a641ba252e","4efa4cf268da48a5",
+  "a49e197028f7ced2","63bcbe15992cfe8e","5c47c9fd60d5b077","7f4459f64e2e00b8","0f9fd7d7630ffcc8","8cec7b4ad01d916e","d8f29a44f366ca90","f163801c9d3d06cb","aceb3749eb519050","64fc3da3cdc364cd","77d71365a59ec6e3","1c8ed67afb6d3de8",
+  "367e02e2a9c3fc46","c1fd4aeca94fc89b","2abd132a205098b1","d8234187eff219d6","9d40828e92e35301","b9b213fc832a788b","e937f04c4b4d145c","dced5966009b5d8c","977e9174de2cae5c","4ab4bc45dcfeda93","4b27900d943c0427","dc05a9de881e975c",
+  "c9996e03a5d99af1","33e482e378397edb","55bfe1228cca7bf5","177f2521595ffc61","be2de30ae69934e8","1dc3d3cefd4a539b","6a8cb330e4330680","b73d21c0a00c668f","be1912feb996be77","e75720bc1b960ae1","f6420a818ff775a8","16855505aa4d1eaa",
+  "265258389c24464f","974b9d4548c49523","fc5b8e24534cb342","390c52cfca60065e","c28b32c7ef73f8ab","6aaa4c04198fe2f1","b3c3f256511abe33","9c0e2cdc4098827e","7cd164d619c42d02","934fd977b49f5b32","9ced4a241e440e99","d308e906af74b3cb",
+  "a893ff8f30298540","06680efbc42b14f4","1c29bcaac673db01","b5982b57683250bc","b18a65d1b473b42e","610794c02bd26011","ee9e105ee3fa9caf","3dbeb59e014129c0","8aafa9e70ba71341","8c4e34a1a5390976","f32d461d5a939513","b84b0858b555459d",
+  "6a6800d26c7351ef","25ff39fdf623f284","662b1549652efdc1","f54d0859497675da","9dfbf2cb739cc294","7470b970e1b29187","1d75855728d123c2","53fe1ef60ad557a1","a51c19c10e4693d8","1326af441f13745e","cc520229d9b22cbe","cd9fe454d45cd369",
+  "18eaf10ec74660d0","afc7f5569252399f","674a99a30f534605","7d91cc6a99ed2a12","8c90788fc5bd274b","bcf8c026b6d7b724","4a40e169d9b6c3f9","1d4f17db5c8382ab"
+]
+}

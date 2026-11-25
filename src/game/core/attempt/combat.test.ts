@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { createAttempt, ATTEMPT_CODE_VERSION, type AttemptCore } from "./attempt";
 import { pickTarget, type TargetCandidate } from "./combat";
 import { killAt } from "./testing/inject";
+import { InvariantChecker } from "./testing/invariants";
 import { seg, STAGE2_ID, uniformStage2, withValues } from "./testing/bundles";
 import { firstMismatch, initialStateHashOf, runReplay, type ReplayRecord } from "../sim/replay";
 import type { TargetingMode } from "../sim/commands";
@@ -225,6 +226,36 @@ describe("타깃 모드 4종 (14.6) — 틱 61 에 적 4명: 진행도 3000/2000
   });
 });
 
+describe("발사 후 타깃 변경 (REQ-TOWER-09, 15.5)", () => {
+  // e1 은 틱 1, e2 는 틱 2 생성. 타워(0,0)는 틱 1 에 후보가 e1 하나뿐이라 first 로 e1 을 쏜다.
+  // 틱 2 의 1단계에 setTargeting last 가 적용되는 시점에 e1(진행도 50)·e2(방금 생성, 진행도 0)가 둘 다 사거리 안에 있다:
+  // first 라면 e1, last 라면 e2 로 서로 다르다 → 비행 중 투사체를 새 모드로 재선택하는 구현을 구분한다.
+  const segments = [seg(0, 0, 1), seg(50, 0, 1)];
+  const run = (changeToLast: boolean): Sim => {
+    const sim = start(bundle(segments), [["archer", 0, 0]]).to(1);
+    if (changeToLast) sim.submit("setTargeting", { towerId: 1, mode: "last" });
+    return sim;
+  };
+  it("변경 시점(틱 2)에 후보 2명이 사거리 안: 기존 투사체는 원래 적 e1 에 명중하고 e2 는 맞지 않는다, 스탯·nextFireTick 불변", () => {
+    const sim = run(true);
+    const before = sim.s.projectiles[0];
+    expect(before).toMatchObject({ projectileId: 1, targetEnemyId: 1, damage: 10, expireTick: 41, speedPerTick: 500 });
+    sim.to(2);
+    expect(sim.ev(2, "targetingChanged")).toMatchObject([{ towerId: 1, mode: "last" }]);
+    expect(sim.s.towers[0]).toMatchObject({ targetingMode: "last", nextFireTick: 21 });
+    // 변경 시점의 후보: e1(진행도 50, 위치 (550,1500))·e2(진행도 0, (500,1500)) 모두 타워 (500,500) 사거리 5000 안(거리² ≈ 1.0e6)
+    expect(sim.s.enemies.map((e) => [e.id, e.pathProgress])).toEqual([[1, 100], [2, 50]]); // 틱 2 의 6단계 이동 뒤. 4단계(후보 판정) 시점에는 [50, 0]
+    expect(sim.s.projectiles[0]).toMatchObject({ projectileId: 1, targetEnemyId: 1, damage: 10, expireTick: 41, speedPerTick: 500, kind: "single", impact: null });
+    sim.to(4);
+    expect(sim.ev(4, "enemyDamaged")).toMatchObject([{ projectileId: 1, enemyId: 1, damage: 10 }]);
+    expect(sim.s.enemies.find((e) => e.id === 2)?.hp).toBe(100);
+  });
+  it("다음 발사(틱 21)는 새 모드로 선택한다: last → e2(진행도 950), 변경 없으면(first) e1(진행도 1000)", () => {
+    expect(run(true).to(21).ev(21, "projectileFired")).toMatchObject([{ targetEnemyId: 2 }]);
+    expect(run(false).to(21).ev(21, "projectileFired")).toMatchObject([{ targetEnemyId: 1 }]);
+  });
+});
+
 describe("취소·만료·명중 우선 (14.4 (a)·14.7)", () => {
   it("fire 훅은 코어 (b) 뒤에 실행된다: 같은 틱 발사 뒤 훅이 적을 죽이면 투사체는 그 틱 8단계에 취소", () => {
     const sim = start(bundle(ONE), [["archer", 0, 0]], killAt({ tick: 1, enemyId: 1 })).to(1);
@@ -420,49 +451,6 @@ describe("둔화 (frost, 14.3·14.5)", () => {
 
 // ───────── 불변식·리플레이 ─────────
 
-interface Fired {
-  kind: string;
-  endings: number;
-}
-
-/** 14.8 불변식을 틱마다 검사한다. 투사체 종료 이력(fired/endings)을 누적해 반환한다. */
-function checkInvariants(sim: Sim, tick: number, fired: Map<number, Fired>, initialGold: number): void {
-  const s = sim.s;
-  const ids = new Set(s.enemies.map((e) => e.id));
-  expect(s.gold, `tick ${tick} 골드`).toBe(initialGold + sim.core.ledger().reduce((a, l) => a + l.delta, 0));
-  expect(s.gold).toBeGreaterThanOrEqual(0);
-  for (const p of s.projectiles) {
-    if (p.kind === "single") expect(ids.has(p.targetEnemyId as number), `tick ${tick} single 대상 존재`).toBe(true);
-    expect(p.expireTick as number, `tick ${tick} 투사체 만료`).toBeGreaterThanOrEqual(tick);
-  }
-  const projectileIds = s.projectiles.map((p) => p.projectileId as number);
-  expect(projectileIds).toEqual([...projectileIds].sort((a, b) => a - b));
-  for (const e of s.enemies) {
-    const sources = e.slows.map((x) => x.sourceTowerId);
-    expect(new Set(sources).size, `tick ${tick} 둔화 출처 중복`).toBe(sources.length);
-    expect(sources).toEqual([...sources].sort((a, b) => a - b));
-    for (const x of e.slows) expect(x.expireTick).toBeGreaterThan(tick);
-  }
-  // 이벤트 기반: 한 틱 최대 1발/타워, 투사체는 정확히 하나로 끝남, hp 0 이 된 적은 이후 비대상
-  const perTower = new Map<number, number>();
-  const dead = new Set<number>();
-  for (const e of sim.log[tick]) {
-    if (e.type === "projectileFired") {
-      perTower.set(e.towerId as number, (perTower.get(e.towerId as number) ?? 0) + 1);
-      fired.set(e.projectileId as number, { kind: e.kind as string, endings: 0 });
-      expect(dead.has(e.targetEnemyId as number), `tick ${tick} hp 0 적을 새로 노림`).toBe(false);
-    } else if (e.type === "projectileCancelled" || e.type === "projectileExpired" || e.type === "projectileExploded") {
-      fired.get(e.projectileId as number)!.endings += 1;
-    } else if (e.type === "enemyDamaged") {
-      expect(dead.has(e.enemyId as number), `tick ${tick} hp 0 적에게 피해`).toBe(false);
-      const f = fired.get(e.projectileId as number)!;
-      if (f.kind === "single") f.endings += 1; // single 의 명중 = 피해 한 번
-      if (e.hpAfter === 0) dead.add(e.enemyId as number);
-    }
-  }
-  for (const [towerId, n] of perTower) expect(n, `tick ${tick} 타워 ${towerId} 발사 수`).toBe(1);
-}
-
 function lcg(seed: number): () => number {
   let x = seed;
   return () => {
@@ -486,7 +474,7 @@ describe("14.8 불변식 — 무작위 명령(시드 고정, 시도 코어 입�
     it(`시드 ${seed}: 골드·투사체·둔화 불변식, 투사체는 정확히 하나로 끝남`, () => {
       const rnd = lcg(seed);
       const sim = new Sim(createAttempt(MIXED(), STAGE2_ID, 1));
-      const fired = new Map<number, Fired>();
+      const checker = new InvariantChecker(sim.core.stageContent);
       for (let tick = 1; tick <= 160; tick++) {
         const n = rnd() % 3;
         for (let i = 0; i < n; i++) {
@@ -499,13 +487,12 @@ describe("14.8 불변식 — 무작위 명령(시드 고정, 시도 코어 입�
           else if (tick === 3) sim.submit("startWave", {});
         }
         sim.to(tick);
-        checkInvariants(sim, tick, fired, 3000);
+        checker.check(tick, sim.s, sim.log[tick]);
+        expect(sim.s.gold, `tick ${tick}`).toBe(3000 + sim.core.ledger().reduce((acc, l) => acc + l.delta, 0)); // 실제 코어 원장과도 대조
         if (sim.core.isResult()) break;
       }
-      expect(fired.size).toBeGreaterThan(0);
-      const inFlight = new Set(sim.s.projectiles.map((p) => p.projectileId as number));
-      // 비행 중이면 아직 안 끝났고(0), 아니면 명중·폭발·취소·만료 중 정확히 하나(1)
-      for (const [id, f] of fired) expect(f.endings, `투사체 ${id}`).toBe(inFlight.has(id) ? 0 : 1);
+      expect(checker.firedCount).toBeGreaterThan(0);
+      checker.finish(sim.core.completedTick, sim.s); // 비행 중이 아닌 투사체는 명중·폭발·취소·만료 중 정확히 하나로 끝났다
     });
   }
 });

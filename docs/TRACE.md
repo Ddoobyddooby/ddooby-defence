@@ -36,7 +36,7 @@
 | REQ-TOWER-06 | 타깃 우선순위 선두(기본)·후미·가까운·강한 | SPEC 3절, SIM-CONTRACT 3.3 | SIM-02 | `attempt/combat.test.ts` 타깃 모드 4종·pickTarget | **통과**(`50b320b`) |
 | REQ-TOWER-07 | 동률은 경로 진행도 → 생성 순번 → 적 ID | SPEC 3절, SIM-CONTRACT 5절 | TECH-02, SIM-02 | `sim/time.test.ts` TECH-02/T08, `attempt/combat.test.ts` 동률(first·last id, close·strong 진행도→id) | **통과**(`50b320b`) |
 | REQ-TOWER-08 | 사거리 = 타워 중심~적 유클리드 거리, 경계 포함, LoS 없음 (정수 거리² 비교) | SPEC 3절, SIM-CONTRACT 3.3 | SIM-02 | `attempt/combat.test.ts` 사거리 경계(거리² == range² 발사, range−1 미발사) | **통과**(`50b320b`) |
-| REQ-TOWER-09 | 타깃 변경은 이후 발사에만 영향 | SPEC 3절 | SIM-02 | `attempt/combat.test.ts`(투사체 targetEnemyId·스탯 발사 시 고정, 리플레이 중 setTargeting) | 부분 통과(`50b320b`). 발사 후 타깃 변경 전용 단언은 없음 — SIM-03 리플레이 회귀에서 보강 |
+| REQ-TOWER-09 | 타깃 변경은 이후 발사에만 영향 | SPEC 3절 | SIM-02 | `attempt/combat.test.ts` REQ-TOWER-09 전용(모드 변경 시 후보 2명, 비행 중 투사체 불변·다음 발사 새 모드) | **통과**(`3ea5077`) |
 | REQ-TOWER-10 | 단일 투사체: 발사 시 대상·스탯 고정, 사거리 밖도 추적, 대상 사망·기지 도달 시 게임플레이 투사체 취소 | SPEC 4절 | SIM-02 | `attempt/combat.test.ts` 취소·만료·추적(사거리 밖 추적, 대상 사망·기지 도달 취소) | **통과**(`50b320b`) |
 | REQ-TOWER-11 | 명중과 수명 만료가 같은 시각이면 명중 우선 | SPEC 4절 | SIM-02 | `attempt/combat.test.ts` 같은 틱 명중 == 만료 → 명중 | **통과**(`50b320b`, TTL 판정 = 이동·명중 후, SIM-CONTRACT 14.4) |
 | REQ-TOWER-12 | 마법 광역은 고정 충돌 좌표에서 폭발, 반경 안이면 타워 사거리 밖 적도 피해 | SPEC 4절 | SIM-02 | `attempt/combat.test.ts` aoe(고정 충돌점, 사거리 밖 피해, 반경 경계, 노린 적 소멸 후 폭발, 만료 시 미폭발) | **통과**(`50b320b`) |
@@ -94,7 +94,7 @@
 | REQ-STATE-06 | 승패 결과 이후 게임플레이 상태 불변, 순수 VFX만 잔존 | SPEC 7절, SIM-CONTRACT 2.1 | SIM-01, UI-01 | `attempt/attempt.test.ts`·`attempt/attempt.hooks.test.ts`(결과 후 step·명령·pause·저장된 쓰기 함수 거부) | 부분 통과(`3ff5742`, 게임플레이 불변). VFX 잔존은 UI-01 |
 | REQ-STATE-07 | 논리 틱 50ms, 콘텐츠 시간 50ms 배수·하한, 정수 고정소수점(mt·bp), 비율 반올림 | SPEC 7절, SIM-CONTRACT 2·3절 | TECH-02 | `sim/time.test.ts` T01~T04, `sim/intmath.test.ts` N01~N10, `sim/formulas.test.ts` N11~N14 | **통과**(`1d3c829`, 224 passed) |
 | REQ-STATE-08 | 같은 틱 복수 명령은 seq 숫자 순, 앞 명령 반영 상태로 순차 재검증, payload 동결 | SIM-CONTRACT 4절 | TECH-02, SIM-01 | `sim/commands.test.ts` Q04·Q12~Q14, `attempt/attempt.test.ts`·`attempt/attempt.hooks.test.ts`(seq 순 적용·명령 단위 롤백) | **통과**(`3ff5742`, 실제 시도 코어). 설치·판매 등 명령 내용은 ECON-01 |
-| REQ-STATE-09 | 동일 코드·콘텐츠·초기 상태·입력 → 틱별 상태·이벤트 동일, 첫 불일치 틱·필드 진단 | SPEC 11절, SIM-CONTRACT 7절 | TECH-02, SIM-03 | `sim/canonical.test.ts`·`sim/hash.test.ts` S01~S09, `sim/replay.test.ts` R01·R03~R09·I1 (R02 "같은 세션 재사용과 무관한 재생"은 R06 describe 안의 테스트로 검증) | 부분 통과(`1d3c829`, toy 리플레이). 실제 전투 리플레이는 SIM-03 |
+| REQ-STATE-09 | 동일 코드·콘텐츠·초기 상태·입력 → 틱별 상태·이벤트 동일, 첫 불일치 틱·필드 진단 | SPEC 11절, SIM-CONTRACT 7절 | TECH-02, SIM-03 | `sim/canonical.test.ts`·`sim/hash.test.ts` S01~S09, `sim/replay.test.ts`, `attempt/record.test.ts`(기록 생성기·미적용 명령), `attempt/regression/regression.test.ts`(골든 R1~R3 틱별 해시), `regression/faults.test.ts` F1~F9 | **통과**(`3ea5077`, codex-main 재리뷰 2 통과) |
 | REQ-STATE-10 | 코어 결정성 금지(난수·벽시계·환경 의존 수학), 상태 내 소수 금지 | SIM-CONTRACT 6·7.1절 | TECH-02 | `sim/lint.test.ts` L01~L03, `sim/canonical.test.ts` L04 | **통과**(`1d3c829`). 별칭 우회는 lint 미검출 → 코드 리뷰 게이트 |
 | REQ-STATE-11 | 일시정지 시 게임 시간·VFX 동결, 접수된 명령 보존 후 재개 시 재검증 | SPEC 9절, SIM-CONTRACT 4절 | SIM-01, UI-01 | `attempt/attempt.test.ts`·`attempt/attempt.hooks.test.ts`(pause 큐 보존·재개, step 중 pause 금지) | 부분 통과(`3ff5742`, 코어). VFX 동결·오버레이는 UI-01 |
 | REQ-STATE-12 | 재도전 시 타워·적·골드·둔화·투사체·타이머·정산 초기화, 클리어 플래그 유지 | SPEC 10절 | SIM-01, SAVE-01 | `attempt/attempt.test.ts`(재도전 스냅샷 0 동일·유입 없음) | 부분 통과(`3ff5742`, 코어 초기화). 클리어 플래그 유지는 SAVE-01, 타워·투사체 초기화는 SIM-02·ECON-01에서 재확인 |
@@ -135,7 +135,7 @@
 | REQ-QA-03 | Codex 리뷰 결과 첫 줄 판정·심각도·파일:줄·수정 제안, 재리뷰 최대 2회 | CLAUDE.md 5절 | QA-01 | `.codex-out/TECH-02-test-strategy.md`, `.codex-out/TECH-02-impl-review.md` | 운영 중(태스크별 기록) |
 | REQ-QA-04 | 치명적·높음 결함·결정성 오류 시 반영 보류, 예외는 사용자 승인 | CLAUDE.md 3절, WORKFLOW 8절 | QA-01, REL-01 | — | 운영 중(현재 보류 0건) |
 | REQ-QA-05 | 실행 증거 없는 통과 금지, 테스트 상태 6종 구분 | CLAUDE.md 5절 | 전체 | 이 문서 1절 | 운영 중 |
-| REQ-QA-06 | 리플레이 회귀 기반: 실제 전투의 틱별 상태·경제 이벤트·최종 결과 비교와 의도적 불일치 검출 | TASKS SIM-03 | SIM-03 | — (TECH-02 toy는 REQ-STATE-09) | 의존성 차단(SIM-01·SIM-02·ECON-01) |
+| REQ-QA-06 | 리플레이 회귀 기반: 실제 전투의 틱별 상태·경제 이벤트·최종 결과 비교와 의도적 불일치 검출 | TASKS SIM-03 | SIM-03 | `attempt/regression/`(골든 R1~R3: 틱별 해시·결과·경제 원장·2회 재생·매 틱 불변식, 실패 주입 F1~F9, 갱신 가드) | **통과**(`3ea5077`, codex-main 재리뷰 2 통과). 실제 수치 골든은 BAL-01 이후 |
 | REQ-QA-07 | 전체 게이트 CORE/ECON/DATA/STATE/UI 증거, 통합·출시 검토 | TASKS REL-01 | REL-01 | — | 의존성 차단 |
 
 ## 3. 태스크별 역추적 (TASK → REQ)
@@ -149,9 +149,9 @@
 | MAP-01 | MAP-01·02·03·05 | 완료 |
 | DATA-01 | MAP-02, TOWER-02·03·04, ENEMY-01·02·07, WAVE-01·02·03·07, ECON-11 | 완료 |
 | SIM-01 | STATE-01·03·04·05·06·08·11·12, WAVE-03·04·05·06, ECON-06·09·10 | 완료 |
-| SIM-02 | TOWER-01·03·05~12, ENEMY-03~07, MAP-04, STATE-02 | 완료(`50b320b`, codex 리뷰 통과). 남은 부분은 BAL-01·UI-01·SIM-03 |
+| SIM-02 | TOWER-01·03·05~12, ENEMY-03~07, MAP-04, STATE-02 | 완료(`50b320b`, codex 리뷰 통과). 남은 부분은 BAL-01·UI-01(TOWER-09는 SIM-03에서 통과) |
 | ECON-01 | ECON-01~11, MAP-03, STATE-03·05, WAVE-06 | 완료 |
-| SIM-03 | STATE-09, QA-06 | 미착수 |
+| SIM-03 | STATE-09, QA-06 | 완료(`3ea5077`, codex 재리뷰 2 통과) |
 | UI-01 | UI-01~11, MAP-04·05, ECON-07, STATE-06·11·14·16, WAVE-07 | 미착수 |
 | SAVE-01 | STATE-12~16, UI-09·10 | 미착수 |
 | BAL-01 | BALANCE-01·02, TOWER-01·02·05, WAVE-02, ENEMY-08 | 미착수 |
