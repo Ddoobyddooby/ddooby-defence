@@ -15,7 +15,7 @@
   1. ~~DOC-01~~ 완료(2026-11-24, 재리뷰 1 통과). 문서 상호검증: 스택 확정 후 남은 "미정·확인 필요" 문구 정리 + codex-main 문서 QA (ART-01·TECH-01이 DOC-01 선행 없이 진행된 점 보완)
   2. ~~TECH-02~~ 완료(2026-11-24). 계약 `docs/SIM-CONTRACT.md`(재리뷰 2 통과) + 기초 모듈 `src/game/core/sim/`(claude-1 구현, 재리뷰 1 통과)
   3. ~~DOC-02~~ 완료(2026-11-24). 추적표 `docs/TRACE.md`, 태스크 반영 때마다 해당 행 갱신
-  4. ~~MAP-01~~ 완료(2026-11-24, 3맵 후보·기하 모듈). ~~DATA-01~~ 완료(2026-11-24, 스키마·검증기). ~~SIM-01~~·~~ECON-01~~ 완료(2026-11-24). ~~SIM-02~~·~~SIM-03~~ 완료(2026-11-25, 계약 14·15절, codex-main 리뷰 통과). 다음 작업은 사용자와 결정(후보: UI-01 게임 화면·HUD, SAVE-01, BAL-01 수치 후보)
+  4. ~~MAP-01~~ 완료(2026-11-24, 3맵 후보·기하 모듈). ~~DATA-01~~ 완료(2026-11-24, 스키마·검증기). ~~SIM-01~~·~~ECON-01~~ 완료(2026-11-24). ~~SIM-02~~·~~SIM-03~~ 완료(2026-11-25, 계약 14·15절). ~~UI-01~~ 완료(2026-11-25, `docs/UI-CONTRACT.md`, 화면에서 임시 수치로 플레이 가능). 다음 후보: SAVE-01(로컬 클리어 저장) → BAL-01(실제 수치)
 - **운영 흐름:** 사용자는 claude-main 탭에서 지시 → 코딩 claude-1/2, QA·리뷰 codex-main, 디자인 codex-design (WORKFLOW 2~4절). `main` 반영·push는 claude-main 탭에서 사용자 직접 확인 후
 - **저장소 경로(2026-11-24 변경):** `~/Desktop/Ddooby/projects/ddooby-defence` (이전 `.../ddooby-defence/ddooby-defence` 이중 폴더 정리, 사용자 요청)
 - **구현 탭 작업 방식:** claude-1/2는 공유 폴더가 아닌 전용 git worktree와 작업 브랜치에서 작업한다. worktree는 형제 폴더 `../ddooby-defence-<task>`(예: `ddooby-defence-sim-02`)에 만들고, 병합 후 worktree·브랜치 삭제(사용자 결정 2026-11-24)
@@ -130,12 +130,13 @@
 
 ## 5. UI·저장·콘텐츠 수치
 
-- [ ] **UI-01 — 게임 화면·격자 입력·HUD**
-  - 담당: 구현 담당 claude-main 배정
+- [x] **UI-01 — 게임 화면·격자 입력·HUD** (2026-11-25 `main` 반영)
+  - 담당: claude-main 계약(`docs/UI-CONTRACT.md`), 구현 claude-1(worktree `../ddooby-defence-ui-01`, 브랜치 `feat/ui-01`), 리뷰 claude-2(codex-main 한도 초기화 전까지 사용자 지시 2026-11-25). 사용자 결정(2026-11-25): 단순 도형 자리표시, 한국어, 모바일 가로(800×360)까지
   - 선행: TECH-01, MAP-01, SIM-01, ECON-01, ART-01(선택 자산 연결 시)
   - 범위: 우측 HUD, 선택·설치·업그레이드·판매 확인·타깃, prep/combat/pause/result, 스테이지 카드·오류
   - QA: UI-01~88, HUD-01~16, COREG-12
   - 완료 조건: 논리 좌표 매핑·실제 게임 상태와 HUD 일치·금지 상태 입력 무효 검증
+  - 결과: 계약 `docs/UI-CONTRACT.md`. 세션 계층 `src/game/session/`(시간 50ms·최대 5틱·복귀 첫 입력 폐기, 명령·거부 피드백, UI 상태, hudView, 레이아웃, 세션 메모리 진행), Phaser 단순 도형 렌더·DOM 좌표 입력, React HUD·오버레이·스테이지 선택(한국어), 개발용 임시 수치 `content/devBundle.ts`(DEV_PLACEHOLDER). 코어 무변경. lint/typecheck/test(625 passed)/build exit 0(claude-main 재실행), ego-browser 시나리오·1280×720·800×360 스크린샷(저장소 밖 `../ddooby-defence-ui-01-shots/`). 리뷰는 codex-main 한도로 claude-2 대행: 원리뷰 보통1·낮음7 → F1~F6 수정 → **재리뷰 1 통과**(@`5c4ecfc`, `.codex-out/UI-01-review.md`). 후속: F7 DPR 해상도·실제 스프라이트(아트), F8 브라우저 전용 코드 E2E, 실기기 터치·모바일 innerHeight<360, scene.ts 격자 상수 하드코딩(낮음)
 
 - [ ] **SAVE-01 — 로컬 클리어·해금·저장 실패**
   - 담당: 구현 담당 claude-main 배정

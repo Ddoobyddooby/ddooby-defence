@@ -22,7 +22,7 @@
 | REQ-MAP-02 | 스테이지별 독립 지도, 경로 = waypoint + 설치 불가 예약 격자 | SPEC 2절, SIM-CONTRACT 10절 | MAP-01, DATA-01 | `map/stageMap.test.ts`(3맵 그림 리터럴·칸 수·검증 오류), `content/stageMaps.ts`, `content/validate.test.ts`(맵 엄격 필드·스테이지 격리) | **통과**(`42b233d`·`ceded17`, 기하·후보 데이터·묶음 스키마) |
 | REQ-MAP-03 | 경로·spawn·base·예약 격자·점유 칸에는 설치 불가 | SPEC 2절 | MAP-01, ECON-01 | `map/stageMap.test.ts`(isBuildable), `attempt/econ.test.ts`(경로·출발·기지 notBuildable, 점유 occupied, 경로 칸 타워 없음 불변식) | **통과**(`cc4059a`) |
 | REQ-MAP-04 | 타워는 논리 1×1 점유, 스프라이트 돌출은 점유를 늘리지 않음 | SPEC 2절 | SIM-02, UI-01 | `attempt/combat.test.ts`(타워는 칸 중심 기준 1칸, 점유·사거리 중심 일치) | 부분 통과(`50b320b`, 코어 점유·발사 중심). 스프라이트 돌출은 UI-01 |
-| REQ-MAP-05 | 화면 → 맵 논리 격자 역변환, HUD·레터박스·맵 밖 입력은 설치 명령 생성 금지. 격자 경계 클릭은 오른쪽·아래 칸 | SPEC 2·9절, SIM-CONTRACT 10.1 | MAP-01, UI-01 | `map/pointToCell.test.ts`(소수 tile 경계 포함) | 부분 통과(`42b233d`, 좌표→칸 변환). 화면 축척·레터박스·HUD 입력 연결은 UI-01 |
+| REQ-MAP-05 | 화면 → 맵 논리 격자 역변환, HUD·레터박스·맵 밖 입력은 설치 명령 생성 금지. 격자 경계 클릭은 오른쪽·아래 칸 | SPEC 2·9절, SIM-CONTRACT 10.1 | MAP-01, UI-01 | `map/pointToCell.test.ts`(소수 tile 경계 포함) | **통과**(`5c4ecfc`, UI 입력 연결: DOM 좌표 → pointToCell, 레터박스·HUD 무명령, 왼쪽 버튼만) |
 
 ### REQ-TOWER — 타워 역할·레벨·타깃·투사체 (게이트 CORE, QA BALD·INT)
 
@@ -107,17 +107,17 @@
 
 | ID | 요구 | 근거 | TASK | 테스트 위치 | 상태 |
 |---|---|---|---|---|---|
-| REQ-UI-01 | 가로 16:9 참고 레이아웃, 맵 왼쪽·HUD 오른쪽 분리 | SPEC 9절 | UI-01 | — (TECH-01 자리 배치만, 브라우저 수동 확인) | 설계됨 |
-| REQ-UI-02 | HUD에 골드·기지 HP·웨이브·단계가 실제 상태와 항상 일치 | SPEC 9절 | UI-01 | — | 설계됨 |
-| REQ-UI-03 | 타워 4종 목록 상시, 선택 → 유효 칸 클릭 시 1개 설치 후 선택 종료, 실패 시 불변·사유 표시 | SPEC 9절 | UI-01 | — | 설계됨 |
-| REQ-UI-04 | 타워 선택 시 상세·강화(1클릭)·판매(확인)·타깃 우선순위 | SPEC 9절 | UI-01 | — | 설계됨 |
-| REQ-UI-05 | 준비: 남은 타이머·진행 정보·조기 시작 / 전투: 생성 진행·생존 적 | SPEC 9절 | UI-01 | — | 설계됨 |
-| REQ-UI-06 | 일시정지 오버레이·재개, 재개 후 명령 조건 재검증 | SPEC 9절 | UI-01 | — | 설계됨 |
-| REQ-UI-07 | 준비 → 전투 시 허용 선택 상태 유지, 판매 확인창 취소, 결과 단계 입력 차단 | SPEC 9절 | UI-01 | — | 설계됨 |
-| REQ-UI-08 | 승패 화면: Stage·도달 Wave·남은 HP·재시도·스테이지 선택·다음 스테이지(Stage 3 제외) | SPEC 9절 | UI-01 | — | 설계됨 |
-| REQ-UI-09 | 스테이지 카드: 잠김·선택 가능·클리어·콘텐츠 오류 구분 | SPEC 9·10절 | UI-01, SAVE-01 | — | 설계됨 |
+| REQ-UI-01 | 가로 16:9 참고 레이아웃, 맵 왼쪽·HUD 오른쪽 분리 | SPEC 9절 | UI-01 | `session/layout.test.ts`(HUD 폭·정수 타일·800×360/1280×720/1920×1080·세로 안내), 브라우저 ego-browser(1280×720·800×360 스크린샷) | 부분 통과(`5c4ecfc`, claude-2 재리뷰 1 통과). 실기기·터치 미검증 |
+| REQ-UI-02 | HUD에 골드·기지 HP·웨이브·단계가 실제 상태와 항상 일치 | SPEC 9절 | UI-01 | `session/hudView.test.ts`(스냅샷 파생·웨이브 수 콘텐츠 파생), 브라우저 ego-browser(1280×720·800×360 스크린샷) | **통과**(`5c4ecfc`) |
+| REQ-UI-03 | 타워 4종 목록 상시, 선택 → 유효 칸 클릭 시 1개 설치 후 선택 종료, 실패 시 불변·사유 표시 | SPEC 9절 | UI-01 | `session/session.test.ts`(설치 모드 1회 종료·맵 밖 탭 해제·거부 피드백), 브라우저 ego-browser(1280×720·800×360 스크린샷)(성공·경로 칸·골드 부족) | **통과**(`5c4ecfc`) |
+| REQ-UI-04 | 타워 선택 시 상세·강화(1클릭)·판매(확인)·타깃 우선순위 | SPEC 9절 | UI-01 | `session/session.test.ts`·`session/hudView.test.ts`(상세·강화·판매 확인·타깃·이중 제출 방지), 브라우저 ego-browser(1280×720·800×360 스크린샷) | **통과**(`5c4ecfc`) |
+| REQ-UI-05 | 준비: 남은 타이머·진행 정보·조기 시작 / 전투: 생성 진행·생존 적 | SPEC 9절 | UI-01 | `session/hudView.test.ts`(준비 타이머·조기 시작·생성 진행·생존 적), 브라우저 ego-browser(1280×720·800×360 스크린샷) | **통과**(`5c4ecfc`) |
+| REQ-UI-06 | 일시정지 오버레이·재개, 재개 후 명령 조건 재검증 | SPEC 9절 | UI-01 | `session/session.test.ts`(일시정지 0틱·재개), 브라우저 ego-browser(1280×720·800×360 스크린샷)(오버레이·Space/P) | **통과**(`5c4ecfc`, 재검증은 코어) |
+| REQ-UI-07 | 준비 → 전투 시 허용 선택 상태 유지, 판매 확인창 취소, 결과 단계 입력 차단 | SPEC 9절 | UI-01 | `session/session.test.ts`(준비→전투 판매 확인 자동 취소·결과 단계 차단) | **통과**(`5c4ecfc`) |
+| REQ-UI-08 | 승패 화면: Stage·도달 Wave·남은 HP·재시도·스테이지 선택·다음 스테이지(Stage 3 제외) | SPEC 9절 | UI-01 | `session/session.test.ts`·`session/progress.test.ts`(결과·재도전 새 attemptId·다음 스테이지·Stage 3 없음), 브라우저 ego-browser(1280×720·800×360 스크린샷) | **통과**(`5c4ecfc`) |
+| REQ-UI-09 | 스테이지 카드: 잠김·선택 가능·클리어·콘텐츠 오류 구분 | SPEC 9·10절 | UI-01, SAVE-01 | `session/progress.test.ts`(잠김·선택 가능·클리어·콘텐츠 오류 파생, 진입 재검증 실패 시 시작 안 함) | 부분 통과(`5c4ecfc`, 세션 메모리 클리어). 영구 저장은 SAVE-01, 오류 카드 브라우저 미확인 |
 | REQ-UI-10 | 저장 상태 대기·성공·실패·재시도 안내 | SPEC 9절 | SAVE-01, UI-01 | — | 설계됨 |
-| REQ-UI-11 | 실제 치수·최소 해상도·색상·폰트, 선택 시안 반영 | SPEC 9절, TBD-UI·TBD-ART | UI-01 | — | 의존성 차단(사용자 결정 필요) |
+| REQ-UI-11 | 실제 치수·최소 해상도·색상·폰트, 선택 시안 반영 | SPEC 9절, TBD-UI·TBD-ART | UI-01 | `docs/UI-CONTRACT.md` 3절(사용자 결정 2026-11-25: 800×360 가로·한국어·단순 도형) | 부분 통과(`5c4ecfc`, 치수·언어 확정). 색상·폰트·스프라이트·DPR 해상도는 후속 아트 |
 
 ### REQ-BALANCE — 수치 승인·통합 시뮬 (게이트 전체, QA BALX·BAPR)
 
@@ -152,7 +152,7 @@
 | SIM-02 | TOWER-01·03·05~12, ENEMY-03~07, MAP-04, STATE-02 | 완료(`50b320b`, codex 리뷰 통과). 남은 부분은 BAL-01·UI-01(TOWER-09는 SIM-03에서 통과) |
 | ECON-01 | ECON-01~11, MAP-03, STATE-03·05, WAVE-06 | 완료 |
 | SIM-03 | STATE-09, QA-06 | 완료(`3ea5077`, codex 재리뷰 2 통과) |
-| UI-01 | UI-01~11, MAP-04·05, ECON-07, STATE-06·11·14·16, WAVE-07 | 미착수 |
+| UI-01 | UI-01~11, MAP-04·05, ECON-07, STATE-06·11·14·16, WAVE-07 | 완료(`5c4ecfc`, claude-2 재리뷰 1 통과). 후속: SAVE-01 영구 저장, 실기기·DPR·아트 |
 | SAVE-01 | STATE-12~16, UI-09·10 | 미착수 |
 | BAL-01 | BALANCE-01·02, TOWER-01·02·05, WAVE-02, ENEMY-08 | 미착수 |
 | DOC-01 | QA-01 | 완료 |
