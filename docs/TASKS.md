@@ -15,7 +15,7 @@
   1. ~~DOC-01~~ 완료(2026-11-24, 재리뷰 1 통과). 문서 상호검증: 스택 확정 후 남은 "미정·확인 필요" 문구 정리 + codex-main 문서 QA (ART-01·TECH-01이 DOC-01 선행 없이 진행된 점 보완)
   2. ~~TECH-02~~ 완료(2026-11-24). 계약 `docs/SIM-CONTRACT.md`(재리뷰 2 통과) + 기초 모듈 `src/game/core/sim/`(claude-1 구현, 재리뷰 1 통과)
   3. ~~DOC-02~~ 완료(2026-11-24). 추적표 `docs/TRACE.md`, 태스크 반영 때마다 해당 행 갱신
-  4. ~~MAP-01~~ 완료(2026-11-24, 3맵 후보·기하 모듈). ~~DATA-01~~ 완료(2026-11-24, 스키마·검증기). ~~SIM-01~~·~~ECON-01~~ 완료(2026-11-24). ~~SIM-02~~ 완료(2026-11-25, 계약 14절, codex-main 리뷰 통과). 다음 **SIM-03**(결정적 리플레이·실패 주입·회귀 기반)
+  4. ~~MAP-01~~ 완료(2026-11-24, 3맵 후보·기하 모듈). ~~DATA-01~~ 완료(2026-11-24, 스키마·검증기). ~~SIM-01~~·~~ECON-01~~ 완료(2026-11-24). ~~SIM-02~~·~~SIM-03~~ 완료(2026-11-25, 계약 14·15절, codex-main 리뷰 통과). 다음 작업은 사용자와 결정(후보: UI-01 게임 화면·HUD, SAVE-01, BAL-01 수치 후보)
 - **운영 흐름:** 사용자는 claude-main 탭에서 지시 → 코딩 claude-1/2, QA·리뷰 codex-main, 디자인 codex-design (WORKFLOW 2~4절). `main` 반영·push는 claude-main 탭에서 사용자 직접 확인 후
 - **저장소 경로(2026-11-24 변경):** `~/Desktop/Ddooby/projects/ddooby-defence` (이전 `.../ddooby-defence/ddooby-defence` 이중 폴더 정리, 사용자 요청)
 - **구현 탭 작업 방식:** claude-1/2는 공유 폴더가 아닌 전용 git worktree와 작업 브랜치에서 작업한다. worktree는 형제 폴더 `../ddooby-defence-<task>`(예: `ddooby-defence-sim-02`)에 만들고, 병합 후 worktree·브랜치 삭제(사용자 결정 2026-11-24)
@@ -120,12 +120,13 @@
   - 완료 조건: 실패·중복·동시 조건·retry 케이스에서 경제·점유 불변식 만족
   - 결과: 시도 코어가 build·upgrade·sell·setTargeting 직접 처리, 스냅샷 `towers`, 명령 훅 제거, `ATTEMPT_CODE_VERSION` attempt-v2. lint/typecheck/test(439 passed)/build exit 0. codex-main 리뷰 F1(음수 좌표 접수) 수정 → **재리뷰 1 통과**(@`cc4059a`, `.codex-out/ECON-01-review.md`)
 
-- [ ] **SIM-03 — 결정적 리플레이·실패 주입·회귀 기반**
+- [x] **SIM-03 — 결정적 리플레이·실패 주입·회귀 기반** (2026-11-25 `main` 반영)
   - 담당: claude-main 계약(`docs/SIM-CONTRACT.md` 15절), 구현 claude-1(worktree `../ddooby-defence-sim-03`, 브랜치 `feat/sim-03`), codex-main 독립 리뷰
   - 선행: SIM-01, SIM-02, ECON-01
   - 범위: code/content version + input sequence, tick별 핵심 상태·경제 이벤트·최종 결과 비교, 최초 불일치 탐색
   - QA: DATA, INT, TSTR-05~16, COREG-13~14
   - 완료 조건: 정합/의도적 불일치 테스트의 재현 근거와 자동 검증 결과
+  - 결과: 기록 생성기 `attempt/record.ts`(미적용 명령 보존), 골든 회귀 `attempt/regression/`(R1 승리·R2 패배·R3 전투 중, 틱별 해시·결과·원장, `npm run golden:update` + 입력 정의 기반 갱신 가드·원자적 갱신), 실패 주입 F1~F9, 공유 불변식 `testing/invariants.ts`, REQ-TOWER-09 전용 테스트. 코어·`ATTEMPT_CODE_VERSION`(attempt-v3) 무변경. lint/typecheck/test(542 passed)/build exit 0(claude-main 재실행). codex-main 리뷰 F1(높음·갱신 가드 우회)·F2(보통·finish 무효 기록) → 재리뷰 1 RR1-F1(높음·구형식 골든 우회) → **재리뷰 2 통과**(@`3ea5077`, `.codex-out/SIM-03-review.md`). 남은 위험: 골든 JSON 직접 위조는 가드로 구분 불가(diff 리뷰 몫), `golden:update`는 POSIX 셸 전용
 
 ## 5. UI·저장·콘텐츠 수치
 
