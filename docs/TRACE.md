@@ -107,7 +107,7 @@
 
 | ID | 요구 | 근거 | TASK | 테스트 위치 | 상태 |
 |---|---|---|---|---|---|
-| REQ-UI-01 | 가로 16:9 참고 레이아웃, 맵 왼쪽·HUD 오른쪽 분리 | SPEC 9절 | UI-01 | `session/layout.test.ts`(HUD 폭·정수 타일·800×360/1280×720/1920×1080·세로 안내), 브라우저 ego-browser(1280×720·800×360 스크린샷) | 부분 통과(`5c4ecfc`, claude-2 재리뷰 1 통과). 실기기·터치 미검증 |
+| REQ-UI-01 | 가로 16:9 참고 레이아웃, 맵 왼쪽·HUD 오른쪽 분리 | SPEC 9절 | UI-01 | `session/layout.test.ts`(HUD 폭·정수 타일·최소 640×320 경계·실기기 796×384·1280×720·1920×1080·세로 안내), 브라우저 ego-browser(1280×720·800×360 스크린샷), MOB-01 실기기 Galaxy A16 설치·실행 | 부분 통과(`5c4ecfc`, claude-2 재리뷰 1 통과). 실기기·터치 미검증 |
 | REQ-UI-02 | HUD에 골드·기지 HP·웨이브·단계가 실제 상태와 항상 일치 | SPEC 9절 | UI-01 | `session/hudView.test.ts`(스냅샷 파생·웨이브 수 콘텐츠 파생), 브라우저 ego-browser(1280×720·800×360 스크린샷) | **통과**(`5c4ecfc`) |
 | REQ-UI-03 | 타워 4종 목록 상시, 선택 → 유효 칸 클릭 시 1개 설치 후 선택 종료, 실패 시 불변·사유 표시 | SPEC 9절 | UI-01 | `session/session.test.ts`(설치 모드 1회 종료·맵 밖 탭 해제·거부 피드백), 브라우저 ego-browser(1280×720·800×360 스크린샷)(성공·경로 칸·골드 부족) | **통과**(`5c4ecfc`) |
 | REQ-UI-04 | 타워 선택 시 상세·강화(1클릭)·판매(확인)·타깃 우선순위 | SPEC 9절 | UI-01 | `session/session.test.ts`·`session/hudView.test.ts`(상세·강화·판매 확인·타깃·이중 제출 방지), 브라우저 ego-browser(1280×720·800×360 스크린샷) | **통과**(`5c4ecfc`) |
@@ -117,7 +117,7 @@
 | REQ-UI-08 | 승패 화면: Stage·도달 Wave·남은 HP·재시도·스테이지 선택·다음 스테이지(Stage 3 제외) | SPEC 9절 | UI-01 | `session/session.test.ts`·`session/progress.test.ts`(결과·재도전 새 attemptId·다음 스테이지·Stage 3 없음), 브라우저 ego-browser(1280×720·800×360 스크린샷) | **통과**(`5c4ecfc`) |
 | REQ-UI-09 | 스테이지 카드: 잠김·선택 가능·클리어·콘텐츠 오류 구분 | SPEC 9·10절 | UI-01, SAVE-01 | `session/progress.test.ts`(잠김·선택 가능·클리어·콘텐츠 오류 파생, 진입 재검증 실패 시 시작 안 함) | 부분 통과(`5c4ecfc`, 세션 메모리 클리어). 영구 저장은 SAVE-01, 오류 카드 브라우저 미확인 |
 | REQ-UI-10 | 저장 상태 대기·성공·실패·재시도 안내 | SPEC 9절 | SAVE-01, UI-01 | — | 설계됨 |
-| REQ-UI-11 | 실제 치수·최소 해상도·색상·폰트, 선택 시안 반영 | SPEC 9절, TBD-UI·TBD-ART | UI-01 | `docs/UI-CONTRACT.md` 3절(사용자 결정 2026-11-25: 800×360 가로·한국어·단순 도형) | 부분 통과(`5c4ecfc`, 치수·언어 확정). 색상·폰트·스프라이트·DPR 해상도는 후속 아트 |
+| REQ-UI-11 | 실제 치수·최소 해상도·색상·폰트, 선택 시안 반영 | SPEC 9절, TBD-UI·TBD-ART | UI-01 | `docs/UI-CONTRACT.md` 3절(사용자 결정 2026-11-25: 모바일 가로 최소 640×320·한국어·단순 도형) | 부분 통과(`5c4ecfc`, 치수·언어 확정). 색상·폰트·스프라이트·DPR 해상도는 후속 아트 |
 
 ### REQ-BALANCE — 수치 승인·통합 시뮬 (게이트 전체, QA BALX·BAPR)
 

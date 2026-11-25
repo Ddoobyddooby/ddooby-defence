@@ -28,10 +28,13 @@ npm run dev        # http://localhost:3000
 
 ```bash
 export ANDROID_HOME=$HOME/Library/Android/sdk
+export PATH=$PATH:$ANDROID_HOME/platform-tools   # adb
 export JAVA_HOME=$(/usr/libexec/java_home -v 21 2>/dev/null || echo /opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home)
 npm run android:apk       # 웹 정적 빌드 → cap sync → android/app/build/outputs/apk/debug/app-debug.apk
 npm run android:install   # 연결된 휴대폰에 설치 (adb 필요)
 ```
+
+macOS 기준 안내다. 빌드 스크립트는 `./gradlew`를 쓰므로 Windows 셸에서는 그대로 동작하지 않는다.
 
 ## 문서
 

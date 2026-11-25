@@ -143,6 +143,8 @@
   - 범위: Next 정적 내보내기, Capacitor 8.6.0 Android 프로젝트, 가로 고정·몰입 전체 화면, 빌드·설치 스크립트, 실기기 확인
   - 결과: `npm run android:apk`로 debug APK(약 4.7MB) 빌드, Galaxy A16(SM-A166L)에 `adb install` 설치·실행 확인. 실기기에서 최소 뷰포트 800×360 미달 안내가 떠서 640×320으로 낮춤(UI-CONTRACT 3절). 스크린샷 저장소 밖 `../ddooby-defence-mob-01-shots/`
   - 남은 것: 실기기 전체 플레이·터치 검증(사용자 직접), 릴리스 서명·앱 아이콘·스토어 배포·iOS 미정, 클리어 기록 영구 저장은 SAVE-01(앱에서는 WebView 저장소 사용 예정)
+  - 리뷰: codex-main 한도로 claude-2 대행 독립 리뷰 **지적 있음, 반영 보류 아님**(치명적·높음 없음, `.codex-out/MOB-01-review.md`). 반영 전 수정: F2 서명 키 무시 규칙, F3 템플릿 샘플 테스트 삭제, F5 문서 800×360 잔재, F6 README PATH·Windows 안내
+  - 후속(리뷰): **F1(보통) 640×320에서 HUD가 빡빡함** — 타워 선택 시 강화·판매가 스크롤 뒤, 타일 25px → 모바일 HUD 개선 태스크 필요. F4 `allowBackup`·`INTERNET` 정책(SAVE-01 때 결정), F7 앱 백그라운드 시 자동 일시정지·뒤로가기 처리, F8 앱 아이콘·스플래시(아트)
 
 - [ ] **SAVE-01 — 로컬 클리어·해금·저장 실패**
   - 담당: 구현 담당 claude-main 배정
