@@ -165,7 +165,7 @@
 | TBD-WAVE | 15개 웨이브의 적 구성·수량·시각·간격·준비 길이 | 출현 매트릭스·시뮬(WAVD/WBL) | 사용자 승인 |
 | TBD-PROJECTILE | 투사체 TTL·VFX TTL·속도 | 충돌·경계·리플레이(INT/BALX) | 사용자 승인 / 기술 설계 |
 | TBD-SIM | 틱 50ms·정수 고정소수점·반올림은 사용자 확인(2026-11-24). 남은 항목: `docs/SIM-CONTRACT.md` 초안의 QA·승인 | 결정성 계약(TSTR/DATA) | claude-main 제안, 필요시 사용자 확인 |
-| TBD-UI | 실제 화면·HUD 픽셀 치수·최소 크기·클릭 경계 규칙 | UI 좌표·반응형 QA(UI/HUD) | 사용자 제품 승인 / claude-main 설계 |
+| TBD-UI | ~~실제 화면·HUD 픽셀 치수·최소 크기·클릭 경계 규칙~~ 최소 크기·배치는 `docs/UI-CONTRACT.md` 3절, 클릭 경계는 SIM-CONTRACT 10.1(사용자 결정 2026-11-24·25). 남은 것: 색상·폰트·스프라이트 | UI 좌표·반응형 QA(UI/HUD) | 사용자 제품 승인 / claude-main 설계 |
 | TBD-ART | 시각 방향은 ART-01 선택 완료. 남은 항목: 구현용 스프라이트 에셋·Lv1~4 외형·특성 표식·색상·폰트 | 별도 디자이너 시안·사용자 선택 | 사용자 |
 | TBD-STACK | 프레임워크·언어·검증 명령은 확정(Next.js + TypeScript + Phaser, `docs/PLAN.md`). 남은 항목: CI·배포 환경 | 배포 요구 확인 | claude-main 제안 / 사용자 확인 |
 
