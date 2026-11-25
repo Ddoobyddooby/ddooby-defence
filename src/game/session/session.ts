@@ -288,12 +288,12 @@ export class GameSession {
 
   // ───────── 일시정지 ─────────
 
-  /** 일시정지 = 메뉴 열림(UI-CONTRACT 7절). 메뉴가 판매 확인창과 겹치지 않게 판매 확인은 취소한다. 결과 단계에서는 하지 않는다(코어 오류). */
+  /** 일시정지 = 메뉴 열림(UI-CONTRACT 7절). 메뉴가 판매 확인창·정보 창과 겹치지 않게 둘 다 닫는다. 결과 단계에서는 하지 않는다(코어 오류). */
   pause(): void {
     const b = this.battle;
     if (b === null || b.rec.core.isResult() || b.rec.core.paused) return;
     b.rec.core.pause();
-    b.ui = { ...b.ui, sellConfirmId: null };
+    b.ui = { ...b.ui, sellConfirmId: null, infoOpen: false }; // 메뉴가 열리면 정보 창도 닫는다(재개해도 다시 열지 않음, 선택은 유지)
     this.refresh(b);
   }
 
@@ -425,12 +425,13 @@ export class GameSession {
       this.toStageSelect();
       return "handled";
     }
+    // 보이는 최상위부터: 판매 확인 → (메뉴 열림이면) 스테이지 선택 확인창 → 메뉴 닫고 재개 → 정보 창 → 메뉴 열기.
     if (b.ui.sellConfirmId !== null) this.setUi(b, { ...b.ui, sellConfirmId: null });
-    else if (b.ui.infoOpen) this.setUi(b, { ...b.ui, infoOpen: false });
     else if (b.rec.core.paused) {
       if (b.ui.leaveConfirm) this.setUi(b, { ...b.ui, leaveConfirm: false });
       else this.resume();
-    } else this.pause();
+    } else if (b.ui.infoOpen) this.setUi(b, { ...b.ui, infoOpen: false });
+    else this.pause();
     return "handled";
   }
 

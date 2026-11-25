@@ -713,7 +713,57 @@ describe("MOB-02: handleBack 우선순위 (UI-CONTRACT 8.1절)", () => {
     expect(session.handleBack()).toBe("exit");
     expect(session.getState().screen).toBe("stageSelect");
   });
-  it("판매 확인 → 정보 창 → (메뉴 열기) → 메뉴 닫고 재개 순서로 한 단계씩", () => {
+  it("리뷰 F1: 정보 창 → 메뉴 → 스테이지 선택 확인창 → 뒤로가기 1회는 보이는 확인창을 닫는다(정보 창은 메뉴를 열 때 이미 닫힘)", () => {
+    const s = start();
+    s.selectTower(1);
+    s.openInfo();
+    s.openMenu();
+    expect(battle(s).ui).toMatchObject({ infoOpen: false, selectedTowerId: 1 });
+    s.requestLeave();
+    expect(s.handleBack()).toBe("handled");
+    expect(battle(s).ui).toMatchObject({ leaveConfirm: false, infoOpen: false });
+    expect(battle(s).hud.paused).toBe(true);
+    expect(s.handleBack()).toBe("handled");
+    expect(battle(s).hud.paused).toBe(false);
+    expect(battle(s).ui.infoOpen).toBe(false); // 재개해도 정보 창은 다시 열리지 않음
+    expect(battle(s).ui.selectedTowerId).toBe(1);
+  });
+  it("리뷰 F1: Space/P(togglePause)·숨김 자동 일시정지 경로에서도 메뉴가 열리면 infoOpen=false(선택 유지)", () => {
+    for (const open of [(s: GameSession) => s.togglePause(), (s: GameSession) => s.setHidden(true)]) {
+      const s = start();
+      s.selectTower(1);
+      s.openInfo();
+      expect(battle(s).ui.infoOpen).toBe(true);
+      open(s);
+      expect(battle(s).hud.paused).toBe(true);
+      expect(battle(s).ui).toMatchObject({ infoOpen: false, selectedTowerId: 1 });
+    }
+  });
+  it("리뷰 F1: Esc 도 같은 순서 — 정보 창 → 메뉴 → 확인창 순으로 보이는 최상위부터 닫는다", () => {
+    const s = start();
+    s.selectTower(1);
+    s.openInfo();
+    s.openMenu();
+    s.requestLeave();
+    s.cancel();
+    expect(battle(s).ui).toMatchObject({ leaveConfirm: false, infoOpen: false });
+    expect(battle(s).hud.paused).toBe(true);
+    s.cancel();
+    expect(battle(s).hud.paused).toBe(false);
+    s.openInfo();
+    s.cancel(); // 메뉴가 닫혀 있으면 정보 창부터
+    expect(battle(s).ui.infoOpen).toBe(false);
+    expect(battle(s).hud.paused).toBe(false);
+  });
+  it("판매 확인은 메뉴가 열릴 때 취소되어 스테이지 선택 확인창과 겹치지 않는다", () => {
+    const s = start();
+    s.selectTower(1);
+    s.requestSell(1);
+    s.openMenu();
+    s.requestLeave();
+    expect(battle(s).ui).toMatchObject({ sellConfirmId: null, leaveConfirm: true });
+  });
+  it("메뉴가 닫혀 있을 때: 판매 확인 → 정보 창 → 메뉴 열기 → 메뉴 닫고 재개 순서로 한 단계씩", () => {
     const s = start();
     s.selectTower(1);
     s.openInfo();
