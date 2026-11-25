@@ -131,7 +131,7 @@
 ## 5. UI·저장·콘텐츠 수치
 
 - [ ] **UI-01 — 게임 화면·격자 입력·HUD**
-  - 담당: 구현 담당 claude-main 배정
+  - 담당: claude-main 계약(`docs/UI-CONTRACT.md`), 구현 claude-1(worktree `../ddooby-defence-ui-01`, 브랜치 `feat/ui-01`), 리뷰 claude-2(codex-main 한도 초기화 전까지 사용자 지시 2026-11-25). 사용자 결정(2026-11-25): 단순 도형 자리표시, 한국어, 모바일 가로(800×360)까지
   - 선행: TECH-01, MAP-01, SIM-01, ECON-01, ART-01(선택 자산 연결 시)
   - 범위: 우측 HUD, 선택·설치·업그레이드·판매 확인·타깃, prep/combat/pause/result, 스테이지 카드·오류
   - QA: UI-01~88, HUD-01~16, COREG-12

@@ -191,7 +191,7 @@ QA 상위 게이트는 **CORE/ECON/DATA/STATE/UI**. 설계됨/실행 대기/의�
 | TBD-PROJECTILE | 투사체 이동·명중·TTL·VFX TTL |
 | TBD-ENEMY | HP 비율 반올림/오버플로·저항률 경계 |
 | TBD-ECON | 정수 범위, 환급률 표현, 적 특성의 kill reward 영향 |
-| TBD-UI | 렌더 해상도·HUD 크기·최소 지원 화면 |
+| TBD-UI | ~~렌더 해상도·HUD 크기·최소 지원 화면~~ `docs/UI-CONTRACT.md` 3절(최소 800×360 가로, HUD 폭 비율·정수 타일, 사용자 결정 2026-11-25) |
 | TBD-ART | 사용자 승인된 시안·저작권/출처 처리 |
 
 내용 확정 권한 및 항목별 완료 조건은 `SPEC.md` 12절을 참조.
