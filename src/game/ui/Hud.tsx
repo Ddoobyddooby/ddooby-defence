@@ -1,11 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import type { TowerType } from "../core/content/types";
+import { assetUrl, towerKey } from "../phaser/assets";
 import type { HudView, TowerDetail } from "../session/hudView";
 import type { GameSession } from "../session/session";
 import { STR } from "./strings.ko";
 
 const TOWER_COLOR: Record<TowerType, string> = { archer: "#e0b341", ballista: "#c8473d", mage: "#8e5fd0", frost: "#6cc4e8" };
+
+/** HUD 타워 버튼 아이콘: Lv1 그림(ART-03)이 있으면 쓰고, 없거나 로드에 실패하면 색 표식으로 바꾼다(실패해도 다시 요청하지 않는다). */
+function TowerIcon({ type }: { type: TowerType }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <i className="inline-block h-2 w-2 shrink-0 rounded-sm" style={{ background: TOWER_COLOR[type] }} />;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={assetUrl(towerKey(type, 1))} alt="" width={14} height={14} className="h-[14px] w-[14px] shrink-0 object-contain" onError={() => setFailed(true)} data-testid={`tower-icon-${type}`} />;
+}
 // 터치 영역 최소 40×40(UI-CONTRACT 3절). 폭 136px HUD 에서도 글자가 잘리지 않게 text-xs·좁은 패딩.
 const BTN = "min-h-10 min-w-10 rounded border px-1 text-xs font-medium leading-tight disabled:cursor-not-allowed disabled:opacity-40";
 
@@ -78,7 +88,7 @@ export function Hud({ session, hud, width }: { session: GameSession; hud: HudVie
               className={`${BTN} flex flex-col items-start justify-center text-left ${t.selected ? "border-yellow-300 bg-neutral-700" : "border-neutral-600 bg-neutral-800 hover:bg-neutral-700"} ${t.affordable ? "" : "opacity-50"}`}
             >
               <span className="flex items-center gap-0.5 whitespace-nowrap">
-                <i className="inline-block h-2 w-2 shrink-0 rounded-sm" style={{ background: TOWER_COLOR[t.type] }} />
+                <TowerIcon type={t.type} />
                 {t.name}
               </span>
               <span className="text-yellow-300">{t.cost}</span>
