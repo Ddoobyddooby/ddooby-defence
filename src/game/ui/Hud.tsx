@@ -15,8 +15,8 @@ const BTN = "min-h-10 min-w-10 rounded border px-1 text-xs font-medium leading-t
  */
 export function Hud({ session, hud, width }: { session: GameSession; hud: HudView; width: number }) {
   return (
-    <aside style={{ width }} className="flex h-full shrink-0 touch-manipulation flex-col justify-between gap-1 overflow-y-auto border-l border-neutral-800 bg-neutral-900 px-1 py-2 text-neutral-100" data-testid="hud">
-      <div className="flex items-center justify-between gap-1 px-0.5 text-xs" data-testid="hud-resources">
+    <aside style={{ width }} className="flex h-full shrink-0 touch-manipulation flex-col justify-between gap-1 overflow-y-auto border-l border-neutral-800 bg-neutral-900 px-1 pb-2 pt-[clamp(12px,5vh,24px)] text-neutral-100" data-testid="hud">
+      <div className="flex items-center justify-between gap-1 pl-0.5 pr-2 text-xs" data-testid="hud-resources">
         <span className="whitespace-nowrap" data-testid="hud-gold">
           {STR.hud.gold} <b className="text-yellow-300">{hud.gold}</b>
         </span>
