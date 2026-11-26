@@ -15,7 +15,7 @@
   1. ~~DOC-01~~ 완료(2026-11-24, 재리뷰 1 통과). 문서 상호검증: 스택 확정 후 남은 "미정·확인 필요" 문구 정리 + codex-main 문서 QA (ART-01·TECH-01이 DOC-01 선행 없이 진행된 점 보완)
   2. ~~TECH-02~~ 완료(2026-11-24). 계약 `docs/SIM-CONTRACT.md`(재리뷰 2 통과) + 기초 모듈 `src/game/core/sim/`(claude-1 구현, 재리뷰 1 통과)
   3. ~~DOC-02~~ 완료(2026-11-24). 추적표 `docs/TRACE.md`, 태스크 반영 때마다 해당 행 갱신
-  4. ~~MAP-01~~ 완료(2026-11-24, 3맵 후보·기하 모듈). ~~DATA-01~~ 완료(2026-11-24, 스키마·검증기). ~~SIM-01~~·~~ECON-01~~ 완료(2026-11-24). ~~SIM-02~~·~~SIM-03~~ 완료(2026-11-25, 계약 14·15절). ~~UI-01~~ 완료(2026-11-25, `docs/UI-CONTRACT.md`, 화면에서 임시 수치로 플레이 가능). ~~MOB-01~~ 완료(2026-11-25, Android APK). ~~MOB-02~~ 완료(2026-11-26, 모바일 HUD·메뉴·뒤로가기). ~~SAVE-01~~ 완료(2026-11-26, 클리어 기록 localStorage). 진행 중: MOB-03(좌우 대칭 여백, 브랜치 `feat/mob-03`, 실기기 확인 대기), ART-02(앱 아이콘·스플래시 시안, codex-design). 다음 후보: BAL-01(실제 수치)
+  4. ~~MAP-01~~ 완료(2026-11-24, 3맵 후보·기하 모듈). ~~DATA-01~~ 완료(2026-11-24, 스키마·검증기). ~~SIM-01~~·~~ECON-01~~ 완료(2026-11-24). ~~SIM-02~~·~~SIM-03~~ 완료(2026-11-25, 계약 14·15절). ~~UI-01~~ 완료(2026-11-25, `docs/UI-CONTRACT.md`, 화면에서 임시 수치로 플레이 가능). ~~MOB-01~~ 완료(2026-11-25, Android APK). ~~MOB-02~~ 완료(2026-11-26, 모바일 HUD·메뉴·뒤로가기). ~~SAVE-01~~ 완료(2026-11-26, 클리어 기록 localStorage). ~~MOB-03~~ 완료(2026-11-26, 좌우 대칭 여백). 진행 중: ART-02(앱 아이콘·스플래시 시안, codex-design). 다음 후보: BAL-01(실제 수치)
 - **운영 흐름:** 사용자는 claude-main 탭에서 지시 → 코딩 claude-1/2, QA·리뷰 codex-main, 디자인 codex-design (WORKFLOW 2~4절). `main` 반영·push는 claude-main 탭에서 사용자 직접 확인 후
 - **저장소 경로(2026-11-24 변경):** `~/Desktop/Ddooby/projects/ddooby-defence` (이전 `.../ddooby-defence/ddooby-defence` 이중 폴더 정리, 사용자 요청)
 - **구현 탭 작업 방식:** claude-1/2는 공유 폴더가 아닌 전용 git worktree와 작업 브랜치에서 작업한다. worktree는 형제 폴더 `../ddooby-defence-<task>`(예: `ddooby-defence-sim-02`)에 만들고, 병합 후 worktree·브랜치 삭제(사용자 결정 2026-11-24)
@@ -164,6 +164,12 @@
   - 결과: `progress.ts` LocalStorageProgressStore(키 `ddooby-defence.progress`, `{"version":1,"cleared":[...]}`), 저장 상태 saved/failed·retrySave, 읽기 실패 안내·손상 원문 백업 슬롯 `.corrupt`~`.corrupt.5`, 쓰기 전 재읽기·합집합. 결과 오버레이 저장 상태·다시 저장, 스테이지 선택 안내. 코어·Android 설정 무변경. lint/typecheck/test(683 passed)/build exit 0(claude-main 재실행), ego-browser 클리어→새로고침 해금 유지·손상·예외 흉내(claude-1, 스크린샷 `../ddooby-defence-save-01-shots/`)
   - 리뷰: codex-main **지적 있음 높음 2 → 반영 보류**(F1 일시 읽기 실패 뒤 기존 클리어 덮어씀, F2 백업 실패 뒤 원문 소실) → 계약 10절 보완·수정 → **재리뷰 1 통과**(`.codex-out/SAVE-01-review.md`)
   - 남은 것: 실기기 앱 재시작 후 기록 유지 확인, Android `allowBackup` 기본값(켜짐) 유지는 claude-main 제안·사용자 이의 없음(2026-11-26)
+
+- [x] **MOB-03 — 좌우 대칭 여백(카메라 구멍 반대쪽)** (2026-11-26 `main` 반영)
+  - 담당: claude-main(사용자 실기기 피드백 2026-11-26: 왼쪽 카메라 구멍 여백은 유튜브 PIP 자리로 좋고, 오른쪽 위 글자가 잘리니 오른쪽에도 비슷한 여백)
+  - 결과: `MainActivity.applySymmetricSideInsets()` — 시스템 바·컷아웃 인셋의 좌우 중 큰 값을 양쪽 패딩으로, `capacitor.config.ts` SystemBars `insetsHandling: "disable"`. 웹 코드 무변경. debug APK 빌드·Galaxy A16 설치, **사용자 실기기 확인 "딱 좋아"**(2026-11-26)
+  - 리뷰: 작은 네이티브 변경이라 별도 독립 리뷰 없이 사용자 실기기 확인으로 갈음(claude-main 제안, 사용자 반영 지시)
+  - 남은 것: 컷아웃이 없는 기기·세로 진입 시 동작은 미확인
 
 - [ ] **BAL-01 — 실제 초기 수치·맵·웨이브 후보와 검증**
   - 담당: claude-main 후보 설계·분석, codex-main QA, 최종 승인 사용자
