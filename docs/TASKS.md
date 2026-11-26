@@ -155,8 +155,8 @@
   - 리뷰: codex-main **지적 있음 보통 1**(F1 메뉴 뒤 정보 창 때문에 뒤로가기가 보이는 확인창을 못 닫음) → 수정(메뉴 열리면 정보 창 닫힘, 보이는 최상위부터) → **재리뷰 1 통과**(`.codex-out/MOB-02-review.md`)
   - 남은 것: 실기기 백그라운드 자동 일시정지·뒤로가기·터치 플레이 감각(사용자 확인), 640×320 HUD 세로 여유 약 10px(항목 추가 시 주의), 정보 창이 맵 좌상단을 가림
 
-- [ ] **SAVE-01 — 로컬 클리어·해금·저장 실패**
-  - 담당: 구현 담당 claude-main 배정
+- [ ] **SAVE-01 — 로컬 클리어·해금·저장 실패** (2026-11-26 착수)
+  - 담당: claude-main 계약(UI-CONTRACT 10절), 구현 claude-1(worktree `../ddooby-defence-save-01`, 브랜치 `feat/save-01`), 리뷰 codex-main
   - 선행: SIM-01, UI-01
   - 범위: clear flags, derived unlock, 저장 오류·재시도·새로고침 손실 안내
   - QA: 진행 기록 UI/STATE, COREG-11, TSTR-17
