@@ -9,6 +9,7 @@ import { GameSession } from "../session/session";
 import { Hud } from "./Hud";
 import { OrientationNotice } from "./Orientation";
 import { FeedbackToast, InfoWindow, MenuOverlay, ResultOverlay, SellConfirm } from "./Overlays";
+import { WavePreview } from "./WavePreview";
 import { StageSelect } from "./StageSelect";
 import { useBackButton } from "./useBackButton";
 
@@ -85,6 +86,7 @@ export function GameApp() {
     <main className="flex h-dvh w-full overflow-hidden bg-neutral-950 text-neutral-100">
       <section className="relative h-full min-w-0 flex-1" data-testid="map-area">
         <BattleCanvas session={session} />
+        <WavePreview groups={battle.result === null ? battle.hud.preview : null} />
         <FeedbackToast text={battle.feedback} />
         {battle.result === null && battle.hud.infoOpen && detail !== null && <InfoWindow session={session} detail={detail} hud={battle.hud} />}
         {battle.result === null && battle.hud.paused && <MenuOverlay session={session} hud={battle.hud} />}

@@ -32,6 +32,7 @@ export const STR = {
   },
   hud: {
     wave: "웨이브",
+    nextWave: "다음 웨이브",
     gold: "골드",
     baseHp: "기지",
     menu: "메뉴",
