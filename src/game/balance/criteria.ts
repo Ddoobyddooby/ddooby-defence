@@ -4,7 +4,7 @@ import type { BotId } from "./bots";
 import { runRole, type RoleResult } from "./roles";
 import { runBot, type RunResult } from "./runner";
 
-export const STAGES = [0, 1, 2] as const;
+export const STAGES = [0, 1, 2, 3, 4] as const;
 const ENEMIES: readonly EnemyType[] = ["normal", "fast", "heavy", "swarm"];
 const TOWERS: readonly TowerType[] = ["archer", "ballista", "mage", "frost"];
 const ALL_BOTS: readonly BotId[] = ["B0", "B1", "B2", "B3a", "B3b", "B3c", "B3d", "B4", "B5"];
@@ -44,33 +44,41 @@ export function evaluateCriteria(bundle: ContentBundle, d: BalanceData): Criteri
   const add = (id: string, title: string, pass: boolean, detail: string) => out.push({ id, title, pass, detail });
   const B = (id: BotId, s: number) => d.runs[id][s];
 
-  add("BALX-01", "B0 무대응: 세 스테이지 모두 패배, 웨이브 3 안에", STAGES.every((s) => B("B0", s).outcome === "defeat" && B("B0", s).reachedWave <= 3), STAGES.map((s) => `S${s + 1} ${fmt(B("B0", s))} W${B("B0", s).reachedWave}`).join(", "));
-  add("BALX-02", "B1 균형: 세 스테이지 모두 승리", STAGES.every((s) => B("B1", s).outcome === "victory"), STAGES.map((s) => `S${s + 1} ${fmt(B("B1", s))}`).join(", "));
-  const lim = [90, 70] as const;
+  add("BALX-01", "B0 무대응: 다섯 스테이지 모두 패배, 웨이브 3 안에", STAGES.every((s) => B("B0", s).outcome === "defeat" && B("B0", s).reachedWave <= 3), STAGES.map((s) => `S${s + 1} ${fmt(B("B0", s))} W${B("B0", s).reachedWave}`).join(", "));
+  add("BALX-02", "B1 균형: 다섯 스테이지 모두 승리", STAGES.every((s) => B("B1", s).outcome === "victory"), STAGES.map((s) => `S${s + 1} ${fmt(B("B1", s))}`).join(", "));
+  // BALANCE 4절 + 8.1: S1 ≥ 90, S2 ≥ 70, S3 40~90, S4 30~85, S5 25~80, 그리고 S3 ≥ S4 ≥ S5 경향(차이 ±10%p 허용).
+  const hp = (st: number) => pct(B("B1", st));
+  const hpOk = hp(0) >= 90 && hp(1) >= 70 && hp(2) >= 40 && hp(2) <= 90 && hp(3) >= 30 && hp(3) <= 85 && hp(4) >= 25 && hp(4) <= 80;
+  const trendOk = hp(2) >= hp(3) - 10 && hp(3) >= hp(4) - 10;
   add(
     "BALX-03",
-    "B1 남은 기지 HP: S1 ≥ 90%, S2 ≥ 70%, S3 40~90%",
-    pct(B("B1", 0)) >= lim[0] && pct(B("B1", 1)) >= lim[1] && pct(B("B1", 2)) >= 40 && pct(B("B1", 2)) <= 90 && STAGES.every((s) => B("B1", s).outcome === "victory"),
-    STAGES.map((s) => `S${s + 1} ${pct(B("B1", s))}%`).join(", "),
+    "B1 남은 기지 HP: S1 ≥ 90%, S2 ≥ 70%, S3 40~90%, S4 30~85%, S5 25~80%, S3 ≥ S4 ≥ S5(±10%p)",
+    hpOk && trendOk && STAGES.every((st) => B("B1", st).outcome === "victory"),
+    STAGES.map((st) => `S${st + 1} ${hp(st)}%`).join(", "),
   );
-  add("BALX-04", "B2 초보: S1 승리, S3 패배", B("B2", 0).outcome === "victory" && B("B2", 2).outcome === "defeat", STAGES.map((s) => `S${s + 1} ${fmt(B("B2", s))}`).join(", "));
+  add("BALX-04", "B2 초보: S1 승리, S3·S4·S5 패배", B("B2", 0).outcome === "victory" && [2, 3, 4].every((st) => B("B2", st).outcome === "defeat"), STAGES.map((s) => `S${s + 1} ${fmt(B("B2", s))}`).join(", "));
   const singles = Object.keys(SINGLE) as BotId[];
-  const s3Losers = singles.filter((id) => B(id, 2).outcome === "defeat");
-  const s3Winners = singles.filter((id) => B(id, 2).outcome === "victory");
+  const hard = [2, 3, 4] as const; // S3·S4·S5
+  const losers = (st: number) => singles.filter((id) => B(id, st).outcome === "defeat");
+  const winners = (st: number) => singles.filter((id) => B(id, st).outcome === "victory");
   add(
     "BALX-05",
-    "B3 단일 종류: 4종 모두 S1 승리, S3 는 2종 이상 패배·승리 종류는 B1 보다 남은 HP 적음",
-    singles.every((id) => B(id, 0).outcome === "victory" && B(id, 2).outcome !== "timeout") && s3Losers.length >= 2 && s3Winners.every((id) => B(id, 2).baseHp < B("B1", 2).baseHp),
-    singles.map((id) => `${id}(${SINGLE[id]}) S1 ${fmt(B(id, 0))} / S3 ${fmt(B(id, 2))}`).join("; "),
+    "B3 단일 종류: 4종 모두 S1 승리, S3·S4·S5 각각 2종 이상 패배·승리 종류는 B1 보다 남은 HP 적음",
+    singles.every((id) => B(id, 0).outcome === "victory" && hard.every((st) => B(id, st).outcome !== "timeout")) &&
+      hard.every((st) => losers(st).length >= 2 && winners(st).every((id) => B(id, st).baseHp < B("B1", st).baseHp)),
+    singles.map((id) => `${id}(${SINGLE[id]}) S1 ${fmt(B(id, 0))} / S3 ${fmt(B(id, 2))} / S4 ${fmt(B(id, 3))} / S5 ${fmt(B(id, 4))}`).join("; "),
   );
   add("BALX-06", "B4 조기 시작: S1 승리", B("B4", 0).outcome === "victory", STAGES.map((s) => `S${s + 1} ${fmt(B("B4", s))}`).join(", "));
-  const timeOk = STAGES.every((s) => B("B1", s).seconds >= 240 && B("B1", s).seconds <= 360);
-  const waveOk = STAGES.every((s) => B("B1", s).waves.length === 5 && B("B1", s).waves.every((w) => w.combatSeconds >= 30 && w.combatSeconds <= 75));
+  // S5 예외(claude-main 결정 2026-11-27): 54칸 경로·중장 속도 때문에 웨이브 전투 ≤ 90초, 스테이지 ≤ 390초. 나머지는 ≤ 75초·≤ 360초.
+  const waveMax = (st: number) => (st === 4 ? 90 : 75);
+  const stageMax = (st: number) => (st === 4 ? 390 : 360);
+  const timeOk = STAGES.every((st) => B("B1", st).seconds >= 240 && B("B1", st).seconds <= stageMax(st));
+  const waveOk = STAGES.every((st) => B("B1", st).waves.length === 5 && B("B1", st).waves.every((w) => w.combatSeconds >= 30 && w.combatSeconds <= waveMax(st)));
   add(
     "BALX-07",
-    "플레이 시간(B1): 스테이지 240~360초, 웨이브당 전투 30~75초",
+    "플레이 시간(B1): 스테이지 240~360초(S5 ≤ 390), 웨이브당 전투 30~75초(S5 ≤ 90)",
     timeOk && waveOk,
-    STAGES.map((s) => `S${s + 1} ${B("B1", s).seconds}s [${B("B1", s).waves.map((w) => w.combatSeconds).join("/")}]`).join(", "),
+    STAGES.map((st) => `S${st + 1} ${B("B1", st).seconds}s [${B("B1", st).waves.map((w) => w.combatSeconds).join("/")}]`).join(", "),
   );
   const first = STAGES.map((s) => B("B1", s).towersAtFirstWave);
   const s3 = B("B1", 2);
@@ -129,5 +137,22 @@ export function evaluateCriteria(bundle: ContentBundle, d: BalanceData): Criteri
   });
   const noTrace = STAGES.every((s) => JSON.stringify({ ...d.replay[0][s], hashes: 0 }) === JSON.stringify({ ...B("B1", s), hashes: 0 }));
   add("BALX-10", "결정성: 같은 번들 2회(틱별 해시 포함) 동일, 추적 유무와 무관", same && noTrace, `B1 ${STAGES.map((s) => `S${s + 1} ${d.replay[0][s].hashes?.length ?? 0}틱`).join(", ")} 해시 일치=${same}, 추적 없는 실행과 일치=${noTrace}`);
+
+  // BALX-11 특화(BALANCE 8.1): S4 = 고속형이 전체 적 수의 절반 이상 + 속도 강화 3개 웨이브 이상, S5 = 중장형 기본 체력 합 최대(개체 수 × 기본 HP, 특성 배율 제외) + 체력 강화·제어 저항 각 2개 웨이브 이상.
+  const segs = (st: number) => bundle.stages[st].waves.map((w) => w.segments);
+  const countOf = (st: number, t: EnemyType) => segs(st).flat().filter((x) => x.enemyType === t).reduce((n, x) => n + x.count, 0);
+  const total4 = ENEMIES.reduce((n, t) => n + countOf(3, t), 0);
+  const fastShare = countOf(3, "fast") / total4;
+  const wavesWith = (st: number, trait: string, type?: EnemyType) => segs(st).filter((ss) => ss.some((x) => x.trait === trait && (type === undefined || x.enemyType === type))).length;
+  const hpSum = (t: EnemyType) => countOf(4, t) * bundle.enemies.find((e) => e.type === t)!.hp;
+  const heavyMax = ENEMIES.every((t) => t === "heavy" || hpSum(t) < hpSum("heavy"));
+  const s4ok = fastShare >= 0.5 && wavesWith(3, "speedBoost", "fast") >= 3;
+  const s5ok = heavyMax && wavesWith(4, "hpBoost", "heavy") >= 2 && wavesWith(4, "controlResistance", "heavy") >= 2;
+  add(
+    "BALX-11",
+    "특화: S4 고속형 ≥ 50%·속도 강화 ≥ 3웨이브, S5 중장형 체력 합 최대·체력 강화·제어 저항 각 ≥ 2웨이브",
+    s4ok && s5ok,
+    `S4 고속 ${countOf(3, "fast")}/${total4} (${Math.round(fastShare * 1000) / 10}%), 속도 강화 웨이브 ${wavesWith(3, "speedBoost", "fast")}; S5 체력 합 ${ENEMIES.map((t) => `${t} ${hpSum(t)}`).join("/")}, 체력 강화 웨이브 ${wavesWith(4, "hpBoost", "heavy")}, 제어 저항 웨이브 ${wavesWith(4, "controlResistance", "heavy")}`,
+  );
   return out;
 }

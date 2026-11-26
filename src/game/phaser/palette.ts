@@ -1,4 +1,5 @@
 // 단순 도형 자리표시 색 (UI-CONTRACT 8절, DESIGN.md 시안 색감). 실제 스프라이트·최종 색은 후속 디자인 태스크가 교체한다.
+import { themeOf } from "./assets";
 import type { EnemyType, TowerType, TraitType } from "../core/content/types";
 
 export interface StagePalette {
@@ -14,13 +15,14 @@ export interface StagePalette {
   readonly gateDark: number;
 }
 
-/** Stage 1 잔디 초록·황토 길 / Stage 2 눈 흰색·회청 길 / Stage 3 어두운 석재·밝은 석판 길. */
+/** 테마별(초원·설원·폐허): 잔디 초록·황토 길 / 눈 흰색·회청 길 / 어두운 석재·밝은 석판 길. Stage 4·5 는 설원·폐허를 재사용. */
 export const STAGE_PALETTES: readonly StagePalette[] = [
   { letterbox: 0x16251a, ground: 0x4f8a3e, groundAlt: 0x57954a, path: 0xc9a165, pathEdge: 0xa88347, grid: 0xffffff, gridAlpha: 0.1, start: 0xf4e3a1, gate: 0x2f9e9a, gateDark: 0x23343a },
   { letterbox: 0x1b2430, ground: 0xe9f0f5, groundAlt: 0xdde7ef, path: 0x7d93a8, pathEdge: 0x62788d, grid: 0x34506a, gridAlpha: 0.12, start: 0xcfe3f2, gate: 0x2f9e9a, gateDark: 0x23343a },
   { letterbox: 0x0e0d14, ground: 0x2f2d3a, groundAlt: 0x35333f, path: 0xb9b4a3, pathEdge: 0x948f7e, grid: 0xffffff, gridAlpha: 0.07, start: 0xe7c97a, gate: 0x2f9e9a, gateDark: 0x15171c },
 ];
-export const paletteOf = (stageIndex: number): StagePalette => STAGE_PALETTES[Math.min(Math.max(stageIndex, 0), STAGE_PALETTES.length - 1)];
+/** 팔레트는 그림 테마를 따른다(Stage 4 = 설원, Stage 5 = 폐허). */
+export const paletteOf = (stageIndex: number): StagePalette => STAGE_PALETTES[themeOf(stageIndex)];
 
 export const TOWER_COLORS: Readonly<Record<TowerType, number>> = { archer: 0xe0b341, ballista: 0xc8473d, mage: 0x8e5fd0, frost: 0x6cc4e8 };
 export const ENEMY_COLORS: Readonly<Record<EnemyType, number>> = { normal: 0xe8e0c8, fast: 0xc99a5b, heavy: 0x6b8f4e, swarm: 0xa3c94a };

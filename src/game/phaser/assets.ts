@@ -6,6 +6,11 @@ export const ASSET_BASE = "/assets/game/";
 export const TOWER_TYPES: readonly TowerType[] = ["archer", "ballista", "mage", "frost"];
 export const ENEMY_TYPES: readonly EnemyType[] = ["normal", "fast", "heavy", "swarm"];
 
+/** 스테이지 → 그림 테마 번호(0 초원·1 설원·2 폐허). Stage 4 는 설원, Stage 5 는 폐허 그림을 재사용한다(STAGE-45, ART-SPEC 3.1). */
+export const STAGE_THEME: readonly number[] = [0, 1, 2, 1, 2];
+export const themeOf = (stage: number): number => STAGE_THEME[Math.min(Math.max(stage, 0), STAGE_THEME.length - 1)];
+
+// 아래 키 함수의 첫 인자는 **테마** 번호다(스테이지 아님). 스테이지에서 쓸 때는 themeOf(stage) 를 넘긴다.
 export const groundKey = (stage: number, variant: 1 | 2 | 3): string => `s${stage + 1}-ground-${variant}`;
 export const pathKey = (stage: number, base: "straight" | "corner"): string => `s${stage + 1}-path-${base}`;
 export const spawnKey = (stage: number): string => `s${stage + 1}-spawn`;

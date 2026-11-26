@@ -1,4 +1,4 @@
-// BAL-01 — 후보 수치(bal-01-v1)가 BALANCE 4절 통과 기준 BALX-01~10 을 만족하는지 고정한다. 봇 9종×3스테이지 + 역할 16회 + 추적 6회를 한 번만 모아 기준마다 단언한다.
+// BAL-01·STAGE-45 — 수치(bal-02-v1)가 BALANCE 4절·8.1 통과 기준 BALX-01~11 을 만족하는지 고정한다. 봇 9종×5스테이지 + 역할 16회 + 추적 10회를 한 번만 모아 기준마다 단언한다.
 import { beforeAll, describe, expect, it } from "vitest";
 import { GAME_CONTENT } from "../content/gameContent";
 import { isStagePlayable, validateContent } from "../core/content/validate";
@@ -20,7 +20,7 @@ beforeAll(() => {
 
 describe("후보 번들", () => {
   it("버전·환급률·특성 처치 보상 보너스가 BALANCE 1절 결정을 따른다", () => {
-    expect(GAME_CONTENT.contentVersion).toBe("bal-01-v1");
+    expect(GAME_CONTENT.contentVersion).toBe("bal-02-v1");
     expect(GAME_CONTENT.economy.refundRateBp).toBe(7000);
     expect(GAME_CONTENT.traits.every((t) => t.killRewardBonus > 0)).toBe(true);
   });
@@ -33,7 +33,7 @@ describe("후보 번들", () => {
 });
 
 describe("BALX 기준", () => {
-  for (let n = 1; n <= 10; n++) {
+  for (let n = 1; n <= 11; n++) {
     const id = `BALX-${String(n).padStart(2, "0")}`;
     it(id, () => {
       const c = criteria.find((x) => x.id === id);
@@ -41,8 +41,8 @@ describe("BALX 기준", () => {
       expect(c!.pass, `${c!.title}: ${c!.detail}`).toBe(true);
     });
   }
-  it("기준이 10개 모두 평가된다", () => {
-    expect(criteria.map((c) => c.id)).toEqual(Array.from({ length: 10 }, (_, i) => `BALX-${String(i + 1).padStart(2, "0")}`));
+  it("기준이 11개 모두 평가된다", () => {
+    expect(criteria.map((c) => c.id)).toEqual(Array.from({ length: 11 }, (_, i) => `BALX-${String(i + 1).padStart(2, "0")}`));
   });
 });
 
@@ -94,7 +94,7 @@ describe("자리 점수·봇·보고서", () => {
   });
   it("보고서에 기준 표·튜닝 이력이 들어 있다", () => {
     const md = buildReport(GAME_CONTENT, data);
-    expect(md).toContain("전체: 10/10 통과");
+    expect(md).toContain("전체: 11/11 통과");
     expect(md).toContain("튜닝 이력");
   });
 });

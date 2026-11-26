@@ -1,4 +1,4 @@
-// GOLD-01 — 실제 수치(GAME_CONTENT, bal-01-v1) 골든 시나리오의 **고정 명령 스크립트**.
+// GOLD-01 — 실제 수치(GAME_CONTENT, bal-02-v1) 골든 시나리오의 **고정 명령 스크립트**.
 // B1·B2 스크립트는 검증 봇(src/game/balance/bots.ts)이 승인 수치에서 낸 명령을 한 번 기록해 그대로 저장한 것이다.
 // 테스트가 봇을 다시 돌려 만들지 않는다 — 봇·자리 점수 함수가 바뀌어도 골든은 흔들리지 않는다(스크립트를 의도적으로 고칠 때만 바뀐다).
 // 틱 규칙은 core 시나리오와 같다: tick 은 "그 틱의 1단계에 적용될 명령"(= completedTick + 1 일 때 접수).
@@ -89,6 +89,60 @@ export const G4_S3_B2: readonly Cmd[] = [
   build(4743, "archer", 6, 6),
   build(5026, "archer", 2, 0),
   build(5354, "archer", 8, 2),
+];
+
+/** G6: 스테이지 4, 균형 봇(B1) 기록. 승리, 5537틱. */
+export const G6_S4_B1: readonly Cmd[] = [
+  build(1, "archer", 5, 4),
+  build(1, "frost", 9, 4),
+  build(1, "mage", 5, 5),
+  build(904, "ballista", 9, 6),
+  build(1225, "archer", 9, 5),
+  build(1478, "frost", 13, 5),
+  upgrade(1684, 1),
+  upgrade(1825, 2),
+  upgrade(2239, 3),
+  upgrade(2430, 4),
+  upgrade(2764, 5),
+  upgrade(3102, 6),
+  upgrade(3200, 1),
+  upgrade(3566, 2),
+  upgrade(3846, 3),
+  upgrade(4111, 4),
+  upgrade(4358, 5),
+  upgrade(4359, 6),
+  upgrade(4755, 1),
+  upgrade(4851, 2),
+  upgrade(4990, 3),
+  upgrade(5384, 4),
+];
+
+/** G7: 스테이지 5, 균형 봇(B1) 기록. 승리, 7719틱. */
+export const G7_S5_B1: readonly Cmd[] = [
+  build(1, "archer", 4, 6),
+  build(1, "frost", 3, 6),
+  build(1, "mage", 3, 3),
+  build(1351, "ballista", 5, 5),
+  build(1867, "archer", 4, 3),
+  build(2061, "frost", 2, 6),
+  upgrade(2182, 1),
+  upgrade(2413, 2),
+  upgrade(2843, 3),
+  upgrade(2903, 4),
+  upgrade(3328, 5),
+  upgrade(3437, 6),
+  upgrade(3818, 1),
+  upgrade(4166, 2),
+  upgrade(4522, 3),
+  upgrade(4878, 4),
+  upgrade(5079, 5),
+  upgrade(5215, 6),
+  upgrade(5368, 1),
+  upgrade(5536, 2),
+  upgrade(5711, 3),
+  upgrade(6105, 4),
+  upgrade(6318, 5),
+  upgrade(6661, 6),
 ];
 
 /**

@@ -13,12 +13,12 @@ const STATE_STYLE: Record<StageCard["state"], string> = {
 
 export function StageSelect({ session, cards, notice }: { session: GameSession; cards: readonly StageCard[]; notice: "unreadable" | "unavailable" | null }) {
   return (
-    <main className="flex h-dvh w-full flex-col overflow-auto bg-neutral-950 p-4 text-neutral-100">
-      <header className="mb-3 flex flex-wrap items-center gap-2">
+    <main className="flex h-dvh w-full flex-col overflow-auto bg-neutral-950 p-3 text-neutral-100">
+      <header className="mb-1 flex flex-wrap items-center gap-2">
         <h1 className="text-xl font-bold">{STR.title}</h1>
       </header>
-      <p className="mb-3 text-sm text-neutral-400">{STR.pickStage}</p>
-      <div className="grid flex-1 grid-cols-3 content-start gap-3" data-testid="stage-cards">
+      <p className="mb-2 text-sm text-neutral-400">{STR.pickStage}</p>
+      <div className="grid flex-1 grid-cols-5 content-start gap-2" data-testid="stage-cards">
         {cards.map((card) => {
           const enterable = card.state === "available" || card.state === "cleared";
           return (
@@ -29,10 +29,10 @@ export function StageSelect({ session, cards, notice }: { session: GameSession; 
               onClick={() => session.startStage(card.index)}
               data-testid={`stage-card-${card.index}`}
               data-state={card.state}
-              className={`flex min-h-24 flex-col items-start gap-1 rounded-lg border-2 p-3 text-left disabled:cursor-not-allowed ${STATE_STYLE[card.state]}`}
+              className={`flex min-h-24 min-w-0 flex-col items-start gap-0.5 rounded-lg border-2 p-2 text-left disabled:cursor-not-allowed ${STATE_STYLE[card.state]}`}
             >
               <span className="text-xs text-neutral-400">Stage {card.index + 1}</span>
-              <span className="text-lg font-semibold">{STAGE_NAMES[card.index]}</span>
+              <span className="text-sm font-semibold leading-tight">{STAGE_NAMES[card.index]}</span>
               <span className="text-sm font-semibold">{STR.card[card.state]}</span>
               {card.state === "locked" && <span className="text-xs">{STR.cardHintLocked}</span>}
               {card.state === "contentError" && (
@@ -50,9 +50,9 @@ export function StageSelect({ session, cards, notice }: { session: GameSession; 
         })}
       </div>
       {notice === null ? (
-        <p className="mt-3 text-xs text-neutral-500">{STR.progressNote}</p>
+        <p className="mt-2 text-xs text-neutral-500">{STR.progressNote}</p>
       ) : (
-        <p className="mt-3 rounded border border-amber-500/60 bg-amber-950/40 px-2 py-1 text-xs text-amber-200" role="status" data-testid="progress-notice" data-notice={notice}>
+        <p className="mt-2 rounded border border-amber-500/60 bg-amber-950/40 px-2 py-1 text-xs text-amber-200" role="status" data-testid="progress-notice" data-notice={notice}>
           {STR.progressNotice[notice]}
         </p>
       )}

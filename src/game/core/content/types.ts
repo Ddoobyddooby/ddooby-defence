@@ -11,7 +11,7 @@ export type EnemyType = (typeof ENEMY_TYPES)[number];
 export type TraitType = (typeof TRAIT_TYPES)[number];
 export type WaveRole = (typeof WAVE_ROLES)[number];
 
-export const STAGE_COUNT = 3;
+export const STAGE_COUNT = 5;
 export const WAVES_PER_STAGE = 5;
 
 /** 모든 타워 공통 레벨 필드. base 와 각 증분이 모두 이 필드 전부를 가진다. */

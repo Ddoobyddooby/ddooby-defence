@@ -72,3 +72,13 @@ export function groundVariant(col: number, row: number): 1 | 2 | 3 {
   h = (h ^ (h >>> 13)) >>> 0;
   return ((h % 3) + 1) as 1 | 2 | 3;
 }
+
+/**
+ * 생성 지점 그림의 회전. 그림은 "왼쪽 가장자리에서 오른쪽(동쪽)으로 길이 나가는" 방향 기준(규격 3.1)이라
+ * 첫 칸에서 둘째 칸으로 가는 방향에 맞춰 시계 방향으로 돌린다(동 0, 남 90, 서 180, 북 270). 예: Stage 4 는 위쪽 가장자리에서 아래로 들어와 90.
+ */
+export function spawnRotation(map: CompiledStageMap): Rotation {
+  const [a, b] = map.pathCells;
+  const d = dirTo(a, b);
+  return d === "E" ? 0 : d === "S" ? 90 : d === "W" ? 180 : 270;
+}

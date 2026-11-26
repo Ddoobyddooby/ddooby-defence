@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { STAGE_MAPS } from "../content/stageMaps";
 import { compileStageMap, type CompiledStageMap } from "../core/map/stageMap";
-import { computePathTiles, groundVariant } from "./pathTiles";
+import { computePathTiles, groundVariant, spawnRotation } from "./pathTiles";
 
 const mk = (waypoints: { col: number; row: number }[]): CompiledStageMap => compileStageMap({ stageId: "t", waypoints, reservedCells: [] });
 const c = (col: number, row: number) => ({ col, row });
@@ -96,5 +96,21 @@ describe("groundVariant", () => {
       for (let col = 3; col < 18; col++) if (groundVariant(col, r) !== groundVariant(col - 3, r)) periodic = false;
       expect(periodic).toBe(false);
     }
+  });
+});
+
+describe("spawnRotation (STAGE-45)", () => {
+  it("생성 그림은 길이 나가는 방향으로 돌린다: Stage 1~3 은 동쪽 0, Stage 4 는 위에서 아래라 90", () => {
+    expect(STAGE_MAPS.map((m) => spawnRotation(compileStageMap(m)))).toEqual([0, 0, 0, 90, 0]);
+  });
+  it("서쪽·북쪽으로 나가면 180·270", () => {
+    expect(spawnRotation(mk([c(17, 2), c(10, 2)]))).toBe(180);
+    expect(spawnRotation(mk([c(4, 9), c(4, 3)]))).toBe(270);
+  });
+  it("Stage 4 첫 칸 = 직선 세로(회전 90), Stage 5 기지 칸은 안쪽 직선(가로)이며 gate 표식", () => {
+    const t4 = computePathTiles(compileStageMap(STAGE_MAPS[3]));
+    expect(t4[0]).toMatchObject({ kind: "spawn", base: "straight", rotation: 90 });
+    const t5 = computePathTiles(compileStageMap(STAGE_MAPS[4]));
+    expect(t5[t5.length - 1]).toMatchObject({ kind: "gate", base: "straight", rotation: 0, col: 12, row: 4 });
   });
 });
