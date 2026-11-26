@@ -9,8 +9,9 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
+    "golden:record-scripts": "vitest run --config vitest.record.config.mts --silent=false",
     "balance": "vitest run --config vitest.balance.config.mts --silent=false",
-    "golden:update": "GOLDEN_UPDATE=1 vitest run src/game/core/attempt/regression/regression.test.ts",
+    "golden:update": "GOLDEN_UPDATE=1 vitest run src/game/core/attempt/regression/regression.test.ts src/game/balance/regression/regression.test.ts",
     "android:sync": "next build && cap sync android",
     "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug",
     "android:install": "adb install -r android/app/build/outputs/apk/debug/app-debug.apk"

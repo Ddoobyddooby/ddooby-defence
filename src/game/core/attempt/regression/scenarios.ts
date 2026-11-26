@@ -10,8 +10,9 @@ export interface ScriptedCommand {
   readonly payload: unknown;
 }
 
-export interface Scenario {
-  readonly id: ScenarioId;
+/** 시나리오 형태(id 만 일반 문자열). 실제 수치 골든(GOLD-01, src/game/balance/regression)이 같은 골든 유틸을 재사용한다. */
+export interface ScenarioLike {
+  readonly id: string;
   readonly stageId: string;
   readonly attemptId: number;
   readonly bundle: () => unknown;
@@ -23,6 +24,11 @@ export interface Scenario {
   readonly expectedOutcome: "victory" | "defeat" | null;
   /** 시나리오가 실제로 일으켜야 하는 이벤트 type (빈 시나리오 방지). */
   readonly requiredEvents: readonly string[];
+}
+
+/** 코어 TEST_ONLY 시나리오(R1~R3). */
+export interface Scenario extends ScenarioLike {
+  readonly id: ScenarioId;
 }
 
 type Patch = readonly [string, unknown];

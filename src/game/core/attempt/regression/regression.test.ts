@@ -9,7 +9,7 @@ import { SCENARIOS, type Scenario } from "./scenarios";
 
 const UPDATE = process.env.GOLDEN_UPDATE === "1";
 
-function loadGolden(id: Scenario["id"]): Golden {
+function loadGolden(id: string): Golden {
   const path = goldenFilePath(id);
   if (!existsSync(path)) throw new Error(`${id}: 골든 파일 없음 (${path}). \`npm run golden:update\` 로 만드세요.`);
   return JSON.parse(readFileSync(path, "utf8")) as Golden;

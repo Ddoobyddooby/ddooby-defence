@@ -6,7 +6,7 @@ import { ATTEMPT_CODE_VERSION, createAttempt } from "../attempt";
 import { REPLAY_FORMAT_VERSION, createRecordedAttempt } from "../record";
 import type { LedgerEntry } from "../types";
 import { InvariantChecker } from "../testing/invariants";
-import type { Scenario, ScenarioId } from "./scenarios";
+import type { ScenarioLike } from "./scenarios";
 
 /** 시나리오 입력 정의(15.2 "시나리오 변경 판정"). 실행 결과로 계산되는 값(endTick·initialStateHash·해시·원장)은 넣지 않는다. */
 export interface GoldenInput {
@@ -20,7 +20,7 @@ export interface GoldenInput {
 }
 
 export interface Golden {
-  readonly scenario: ScenarioId;
+  readonly scenario: string;
   readonly input: GoldenInput;
   readonly record: ReplayRecord;
   /** 틱 0..endTick 의 틱 해시. */
@@ -48,8 +48,8 @@ export class GoldenMismatchError extends Error {
   }
 }
 
-export const goldenFileUrl = (id: ScenarioId): URL => new URL(`./golden/${id}.json`, import.meta.url);
-export const goldenFilePath = (id: ScenarioId): string => fileURLToPath(goldenFileUrl(id));
+export const goldenFileUrl = (id: string): URL => new URL(`./golden/${id}.json`, import.meta.url);
+export const goldenFilePath = (id: string): string => fileURLToPath(goldenFileUrl(id));
 
 export interface Played {
   readonly record: ReplayRecord;
@@ -58,7 +58,7 @@ export interface Played {
 }
 
 /** 스크립트를 기록기로 실행한다(원 실행). commands 의 tick 은 completedTick + 1 일 때 접수한다. */
-export function playScenario(sc: Scenario): Played {
+export function playScenario(sc: ScenarioLike): Played {
   const rec = createRecordedAttempt(sc.bundle(), sc.stageId, sc.attemptId);
   const core = rec.core;
   for (let t = 1; t <= sc.maxTick; t += 1) {
@@ -90,7 +90,7 @@ function finalState(trace: ReplayTrace): { outcome: Golden["outcome"]; gold: num
   return { outcome: s.outcome, gold: s.gold, baseHp: s.baseHp };
 }
 
-export function inputOf(sc: Scenario): GoldenInput {
+export function inputOf(sc: ScenarioLike): GoldenInput {
   return cloneCanonical(
     {
       contentHash: createAttempt(sc.bundle(), sc.stageId, sc.attemptId).contentHash,
@@ -103,7 +103,7 @@ export function inputOf(sc: Scenario): GoldenInput {
   ) as GoldenInput;
 }
 
-export function buildGolden(sc: Scenario): Golden {
+export function buildGolden(sc: ScenarioLike): Golden {
   const played = playScenario(sc);
   const derived = ledgerFromTrace(played.trace);
   if (canonicalize(derived) !== canonicalize(played.ledger)) throw new Error(`${sc.id}: 이벤트에서 도출한 원장이 코어 ledger() 와 다름`);
@@ -152,7 +152,7 @@ export interface Verified {
  * 골든을 검증한다: (0) 코드 버전 (1) 새 코어 재생 후 틱 해시를 틱마다 비교(첫 불일치 틱·이벤트 type·상태 요약) (2) outcome·finalGold·finalBaseHp·ledger
  * (3) 새 코어로 한 번 더 실행해 trace 전체 동일 (4) 매 틱 불변식. 어느 하나라도 어긋나면 던진다.
  */
-export function verifyGolden(golden: Golden, sc: Scenario): Verified {
+export function verifyGolden(golden: Golden, sc: ScenarioLike): Verified {
   if (golden.record.codeVersion !== ATTEMPT_CODE_VERSION) throw new StaleGoldenError(golden.scenario, golden.record.codeVersion);
   const expectation = {
     formatVersion: REPLAY_FORMAT_VERSION,
@@ -245,15 +245,15 @@ export function assertUpdateAllowed(previous: Golden | null, next: Golden): void
 }
 
 export interface GoldenIo {
-  read(id: ScenarioId): Golden | null;
-  write(id: ScenarioId, text: string): void;
+  read(id: string): Golden | null;
+  write(id: string, text: string): void;
 }
 
 /**
  * 원자적 갱신(15.2): 모든 시나리오의 골든 생성·가드 검사를 먼저 끝내고, 하나라도 거부되면 어떤 파일도 쓰지 않는다.
  * `build` 는 테스트가 후보 골든을 주입할 수 있게 열어 둔 것이다(기본 buildGolden).
  */
-export function updateGoldens(scenarios: readonly Scenario[], io: GoldenIo, build: (sc: Scenario) => Golden = buildGolden): void {
+export function updateGoldens<S extends ScenarioLike>(scenarios: readonly S[], io: GoldenIo, build: (sc: S) => Golden = buildGolden): void {
   const planned = scenarios.map((sc) => {
     const next = build(sc);
     assertUpdateAllowed(io.read(sc.id), next);
