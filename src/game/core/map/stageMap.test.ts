@@ -44,15 +44,41 @@ const PICTURES: Record<string, string[]> = {
     "S##...............",
     "..................",
   ],
+  "stage-4-frozen-ridge": [
+    "...S..............",
+    "...#..............",
+    "...#...#####......",
+    "...#...#...#...##B",
+    "...#...#...#...#..",
+    "...#...#...#...#..",
+    "...#...#...#...#..",
+    "...#####...#####..",
+    "..................",
+    "..................",
+  ],
+  "stage-5-fallen-citadel": [
+    "..................",
+    "S################.",
+    "................#.",
+    "................#.",
+    ".###########B...#.",
+    ".#..............#.",
+    ".#..............#.",
+    ".#..............#.",
+    ".################.",
+    "..................",
+  ],
 };
 const EXPECT: Record<string, { path: number; buildable: number; lengthMt: number }> = {
   "stage-1-meadow-outpost": { path: 50, buildable: 130, lengthMt: 49000 },
   "stage-2-snowfall-pass": { path: 37, buildable: 143, lengthMt: 36000 },
   "stage-3-dusk-ruins": { path: 38, buildable: 142, lengthMt: 37000 },
+  "stage-4-frozen-ridge": { path: 36, buildable: 144, lengthMt: 35000 },
+  "stage-5-fallen-citadel": { path: 54, buildable: 126, lengthMt: 53000 },
 };
 
-describe("후보 맵 3종 (10.2)", () => {
-  it("맵 3개, stageId 중복 없음", () => {
+describe("후보 맵 5종 (10.2)", () => {
+  it("맵 5개, stageId 중복 없음", () => {
     expect(STAGE_MAPS.map((m) => m.stageId)).toEqual(Object.keys(PICTURES));
   });
   for (const raw of STAGE_MAPS) {
@@ -286,9 +312,9 @@ describe("progressToPosition (맵: (0,2)→(5,2)→(5,6), 총길이 9000)", () =
     // Stage 3 첫 위쪽 구간: (0,8)→(2,8) 2000, 이후 (2,8)→(2,1) 위로
     expect(progressToPosition(compileStageMap(STAGE_MAPS[2]), 2500)).toEqual({ x: 2500, y: 8000 });
   });
-  it("실제 맵 3종: 0 → 출발, 총길이 → 기지", () => {
-    const starts = [w(0, 2), w(0, 1), w(0, 8)];
-    const bases = [w(17, 8), w(17, 8), w(17, 6)];
+  it("실제 맵 5종: 0 → 출발, 총길이 → 기지", () => {
+    const starts = [w(0, 2), w(0, 1), w(0, 8), w(3, 0), w(0, 1)];
+    const bases = [w(17, 8), w(17, 8), w(17, 6), w(17, 3), w(12, 4)];
     STAGE_MAPS.forEach((raw, i) => {
       const m = compileStageMap(raw);
       expect(progressToPosition(m, 0)).toEqual({ x: starts[i].col * 1000 + 500, y: starts[i].row * 1000 + 500 });

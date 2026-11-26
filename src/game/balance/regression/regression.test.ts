@@ -83,8 +83,8 @@ describe("시나리오별 구체 단언", () => {
   const by = (id: string): GameScenario => GAME_SCENARIOS.find((s) => s.id === id)!;
   const count = (events: Ev[], type: string): number => events.filter((e) => e.type === type).length;
 
-  it("G1~G3: 5웨이브 모두 완료하고 승리, 기지 HP가 남는다", () => {
-    for (const id of ["G1", "G2", "G3"]) {
+  it("G1~G3·G6·G7: 5웨이브 모두 완료하고 승리, 기지 HP가 남는다", () => {
+    for (const id of ["G1", "G2", "G3", "G6", "G7"]) {
       const v = verify(by(id));
       const ev = eventsOf(v);
       expect(count(ev, "waveCleared"), id).toBe(5);

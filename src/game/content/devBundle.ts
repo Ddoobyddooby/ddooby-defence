@@ -39,9 +39,10 @@ const STAGE3_WAVES: WaveDef[] = [
   wave(4, 12000, 120, [s(0, 2000, 6, "heavy", "hpBoost"), s(500, 300, 18, "swarm", "controlResistance"), s(6000, 600, 10, "fast", "speedBoost")]),
 ];
 
-const WAVES = [STAGE1_WAVES, STAGE2_WAVES, STAGE3_WAVES];
-const BASE_HP = [20, 25, 30];
-const INITIAL_GOLD = [300, 350, 400];
+// Stage 4·5(STAGE-45)는 개발용으로 Stage 3·2 웨이브를 그대로 쓴다(임시 수치, 승인값은 gameContent).
+const WAVES = [STAGE1_WAVES, STAGE2_WAVES, STAGE3_WAVES, STAGE3_WAVES, STAGE2_WAVES];
+const BASE_HP = [20, 25, 30, 30, 35];
+const INITIAL_GOLD = [300, 350, 400, 400, 450];
 
 /** 사거리 순서(ballista > archer > mage > frost, 레벨마다)·가격 증가·시간 50ms 배수·속도 20 배수를 모두 지킨다. */
 export const DEV_PLACEHOLDER: ContentBundle = {

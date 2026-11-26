@@ -1,6 +1,6 @@
 // ART-03 — 규격 파일명 목록(52장).
 import { describe, expect, it } from "vitest";
-import { ASSET_NAMES, assetUrl, groundKey, towerKey } from "./assets";
+import { ASSET_NAMES, assetUrl, groundKey, STAGE_THEME, themeOf, towerKey } from "./assets";
 
 describe("ASSET_NAMES", () => {
   it("52장, 중복 없음, 소문자·하이픈 파일명", () => {
@@ -14,5 +14,18 @@ describe("ASSET_NAMES", () => {
     expect(groundKey(0, 2)).toBe("s1-ground-2");
     expect(towerKey("mage", 9)).toBe("tower-mage-4");
     expect(assetUrl("fx-hit")).toBe("/assets/game/fx-hit.png");
+  });
+});
+
+describe("스테이지 → 그림 테마 (STAGE-45)", () => {
+  it("1·2·3 = 초원·설원·폐허, 4 = 설원, 5 = 폐허; 범위 밖은 끝값", () => {
+    expect(STAGE_THEME).toEqual([0, 1, 2, 1, 2]);
+    expect([0, 1, 2, 3, 4].map(themeOf)).toEqual([0, 1, 2, 1, 2]);
+    expect(themeOf(-1)).toBe(0);
+    expect(themeOf(9)).toBe(2);
+    expect(groundKey(themeOf(3), 1)).toBe("s2-ground-1");
+  });
+  it("그림 파일은 테마 3개분(52장) 그대로, 새 파일명 없음", () => {
+    expect(ASSET_NAMES.filter((n) => /^s[4-9]-/.test(n))).toEqual([]);
   });
 });

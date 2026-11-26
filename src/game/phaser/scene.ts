@@ -14,10 +14,10 @@ import {
   type GraphicsLike, type MapArt, type MapGeometry,
 } from "./draw";
 import { paletteOf, UI_COLORS } from "./palette";
-import { ASSET_NAMES, assetUrl, enemyKey, gateKey, groundKey, pathKey, PROJECTILE_SPRITE, spawnKey, towerKey, TRAIT_SPRITE } from "./assets";
+import { ASSET_NAMES, themeOf, assetUrl, enemyKey, gateKey, groundKey, pathKey, PROJECTILE_SPRITE, spawnKey, towerKey, TRAIT_SPRITE } from "./assets";
 import { animationDelta } from "./animClock";
 import { backingSize, clientToArea, renderScale } from "./dpr";
-import { computePathTiles, groundVariant } from "./pathTiles";
+import { computePathTiles, groundVariant, spawnRotation } from "./pathTiles";
 import { ImagePool } from "./sprites";
 
 type Cell = { col: number; row: number };
@@ -36,7 +36,7 @@ interface Vfx {
   age: number;
 }
 
-const STAGE_TILE_NAMES = (stage: number): string[] => ASSET_NAMES.filter((n) => n.startsWith(`s${stage + 1}-`));
+const STAGE_TILE_NAMES = (stage: number): string[] => ASSET_NAMES.filter((n) => n.startsWith(`s${themeOf(stage) + 1}-`));
 const COMMON_NAMES: string[] = ASSET_NAMES.filter((n) => !/^s\d-/.test(n));
 
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
@@ -234,10 +234,10 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
 
     private mapArt(stage: number): MapArt {
       return {
-        hasGround: (v) => this.has(groundKey(stage, v)),
-        hasPath: (b) => this.has(pathKey(stage, b)),
-        hasSpawn: () => this.has(spawnKey(stage)),
-        hasGate: () => this.has(gateKey(stage)),
+        hasGround: (v) => this.has(groundKey(themeOf(stage), v)),
+        hasPath: (b) => this.has(pathKey(themeOf(stage), b)),
+        hasSpawn: () => this.has(spawnKey(themeOf(stage))),
+        hasGate: () => this.has(gateKey(themeOf(stage))),
       };
     }
 
@@ -268,8 +268,10 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
     }
 
     /** 바닥·길·생성·성문 그림(있는 것만). 길 칸의 종류·회전은 computePathTiles, 바닥 변형은 칸 좌표로 정한다. */
-    private buildMapImages(stage: number, map: CompiledStageMap): void {
+    private buildMapImages(stageIndex: number, map: CompiledStageMap): void {
       this.clearMapImages();
+      const stage = themeOf(stageIndex); // 그림은 테마 번호로 찾는다(Stage 4·5 는 설원·폐허 재사용)
+      const spawnRot = spawnRotation(map);
       const { tile, originX, originY } = this.geo;
       const tiles = computePathTiles(map);
       const onPath = new Set(tiles.map((t) => t.row * 18 + t.col));
@@ -289,7 +291,7 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
         const cy = originY + t.row * tile + tile / 2;
         const pk = pathKey(stage, t.base);
         if (this.has(pk)) add(pk, cx, cy, tile, 2, 0.5, 0.5, t.rotation);
-        if (t.kind === "spawn" && this.has(spawnKey(stage))) add(spawnKey(stage), cx, cy, tile, 3);
+        if (t.kind === "spawn" && this.has(spawnKey(stage))) add(spawnKey(stage), cx, cy, tile, 3, 0.5, 0.5, spawnRot);
         // 성문은 칸보다 위로 커도 된다(규격 3.1): 가로·세로 1.5칸, 아래쪽 기준점 = 칸 아래.
         if (t.kind === "gate" && this.has(gateKey(stage))) add(gateKey(stage), Math.min(cx, originX + 18 * tile - (tile * 1.5) / 2), originY + (t.row + 1) * tile, tile * 1.5, 3, 0.5, 1); // 맵 오른쪽 끝에서 잘리지 않게 안쪽으로 당긴다
       }

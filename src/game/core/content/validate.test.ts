@@ -28,12 +28,12 @@ function expectRange(path: string, min: number, max: number, where: "global" | n
 }
 
 describe("정상 묶음", () => {
-  it("검증 통과: 전역·3 스테이지 오류 0", () => {
+  it("검증 통과: 전역·5 스테이지 오류 0", () => {
     const v = validateContent(validBundle());
     expect(v.globalErrors).toEqual([]);
-    expect(v.stages.map((s) => s.errors)).toEqual([[], [], []]);
-    expect(v.stages.map((s) => s.stageId)).toEqual(["stage-1-meadow-outpost", "stage-2-snowfall-pass", "stage-3-dusk-ruins"]);
-    for (let i = 0; i < 3; i++) expect(isStagePlayable(v, i)).toBe(true);
+    expect(v.stages.map((s) => s.errors)).toEqual([[], [], [], [], []]);
+    expect(v.stages.map((s) => s.stageId)).toEqual(["stage-1-meadow-outpost", "stage-2-snowfall-pass", "stage-3-dusk-ruins", "stage-4-frozen-ridge", "stage-5-fallen-citadel"]);
+    for (let i = 0; i < 5; i++) expect(isStagePlayable(v, i)).toBe(true);
   });
   it("진입 재검증 통과, 결과는 깊게 동결되고 원본과 분리된다", () => {
     const input = validBundle();
@@ -238,7 +238,7 @@ describe("F1 map 엄격 필드", () => {
       const v = validateContent(b);
       expect(v.globalErrors).toEqual([]);
       expect(paths(v.stages[1].errors)).toEqual([expected]);
-      expect([0, 1, 2].map((i) => isStagePlayable(v, i))).toEqual([true, false, true]);
+      expect([0, 1, 2, 3, 4].map((i) => isStagePlayable(v, i))).toEqual([true, false, true, true, true]);
       expect(validateStageForEntry(b, "stage-2-snowfall-pass").ok).toBe(false);
     }
     const reserved = withValue("stages[1].map.reservedCells", [{ col: 0, row: 0, extra: 1 }]);
@@ -371,15 +371,15 @@ describe("C1 스테이지 자리 격리", () => {
       const b = make();
       const v = validateContent(b);
       expect(v.globalErrors).toEqual([]);
-      expect(v.stages.map((s) => s.stageId)).toEqual(["stage-1-meadow-outpost", null, "stage-3-dusk-ruins"]);
+      expect(v.stages.map((s) => s.stageId)).toEqual(["stage-1-meadow-outpost", null, "stage-3-dusk-ruins", "stage-4-frozen-ridge", "stage-5-fallen-citadel"]);
       expect(paths(v.stages[1].errors)).toEqual(["stages[1]"]);
-      expect([0, 1, 2].map((i) => isStagePlayable(v, i))).toEqual([true, false, true]);
+      expect([0, 1, 2, 3, 4].map((i) => isStagePlayable(v, i))).toEqual([true, false, true, true, true]);
       expect(validateStageForEntry(b, "stage-1-meadow-outpost").ok).toBe(true);
       expect(validateStageForEntry(b, "stage-3-dusk-ruins").ok).toBe(true);
       expect(validateStageForEntry(b, "stage-2-snowfall-pass").ok).toBe(false);
     }
   });
-  it("길이 ≠ 3 은 전역 오류(모든 스테이지 차단), stages 가 배열이 아니어도 전역", () => {
+  it("길이 ≠ 5 은 전역 오류(모든 스테이지 차단), stages 가 배열이 아니어도 전역", () => {
     const b = validBundle() as { stages: unknown[] };
     for (const stages of [b.stages.slice(0, 2), [...b.stages, b.stages[0]], [], "x", null]) {
       const bad = { ...b, stages };
@@ -482,7 +482,7 @@ describe("11.4 오류 수집·격리", () => {
     const b = withValue("stages[1].waves[2].clearReward", 0);
     const v = validateContent(b);
     expect(v.globalErrors).toEqual([]);
-    expect([0, 1, 2].map((i) => isStagePlayable(v, i))).toEqual([true, false, true]);
+    expect([0, 1, 2, 3, 4].map((i) => isStagePlayable(v, i))).toEqual([true, false, true, true, true]);
     expect(validateStageForEntry(b, "stage-1-meadow-outpost").ok).toBe(true);
     expect(validateStageForEntry(b, "stage-3-dusk-ruins").ok).toBe(true);
     const r = validateStageForEntry(b, "stage-2-snowfall-pass");

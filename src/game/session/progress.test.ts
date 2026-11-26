@@ -8,20 +8,20 @@ const ok = validateContent(DEV_PLACEHOLDER);
 
 describe("deriveStageCards (SPEC 10절·UI-CONTRACT 4절)", () => {
   it("처음: Stage 1 선택 가능, 2·3 잠김", () => {
-    expect(deriveStageCards(ok, ids, []).map((c) => c.state)).toEqual(["available", "locked", "locked"]);
+    expect(deriveStageCards(ok, ids, []).map((c) => c.state)).toEqual(["available", "locked", "locked", "locked", "locked"]);
   });
   it("Stage 1 클리어 → 1 클리어, 2 선택 가능, 3 잠김. 2 도 클리어 → 3 선택 가능", () => {
-    expect(deriveStageCards(ok, ids, [ids[0]]).map((c) => c.state)).toEqual(["cleared", "available", "locked"]);
-    expect(deriveStageCards(ok, ids, [ids[0], ids[1]]).map((c) => c.state)).toEqual(["cleared", "cleared", "available"]);
+    expect(deriveStageCards(ok, ids, [ids[0]]).map((c) => c.state)).toEqual(["cleared", "available", "locked", "locked", "locked"]);
+    expect(deriveStageCards(ok, ids, [ids[0], ids[1]]).map((c) => c.state)).toEqual(["cleared", "cleared", "available", "locked", "locked"]);
   });
   it("앞 스테이지가 클리어 안 됐으면 뒤 스테이지 클리어 플래그가 있어도 해금 파생은 '클리어'로 보인다(플래그 우선), 3 은 2 클리어 필요", () => {
-    expect(deriveStageCards(ok, ids, [ids[2]]).map((c) => c.state)).toEqual(["available", "locked", "cleared"]);
+    expect(deriveStageCards(ok, ids, [ids[2]]).map((c) => c.state)).toEqual(["available", "locked", "cleared", "available", "locked"]);
   });
   it("그 스테이지만 콘텐츠 오류: 해당 카드만 contentError + 진단, 다른 카드는 정상 파생", () => {
     const bad = structuredClone(DEV_PLACEHOLDER) as unknown as { stages: { baseHp: number }[] };
     bad.stages[1].baseHp = 0;
     const cards = deriveStageCards(validateContent(bad), ids, [ids[0]]);
-    expect(cards.map((c) => c.state)).toEqual(["cleared", "contentError", "locked"]);
+    expect(cards.map((c) => c.state)).toEqual(["cleared", "contentError", "locked", "locked", "locked"]);
     expect(cards[1].diagnostics[0]).toContain("stages[1].baseHp");
     expect(isEnterable(cards[1])).toBe(false);
     expect(isEnterable(cards[0])).toBe(true);
@@ -30,7 +30,7 @@ describe("deriveStageCards (SPEC 10절·UI-CONTRACT 4절)", () => {
     const bad = structuredClone(DEV_PLACEHOLDER) as unknown as { economy: { refundRateBp: number } };
     bad.economy.refundRateBp = 10001;
     const cards = deriveStageCards(validateContent(bad), ids, [ids[0]]);
-    expect(cards.map((c) => c.state)).toEqual(["contentError", "contentError", "contentError"]);
+    expect(cards.map((c) => c.state)).toEqual(["contentError", "contentError", "contentError", "contentError", "contentError"]);
   });
   it("stageId 를 알 수 없는 자리(null)는 클리어로 보이지 않는다", () => {
     expect(deriveStageCards(ok, [null, ids[1], ids[2]], []).map((c) => c.state)).toEqual(["available", "locked", "locked"]);
@@ -182,13 +182,13 @@ describe("LocalStorageProgressStore (UI-CONTRACT 10절)", () => {
     expect(s.getCleared()).toEqual([ids[0], "future-stage"].sort());
     s.markCleared(ids[1]);
     expect(f.data.get(PROGRESS_KEY)).toBe(saved([ids[0], ids[1], "future-stage"].sort()));
-    expect(deriveStageCards(ok, ids, s.getCleared()).map((c) => c.state)).toEqual(["cleared", "cleared", "available"]);
+    expect(deriveStageCards(ok, ids, s.getCleared()).map((c) => c.state)).toEqual(["cleared", "cleared", "available", "locked", "locked"]);
   });
   it("해금 파생 연결: 로드한 기록으로 카드 상태가 정해진다", () => {
     const f = fakeBackend({ [PROGRESS_KEY]: saved([ids[0]]) });
     const s = new LocalStorageProgressStore(f.backend);
     s.load();
-    expect(deriveStageCards(ok, ids, s.getCleared()).map((c) => c.state)).toEqual(["cleared", "available", "locked"]);
+    expect(deriveStageCards(ok, ids, s.getCleared()).map((c) => c.state)).toEqual(["cleared", "available", "locked", "locked", "locked"]);
   });
 });
 
@@ -283,5 +283,20 @@ describe("browserStorageBackend (SSR 안전)", () => {
   it("window 가 없는 환경(서버·빌드)에서는 null — 접근 예외 없이", () => {
     expect(typeof window).toBe("undefined");
     expect(browserStorageBackend()).toBeNull();
+  });
+});
+
+describe("5 스테이지 호환 (STAGE-45)", () => {
+  it("예전 저장 {cleared:[S1..S3]} 는 그대로 읽히고 Stage 4 가 열린다", () => {
+    const m = new Map<string, string>([[PROGRESS_KEY, JSON.stringify({ version: 1, cleared: [ids[0], ids[1], ids[2]] })]]);
+    const backend: StorageBackend = { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => void m.set(k, v), removeItem: (k) => void m.delete(k) };
+    const store = new LocalStorageProgressStore(backend);
+    store.load();
+    expect(store.getCleared()).toEqual([ids[0], ids[1], ids[2]]);
+    expect(deriveStageCards(ok, ids, store.getCleared()).map((c) => c.state)).toEqual(["cleared", "cleared", "cleared", "available", "locked"]);
+  });
+  it("Stage 4 클리어 → Stage 5 해금, 5 개 모두 클리어 가능", () => {
+    expect(deriveStageCards(ok, ids, ids.slice(0, 4)).map((c) => c.state)).toEqual(["cleared", "cleared", "cleared", "cleared", "available"]);
+    expect(deriveStageCards(ok, ids, ids).map((c) => c.state)).toEqual(["cleared", "cleared", "cleared", "cleared", "cleared"]);
   });
 });

@@ -1,4 +1,5 @@
-// 게임 콘텐츠 수치 bal-01-v1 — **사용자 승인 2026-11-26**(BAL-01, docs/BALANCE.md). 검증 봇(src/game/balance) 통과 기준 BALX-01~10 + 사용자 실기기 플레이.
+// 게임 콘텐츠 수치 bal-02-v1. Stage 1~3·타워·적·특성·경제 값은 bal-01-v1 **사용자 승인 2026-11-26**(BAL-01) 그대로, Stage 4·5(STAGE-45, 2026-11-27)는 **후보(사용자 승인 전)**.
+// 검증 봇(src/game/balance) 통과 기준 BALX-01~11 + 사용자 실기기 플레이(docs/BALANCE.md 8.1).
 // 값을 바꾸면 contentVersion 을 올리고 BALANCE.md 9절에 기록, 사용자 재승인을 받는다.
 // 맵(STAGE_MAPS)은 승인된 MAP-01 그대로. 조정 이력은 docs/balance/ 보고서 끝.
 import type { ContentBundle, WaveDef, WaveRole } from "../core/content/types";
@@ -37,12 +38,29 @@ const STAGE3_WAVES: WaveDef[] = [
   wave(4, 8000, 170, [s(0, 950, 20, "heavy", "hpBoost"), s(500, 250, 55, "swarm", "controlResistance"), s(5000, 400, 27, "fast", "speedBoost")]),
 ];
 
-const WAVES = [STAGE1_WAVES, STAGE2_WAVES, STAGE3_WAVES];
-const BASE_HP = [24, 40, 30];
-const INITIAL_GOLD = [300, 350, 400];
+// Stage 4(설원 테마, 고속형·속도 강화 특화): 빠른 적 러시. 길이 위에서 들어와 빗살로 꺾인다(36칸).
+const STAGE4_WAVES: WaveDef[] = [
+  wave(0, 15000, 70, [s(0, 2600, 11, "fast")]),
+  wave(1, 8000, 80, [s(0, 1000, 18, "fast", "speedBoost"), s(6000, 250, 20, "swarm")]),
+  wave(2, 8000, 95, [s(0, 800, 20, "fast", "speedBoost"), s(2000, 1800, 8, "heavy", "hpBoost")]),
+  wave(3, 8000, 110, [s(0, 500, 30, "fast"), s(1000, 1500, 8, "heavy"), s(5000, 900, 14, "normal", "controlResistance")]),
+  wave(4, 8000, 190, [s(0, 400, 40, "fast", "speedBoost"), s(1000, 200, 40, "swarm"), s(4000, 1200, 14, "heavy", "hpBoost")]),
+];
+// Stage 5(폐허 테마, 중장형·체력 강화·제어 저항 특화): 단단한 적 물량. 바깥을 도는 나선(54칸), 기지가 안쪽.
+const STAGE5_WAVES: WaveDef[] = [
+  wave(0, 8000, 75, [s(0, 1200, 8, "normal")]),
+  wave(1, 8000, 85, [s(0, 2000, 3, "heavy"), s(2000, 500, 24, "fast", "speedBoost"), s(3000, 700, 14, "normal"), s(6000, 150, 30, "swarm")]),
+  wave(2, 8000, 100, [s(0, 2000, 6, "heavy", "controlResistance"), s(1000, 800, 20, "normal"), s(7000, 150, 80, "swarm")]),
+  wave(3, 8000, 115, [s(0, 1500, 7, "heavy", "hpBoost"), s(1000, 600, 64, "fast", "speedBoost"), s(1000, 600, 40, "normal", "controlResistance")]),
+  wave(4, 8000, 200, [s(0, 2000, 5, "heavy", "hpBoost"), s(500, 2000, 5, "heavy", "controlResistance"), s(3000, 250, 140, "swarm"), s(7000, 700, 44, "fast", "speedBoost")]),
+];
+
+const WAVES = [STAGE1_WAVES, STAGE2_WAVES, STAGE3_WAVES, STAGE4_WAVES, STAGE5_WAVES];
+const BASE_HP = [24, 40, 30, 24, 18];
+const INITIAL_GOLD = [300, 350, 400, 420, 440];
 
 export const GAME_CONTENT: ContentBundle = {
-  contentVersion: "bal-01-v1",
+  contentVersion: "bal-02-v1",
   towers: [
     {
       type: "archer",

@@ -38,7 +38,7 @@ describe("초기·화면 흐름", () => {
     const { session } = make();
     const st = session.getState();
     expect(st.screen).toBe("stageSelect");
-    expect(st.cards.map((c) => c.state)).toEqual(["available", "locked", "locked"]);
+    expect(st.cards.map((c) => c.state)).toEqual(["available", "locked", "locked", "locked", "locked"]);
     expect(st.battle).toBeNull();
     expect(session.getState()).toBe(st); // 변경이 없으면 같은 객체(useSyncExternalStore)
   });
@@ -67,7 +67,7 @@ describe("초기·화면 흐름", () => {
     const b = clone();
     b.stages[0].baseHp = 0;
     const { session } = make(b);
-    expect(session.getState().cards.map((c) => c.state)).toEqual(["contentError", "locked", "locked"]);
+    expect(session.getState().cards.map((c) => c.state)).toEqual(["contentError", "locked", "locked", "locked", "locked"]);
     expect(session.startStage(0)).toBe(false);
   });
 });
@@ -440,7 +440,7 @@ describe("결과·재도전·진행 상태", () => {
     expect(b.hud.phase).toBe("victory");
     expect(b.result).toMatchObject({ outcome: "victory", reachedWave: 5, waveTotal: 5, baseHp: 70, maxBaseHp: 100, hasNext: true, nextEnabled: true });
     expect(store.getCleared()).toEqual([DEV_PLACEHOLDER.stages[0].stageId]);
-    expect(s.getState().cards.map((c) => c.state)).toEqual(["cleared", "available", "locked"]);
+    expect(s.getState().cards.map((c) => c.state)).toEqual(["cleared", "available", "locked", "locked", "locked"]);
   });
   it("재도전: 같은 스테이지·새 attemptId·새 상태(골드·타워 초기화), 클리어 플래그 유지", () => {
     const { session: s, store } = make(sprint(100));
@@ -470,10 +470,10 @@ describe("결과·재도전·진행 상태", () => {
     expect(battle(s)).toMatchObject({ stageIndex: 1, attemptId: 3 });
     expect(battle(s).hud.stageName).toBe("눈 내리는 협곡");
   });
-  it("Stage 3 결과에는 다음 스테이지가 없다(hasNext false)", () => {
+  it("마지막 Stage 5 결과에는 다음 스테이지가 없다(hasNext false)", () => {
     const { session: s, store } = make(sprint(100));
-    for (const st of DEV_PLACEHOLDER.stages.slice(0, 2)) store.markCleared(st.stageId);
-    s.startStage(2);
+    for (const st of DEV_PLACEHOLDER.stages.slice(0, 4)) store.markCleared(st.stageId);
+    s.startStage(4);
     s.startWave();
     run(s, 200);
     expect(battle(s).result).toMatchObject({ outcome: "victory", hasNext: false, nextEnabled: false });
@@ -868,7 +868,7 @@ describe("SAVE-01: 클리어 기록 저장 연동 (UI-CONTRACT 10절)", () => {
     expect(m.data.get(PROGRESS_KEY)).toBe(JSON.stringify({ version: 1, cleared: [DEV_PLACEHOLDER.stages[0].stageId] }));
     const s2 = new GameSession({ bundle: sprint(100), store: new LocalStorageProgressStore(m.backend) });
     expect(s2.getState().notice).toBeNull();
-    expect(s2.getState().cards.map((c) => c.state)).toEqual(["cleared", "available", "locked"]);
+    expect(s2.getState().cards.map((c) => c.state)).toEqual(["cleared", "available", "locked", "locked", "locked"]);
   });
   it("승리 → 저장 실패: 메모리 해금은 즉시 유지, 결과 save=failed, 복구 후 retrySave → saved", () => {
     const m = mem();
@@ -876,7 +876,7 @@ describe("SAVE-01: 클리어 기록 저장 연동 (UI-CONTRACT 10절)", () => {
     const s = new GameSession({ bundle: sprint(100), store: new LocalStorageProgressStore(m.backend) });
     win(s);
     expect(battle(s).result).toMatchObject({ outcome: "victory", save: "failed", nextEnabled: true });
-    expect(s.getState().cards.map((c) => c.state)).toEqual(["cleared", "available", "locked"]);
+    expect(s.getState().cards.map((c) => c.state)).toEqual(["cleared", "available", "locked", "locked", "locked"]);
     expect(m.data.has(PROGRESS_KEY)).toBe(false);
     s.retrySave();
     expect(battle(s).result?.save).toBe("failed");
@@ -903,7 +903,7 @@ describe("SAVE-01: 클리어 기록 저장 연동 (UI-CONTRACT 10절)", () => {
     const bad = mem({ [PROGRESS_KEY]: "{broken" });
     const a = new GameSession({ bundle: sprint(100), store: new LocalStorageProgressStore(bad.backend) });
     expect(a.getState().notice).toBe("unreadable");
-    expect(a.getState().cards.map((c) => c.state)).toEqual(["available", "locked", "locked"]);
+    expect(a.getState().cards.map((c) => c.state)).toEqual(["available", "locked", "locked", "locked", "locked"]);
     const gone = mem();
     gone.flags.failGet = true;
     const b = new GameSession({ bundle: sprint(100), store: new LocalStorageProgressStore(gone.backend) });
