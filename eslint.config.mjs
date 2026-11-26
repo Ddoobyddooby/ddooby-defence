@@ -29,7 +29,7 @@ const eslintConfig = defineConfig([
   // PLAN 2절: 순수 TypeScript 게임 코어는 Next.js/React/Phaser에 의존하지 않는다.
   // UI-CONTRACT 1절: 세션(순수 TS)도 같은 framework-free 경계. 결정성 금지 규칙은 코어·콘텐츠에만 적용(세션 시간은 외부 주입).
   {
-    files: ["src/game/core/**", "src/game/content/**", "src/game/session/**"],
+    files: ["src/game/core/**", "src/game/content/**", "src/game/session/**", "src/game/balance/**"],
     rules: {
       "no-restricted-imports": [
         "error",

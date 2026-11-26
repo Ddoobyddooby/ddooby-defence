@@ -2,7 +2,6 @@
 
 import type { GameSession } from "../session/session";
 import type { StageCard } from "../session/progress";
-import { DEV_PLACEHOLDER_LABEL } from "../content/devBundle";
 import { STAGE_NAMES, STR } from "./strings.ko";
 
 const STATE_STYLE: Record<StageCard["state"], string> = {
@@ -18,7 +17,7 @@ export function StageSelect({ session, cards, notice }: { session: GameSession; 
       <header className="mb-3 flex flex-wrap items-center gap-2">
         <h1 className="text-xl font-bold">{STR.title}</h1>
         <span className="rounded bg-yellow-500/20 px-2 py-0.5 text-xs font-semibold text-yellow-300" data-testid="placeholder-badge">
-          {DEV_PLACEHOLDER_LABEL}
+          {STR.placeholderBadge}
         </span>
       </header>
       <p className="mb-3 text-sm text-neutral-400">{STR.pickStage}</p>
