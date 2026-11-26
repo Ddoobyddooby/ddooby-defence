@@ -97,11 +97,11 @@
 | REQ-STATE-09 | 동일 코드·콘텐츠·초기 상태·입력 → 틱별 상태·이벤트 동일, 첫 불일치 틱·필드 진단 | SPEC 11절, SIM-CONTRACT 7절 | TECH-02, SIM-03 | `sim/canonical.test.ts`·`sim/hash.test.ts` S01~S09, `sim/replay.test.ts`, `attempt/record.test.ts`(기록 생성기·미적용 명령), `attempt/regression/regression.test.ts`(골든 R1~R3 틱별 해시), `regression/faults.test.ts` F1~F9 | **통과**(`3ea5077`, codex-main 재리뷰 2 통과) |
 | REQ-STATE-10 | 코어 결정성 금지(난수·벽시계·환경 의존 수학), 상태 내 소수 금지 | SIM-CONTRACT 6·7.1절 | TECH-02 | `sim/lint.test.ts` L01~L03, `sim/canonical.test.ts` L04 | **통과**(`1d3c829`). 별칭 우회는 lint 미검출 → 코드 리뷰 게이트 |
 | REQ-STATE-11 | 일시정지 시 게임 시간·VFX 동결, 접수된 명령 보존 후 재개 시 재검증 | SPEC 9절, SIM-CONTRACT 4절 | SIM-01, UI-01 | `attempt/attempt.test.ts`·`attempt/attempt.hooks.test.ts`(pause 큐 보존·재개, step 중 pause 금지) | 부분 통과(`3ff5742`, 코어). VFX 동결·오버레이는 UI-01 |
-| REQ-STATE-12 | 재도전 시 타워·적·골드·둔화·투사체·타이머·정산 초기화, 클리어 플래그 유지 | SPEC 10절 | SIM-01, SAVE-01 | `attempt/attempt.test.ts`(재도전 스냅샷 0 동일·유입 없음) | 부분 통과(`3ff5742`, 코어 초기화). 클리어 플래그 유지는 SAVE-01, 타워·투사체 초기화는 SIM-02·ECON-01에서 재확인 |
-| REQ-STATE-13 | 로컬 클리어 플래그 저장, 해금은 플래그에서 파생, 클라우드 없음 | SPEC 10절 | SAVE-01 | — | 설계됨 |
-| REQ-STATE-14 | 저장 실패 시 오류·재시도, 새로고침 시 미저장 클리어 손실 안내, 세션 해금 유지 | SPEC 10절 | SAVE-01, UI-01 | — | 설계됨 |
-| REQ-STATE-15 | 이미 얻은 클리어는 재플레이 실패에도 유지 | SPEC 10절 | SAVE-01 | — | 설계됨 |
-| REQ-STATE-16 | 해금 규칙: Stage 1만 최초 해금, 직전 스테이지 클리어 시 다음 스테이지 해금, 해금된 스테이지는 재도전 가능 | SPEC 1절 | SAVE-01, UI-01 | — | 설계됨 |
+| REQ-STATE-12 | 재도전 시 타워·적·골드·둔화·투사체·타이머·정산 초기화, 클리어 플래그 유지 | SPEC 10절 | SIM-01, SAVE-01 | `session/progress.test.ts`·`session.test.ts`(재도전·스테이지 전환 후 기록 유지) | **통과**(`9ca0714`, SAVE-01 클리어 플래그 유지 포함) |
+| REQ-STATE-13 | 로컬 클리어 플래그 저장, 해금은 플래그에서 파생, 클라우드 없음 | SPEC 10절 | SAVE-01 | `session/progress.test.ts`(저장·재로드 왕복, 해금 파생), ego-browser 클리어→새로고침 해금 유지 | **통과**(`9ca0714`, codex-main 재리뷰 1). 실기기 앱 재시작 미검증 |
+| REQ-STATE-14 | 저장 실패 시 오류·재시도, 새로고침 시 미저장 클리어 손실 안내, 세션 해금 유지 | SPEC 10절 | SAVE-01, UI-01 | `session/progress.test.ts`(setItem 실패→failed→retrySave, 재읽기 예외, 백업 실패), 결과 오버레이 실패 표시 ego-browser | **통과**(`9ca0714`, codex-main 재리뷰 1) |
+| REQ-STATE-15 | 이미 얻은 클리어는 재플레이 실패에도 유지 | SPEC 10절 | SAVE-01 | `session/progress.test.ts`·`session.test.ts`(패배 재플레이 후 유지, 쓰기 전 합집합) | **통과**(`9ca0714`) |
+| REQ-STATE-16 | 해금 규칙: Stage 1만 최초 해금, 직전 스테이지 클리어 시 다음 스테이지 해금, 해금된 스테이지는 재도전 가능 | SPEC 1절 | SAVE-01, UI-01 | `session/progress.test.ts`(해금 파생), `session.test.ts`(새 세션에서 Stage 2 해금) | **통과**(`9ca0714`) |
 
 ### REQ-UI — HUD·입력·화면 상태 (게이트 UI, QA UI·HUD)
 
@@ -116,7 +116,7 @@
 | REQ-UI-07 | 준비 → 전투 시 허용 선택 상태 유지, 판매 확인창 취소, 결과 단계 입력 차단 | SPEC 9절 | UI-01 | `session/session.test.ts`(준비→전투 판매 확인 자동 취소·결과 단계 차단) | **통과**(`5c4ecfc`) |
 | REQ-UI-08 | 승패 화면: Stage·도달 Wave·남은 HP·재시도·스테이지 선택·다음 스테이지(Stage 3 제외) | SPEC 9절 | UI-01 | `session/session.test.ts`·`session/progress.test.ts`(결과·재도전 새 attemptId·다음 스테이지·Stage 3 없음), 브라우저 ego-browser(1280×720·800×360 스크린샷) | **통과**(`5c4ecfc`) |
 | REQ-UI-09 | 스테이지 카드: 잠김·선택 가능·클리어·콘텐츠 오류 구분 | SPEC 9·10절 | UI-01, SAVE-01 | `session/progress.test.ts`(잠김·선택 가능·클리어·콘텐츠 오류 파생, 진입 재검증 실패 시 시작 안 함) | 부분 통과(`5c4ecfc`, 세션 메모리 클리어). 영구 저장은 SAVE-01, 오류 카드 브라우저 미확인 |
-| REQ-UI-10 | 저장 상태 대기·성공·실패·재시도 안내 | SPEC 9절 | SAVE-01, UI-01 | — | 설계됨 |
+| REQ-UI-10 | 저장 상태 대기·성공·실패·재시도 안내 | SPEC 9절 | SAVE-01, UI-01 | 결과 오버레이 `기록 저장됨`/`기록 저장 실패`+`다시 저장`, 스테이지 선택 안내(ego-browser 640×320·1280×720) | **통과**(`9ca0714`). localStorage 동기라 `대기`는 상태 값만 |
 | REQ-UI-11 | 실제 치수·최소 해상도·색상·폰트, 선택 시안 반영 | SPEC 9절, TBD-UI·TBD-ART | UI-01 | `docs/UI-CONTRACT.md` 3절(사용자 결정 2026-11-25: 모바일 가로 최소 640×320·한국어·단순 도형) | 부분 통과(`5c4ecfc`, 치수·언어 확정). 색상·폰트·스프라이트·DPR 해상도는 후속 아트 |
 
 ### REQ-BALANCE — 수치 승인·통합 시뮬 (게이트 전체, QA BALX·BAPR)
@@ -153,7 +153,7 @@
 | ECON-01 | ECON-01~11, MAP-03, STATE-03·05, WAVE-06 | 완료 |
 | SIM-03 | STATE-09, QA-06 | 완료(`3ea5077`, codex 재리뷰 2 통과) |
 | UI-01 | UI-01~11, MAP-04·05, ECON-07, STATE-06·11·14·16, WAVE-07 | 완료(`5c4ecfc`, claude-2 재리뷰 1 통과). 후속: SAVE-01 영구 저장, 실기기·DPR·아트 |
-| SAVE-01 | STATE-12~16, UI-09·10 | 미착수 |
+| SAVE-01 | STATE-12~16, UI-09·10 | 완료(`9ca0714`, codex-main 재리뷰 1 통과). 후속: 실기기 재시작 확인 |
 | BAL-01 | BALANCE-01·02, TOWER-01·02·05, WAVE-02, ENEMY-08 | 미착수 |
 | DOC-01 | QA-01 | 완료 |
 | DOC-02 | QA-02 | 완료(골격) |

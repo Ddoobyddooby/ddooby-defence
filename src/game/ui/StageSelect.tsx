@@ -12,7 +12,7 @@ const STATE_STYLE: Record<StageCard["state"], string> = {
   contentError: "border-red-500 bg-red-950/40 text-red-200",
 };
 
-export function StageSelect({ session, cards }: { session: GameSession; cards: readonly StageCard[] }) {
+export function StageSelect({ session, cards, notice }: { session: GameSession; cards: readonly StageCard[]; notice: "unreadable" | "unavailable" | null }) {
   return (
     <main className="flex h-dvh w-full flex-col overflow-auto bg-neutral-950 p-4 text-neutral-100">
       <header className="mb-3 flex flex-wrap items-center gap-2">
@@ -53,7 +53,13 @@ export function StageSelect({ session, cards }: { session: GameSession; cards: r
           );
         })}
       </div>
-      <p className="mt-3 text-xs text-neutral-500">{STR.progressNote}</p>
+      {notice === null ? (
+        <p className="mt-3 text-xs text-neutral-500">{STR.progressNote}</p>
+      ) : (
+        <p className="mt-3 rounded border border-amber-500/60 bg-amber-950/40 px-2 py-1 text-xs text-amber-200" role="status" data-testid="progress-notice" data-notice={notice}>
+          {STR.progressNotice[notice]}
+        </p>
+      )}
     </main>
   );
 }

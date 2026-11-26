@@ -4,7 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { DEV_PLACEHOLDER } from "../content/devBundle";
 import { BattleCanvas } from "../phaser/BattleCanvas";
 import { computeLayout, type Layout } from "../session/layout";
-import { MemoryProgressStore } from "../session/progress";
+import { browserStorageBackend, LocalStorageProgressStore } from "../session/progress";
 import { GameSession } from "../session/session";
 import { Hud } from "./Hud";
 import { OrientationNotice } from "./Orientation";
@@ -43,7 +43,7 @@ function useViewport(): { w: number; h: number } | null {
 
 export function GameApp() {
   // 세션은 이 컴포넌트가 만든 단일 인스턴스. HUD 는 세션 스냅샷의 구독 결과만 그린다(단일 진실 원천).
-  const [session] = useState(() => new GameSession({ bundle: DEV_PLACEHOLDER, store: new MemoryProgressStore() }));
+  const [session] = useState(() => new GameSession({ bundle: DEV_PLACEHOLDER, store: new LocalStorageProgressStore(browserStorageBackend()) }));
   const state = useSyncExternalStore(session.subscribe, session.getState, session.getState);
   const viewport = useViewport();
   useBackButton(session);
@@ -74,7 +74,7 @@ export function GameApp() {
   if (viewport === null) return <div className="h-dvh w-full bg-neutral-950" />;
   const layout: Layout = computeLayout(viewport.w, viewport.h);
   if (!layout.supported) return <OrientationNotice problem={layout.problem!} />;
-  if (state.screen === "stageSelect" || state.battle === null) return <StageSelect session={session} cards={state.cards} />;
+  if (state.screen === "stageSelect" || state.battle === null) return <StageSelect session={session} cards={state.cards} notice={state.notice} />;
 
   const battle = state.battle;
   const detail = battle.hud.detail;
