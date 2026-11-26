@@ -77,4 +77,24 @@ describe("groundVariant", () => {
       }
     expect(seen.size).toBe(3);
   });
+  it("주기 무늬가 없다: 대각선 이웃·가로 이웃이 항상 같거나 항상 다르지 않고 변형 비율이 고르다", () => {
+    let diagSame = 0;
+    let diagTotal = 0;
+    const count = [0, 0, 0];
+    for (let r = 1; r < 10; r++)
+      for (let col = 0; col < 17; col++) {
+        diagTotal += 1;
+        if (groundVariant(col, r) === groundVariant(col + 1, r - 1)) diagSame += 1;
+      }
+    for (let r = 0; r < 10; r++) for (let col = 0; col < 18; col++) count[groundVariant(col, r) - 1] += 1;
+    expect(diagSame).toBeGreaterThan(0);
+    expect(diagSame).toBeLessThan(diagTotal);
+    for (const n of count) expect(n).toBeGreaterThan(30);
+    // 한 행이 123123… 처럼 3 주기로 반복하지 않는다
+    for (let r = 0; r < 10; r++) {
+      let periodic = true;
+      for (let col = 3; col < 18; col++) if (groundVariant(col, r) !== groundVariant(col - 3, r)) periodic = false;
+      expect(periodic).toBe(false);
+    }
+  });
 });

@@ -15,6 +15,7 @@ import {
 } from "./draw";
 import { paletteOf, UI_COLORS } from "./palette";
 import { ASSET_NAMES, assetUrl, enemyKey, gateKey, groundKey, pathKey, PROJECTILE_SPRITE, spawnKey, towerKey, TRAIT_SPRITE } from "./assets";
+import { animationDelta } from "./animClock";
 import { backingSize, clientToArea, renderScale } from "./dpr";
 import { computePathTiles, groundVariant } from "./pathTiles";
 import { ImagePool } from "./sprites";
@@ -216,7 +217,7 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
       this.collectVfx(frame);
       // 일시정지·숨김에서는 VFX 도 멈춘다. 결과 단계(게임 상태는 정지)에서는 남은 VFX 가 끝까지 재생돼 링이 화면에 얼어붙지 않는다.
       const result = frame.curr.phase === "victory" || frame.curr.phase === "defeat";
-      const dt = frame.running || (result && !frame.curr.paused) ? delta : 0;
+      const dt = animationDelta(delta, frame.running, result && !frame.curr.paused, session.getSpeed());
       this.animMs += dt;
       this.drawFrame(frame, dt);
       this.endPools();

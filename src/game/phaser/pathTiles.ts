@@ -65,7 +65,10 @@ export function computePathTiles(map: CompiledStageMap): PathTile[] {
   });
 }
 
-/** 바닥 변형 1~3: 칸 좌표로만 정한다(같은 칸은 항상 같은 변형). */
+/** 바닥 변형 1~3: 칸 좌표의 정수 해시로만 정한다(같은 칸은 항상 같은 변형, 주기 무늬 없음, 난수 없음). */
 export function groundVariant(col: number, row: number): 1 | 2 | 3 {
-  return (((col * 7 + row * 13 + col * row * 3) % 3) + 1) as 1 | 2 | 3;
+  let h = (Math.imul(col + 1, 73856093) ^ Math.imul(row + 1, 19349663)) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
+  h = (h ^ (h >>> 13)) >>> 0;
+  return ((h % 3) + 1) as 1 | 2 | 3;
 }
