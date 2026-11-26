@@ -1,7 +1,10 @@
 package com.ddooby.defence;
 
 import android.os.Bundle;
+import android.view.View;
 
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
@@ -15,6 +18,23 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         hideSystemBars();
+        applySymmetricSideInsets();
+    }
+
+    // MOB-03: 카메라 구멍(컷아웃)·시스템 바가 차지하는 좌우 폭 중 큰 값을 양쪽에 같은 여백으로 준다.
+    // 가로 화면에서 카메라 구멍 쪽만 비고 반대쪽 HUD 글자가 둥근 모서리에 잘리던 문제(사용자 피드백 2026-11-26).
+    // 기기를 180° 돌려 구멍이 반대쪽으로 가도 대칭이 유지된다. capacitor.config 의 SystemBars insetsHandling=disable 과 짝.
+    private void applySymmetricSideInsets() {
+        View decor = getWindow().getDecorView();
+        ViewCompat.setOnApplyWindowInsetsListener(decor, (v, insets) -> {
+            Insets i = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            int side = Math.max(i.left, i.right);
+            v.setPadding(side, i.top, side, i.bottom);
+            return new WindowInsetsCompat.Builder(insets)
+                .setInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout(), Insets.of(0, 0, 0, 0))
+                .build();
+        });
+        ViewCompat.requestApplyInsets(decor);
     }
 
     @Override
