@@ -1,6 +1,6 @@
 // BAL-01 — 후보 수치(bal-01-v1)가 BALANCE 4절 통과 기준 BALX-01~10 을 만족하는지 고정한다. 봇 9종×3스테이지 + 역할 16회 + 추적 6회를 한 번만 모아 기준마다 단언한다.
 import { beforeAll, describe, expect, it } from "vitest";
-import { BALANCE_CANDIDATE } from "../content/balanceCandidate";
+import { GAME_CONTENT } from "../content/gameContent";
 import { isStagePlayable, validateContent } from "../core/content/validate";
 import { compileStageMap } from "../core/map";
 import { STAGE_MAPS } from "../content/stageMaps";
@@ -14,21 +14,21 @@ let data: BalanceData;
 let criteria: Criterion[];
 
 beforeAll(() => {
-  data = collectData(BALANCE_CANDIDATE);
-  criteria = evaluateCriteria(BALANCE_CANDIDATE, data);
+  data = collectData(GAME_CONTENT);
+  criteria = evaluateCriteria(GAME_CONTENT, data);
 }, 180000);
 
 describe("후보 번들", () => {
   it("버전·환급률·특성 처치 보상 보너스가 BALANCE 1절 결정을 따른다", () => {
-    expect(BALANCE_CANDIDATE.contentVersion).toBe("bal-01-v1");
-    expect(BALANCE_CANDIDATE.economy.refundRateBp).toBe(7000);
-    expect(BALANCE_CANDIDATE.traits.every((t) => t.killRewardBonus > 0)).toBe(true);
+    expect(GAME_CONTENT.contentVersion).toBe("bal-01-v1");
+    expect(GAME_CONTENT.economy.refundRateBp).toBe(7000);
+    expect(GAME_CONTENT.traits.every((t) => t.killRewardBonus > 0)).toBe(true);
   });
   it("콘텐츠 검증을 통과하고 맵은 승인된 STAGE_MAPS 그대로다", () => {
-    const v = validateContent(BALANCE_CANDIDATE);
+    const v = validateContent(GAME_CONTENT);
     expect(v.globalErrors).toEqual([]);
     [0, 1, 2].forEach((i) => expect(isStagePlayable(v, i)).toBe(true));
-    BALANCE_CANDIDATE.stages.forEach((s, i) => expect(s.map).toEqual(STAGE_MAPS[i]));
+    GAME_CONTENT.stages.forEach((s, i) => expect(s.map).toEqual(STAGE_MAPS[i]));
   });
 });
 
@@ -52,7 +52,7 @@ describe("timeout 은 패배로 세지 않는다(리뷰 F1)", () => {
     for (const id of ids) runs[id] = data.runs.B1.map((r, i) => (i === stage ? { ...data.runs[id as "B1"][i], outcome } : data.runs[id as "B1"][i]));
     return { ...data, runs } as BalanceData;
   };
-  const pass = (d: BalanceData, id: string) => evaluateCriteria(BALANCE_CANDIDATE, d).find((c) => c.id === id)!.pass;
+  const pass = (d: BalanceData, id: string) => evaluateCriteria(GAME_CONTENT, d).find((c) => c.id === id)!.pass;
   it("BALX-05: S3 단일 종류가 timeout 이면 실패, defeat 이면 통과", () => {
     expect(pass(withOutcome(["B3a", "B3b", "B3d"], 2, "timeout"), "BALX-05")).toBe(false);
     expect(pass(withOutcome(["B3a", "B3b", "B3d"], 2, "defeat"), "BALX-05")).toBe(true);
@@ -66,7 +66,7 @@ describe("timeout 은 패배로 세지 않는다(리뷰 F1)", () => {
     expect(pass(withOutcome(["B4"], 0, "timeout"), "BALX-06")).toBe(false);
   });
   it("BALX-09: 서리 제외(B5) S3 가 timeout 이면 '나빠짐' 으로 세지 않는다", () => {
-    const ok = (d: BalanceData) => evaluateCriteria(BALANCE_CANDIDATE, d).find((c) => c.id === "BALX-09")!.detail.includes("× 서리 제외");
+    const ok = (d: BalanceData) => evaluateCriteria(GAME_CONTENT, d).find((c) => c.id === "BALX-09")!.detail.includes("× 서리 제외");
     expect(ok(withOutcome(["B5"], 2, "timeout"))).toBe(true);
     expect(ok(withOutcome(["B5"], 2, "defeat"))).toBe(false);
   });
@@ -88,12 +88,12 @@ describe("자리 점수·봇·보고서", () => {
   });
   it("B0 는 아무 명령도 내지 않는다(웨이브 3 안에 패배)", () => {
     expect(createBot("B0").id).toBe("B0");
-    const r = runBot(BALANCE_CANDIDATE, 0, "B0");
+    const r = runBot(GAME_CONTENT, 0, "B0");
     expect(r.outcome).toBe("defeat");
     expect(r.towerCount).toBe(0);
   });
   it("보고서에 기준 표·튜닝 이력이 들어 있다", () => {
-    const md = buildReport(BALANCE_CANDIDATE, data);
+    const md = buildReport(GAME_CONTENT, data);
     expect(md).toContain("전체: 10/10 통과");
     expect(md).toContain("튜닝 이력");
   });

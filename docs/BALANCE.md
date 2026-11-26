@@ -1,6 +1,6 @@
 # BALANCE — BAL-01 수치 후보·검증 기준 (v0.1)
 
-> 상태: **후보 설계·검증 기준(확정 아님).** 실제 수치는 이 문서의 기준으로 자동 검증한 뒤 **사용자 명시적 최종 승인**을 받아야 확정된다(SPEC 12절 TBD-TOWER·ENEMY·ECON·WAVE·PROJECTILE). 승인 전 화면 배지는 `후보 수치`.
+> 상태: **bal-01-v1 사용자 승인(2026-11-26) — 게임 수치 확정.** 수치는 `src/game/content/gameContent.ts`(`GAME_CONTENT`). 이후 값을 바꾸면 `contentVersion`을 올리고 9절에 기록, 이 문서 기준으로 자동 검증 후 사용자 재승인(SPEC 12절).
 > 담당: claude-main 기준·후보 설계, claude-1 검증 도구·후보 조정, codex-main 독립 QA, 사용자 승인.
 
 ## 1. 사용자 결정 (2026-11-26)
@@ -102,7 +102,7 @@
 
 ## 7. 산출물
 
-1. 후보 번들 `src/game/content/balanceCandidate.ts`(`contentVersion: "bal-01-v1"`, 머리 주석 "후보 수치, 사용자 승인 전"). 게임 화면은 이 번들을 쓰고 배지는 `후보 수치`.
+1. 수치 번들 `src/game/content/gameContent.ts`(`GAME_CONTENT`, `contentVersion: "bal-01-v1"`). 승인 전 이름은 `balanceCandidate.ts`·배지 `후보 수치`였고, 승인 후 배지 제거.
 2. 검증 도구(봇·실행기·보고서) + `npm run balance`. 보고서는 표 형식 Markdown(봇×스테이지 결과·남은 HP·시간·웨이브별 누수·골드 흐름·타워별 피해 비중).
 3. 통과 기준 테스트: 4절 기준을 vitest로 고정(후보 번들 기준). 기준 미달이면 테스트 실패.
 4. 조정 기록: 후보 버전마다 바꾼 값·이유·결과를 9절 표에 추가.
@@ -115,4 +115,4 @@
 
 | 버전 | 날짜 | 변경 요지 | 자동 기준 | 사용자 |
 |---|---|---|---|---|
-| bal-01-v1 | 2026-11-26 | DEV_PLACEHOLDER에서 출발. 초기 골드 300/350/400, 기지 HP 24/40/30, 환급 70%, 특성 처치 보상 +3, 일반 HP 90·고속 HP 60·중장 320·군집 30, 서리 감속 8000bp/3500~4500ms, 발리스타 투사체 7000mt/s, S3 후반 웨이브 증량. 상세·튜닝 이력은 `docs/balance/bal-01-v1-report.md` | BALX-01~10 자동 10/10 통과(`npm run balance`) | 미검토 |
+| bal-01-v1 | 2026-11-26 | DEV_PLACEHOLDER에서 출발. 초기 골드 300/350/400, 기지 HP 24/40/30, 환급 70%, 특성 처치 보상 +3, 일반 HP 90·고속 HP 60·중장 320·군집 30, 서리 감속 8000bp/3500~4500ms, 발리스타 투사체 7000mt/s, S3 후반 웨이브 증량. 상세·튜닝 이력은 `docs/balance/bal-01-v1-report.md` | BALX-01~10 자동 10/10 통과(`npm run balance`) | **승인**(2026-11-26, 실기기 설치 후. S3 준비 8초 수용) |

@@ -50,9 +50,6 @@ export function MenuOverlay({ session, hud }: { session: GameSession; hud: HudVi
               <span className="font-semibold" data-testid="menu-stage">
                 {m.stageName}
               </span>
-              <span className="rounded bg-yellow-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-yellow-300" data-testid="placeholder-badge">
-                {STR.placeholderBadge}
-              </span>
             </div>
             <dl className="mt-2 grid grid-cols-2 gap-x-2 gap-y-0.5 text-sm text-neutral-300" data-testid="menu-info">
               <dt>{STR.hud.phase}</dt>

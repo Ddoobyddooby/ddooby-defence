@@ -20,7 +20,6 @@ export const rejectText = (reason: string): string => REJECT_TEXT[reason] ?? `�
 
 export const STR = {
   title: "Ddooby Defence",
-  placeholderBadge: "후보 수치",
   stageSelect: "스테이지 선택",
   pickStage: "플레이할 스테이지를 고르세요",
   card: { locked: "잠김", available: "선택 가능", cleared: "클리어", contentError: "콘텐츠 오류" },

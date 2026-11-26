@@ -16,9 +16,6 @@ export function StageSelect({ session, cards, notice }: { session: GameSession; 
     <main className="flex h-dvh w-full flex-col overflow-auto bg-neutral-950 p-4 text-neutral-100">
       <header className="mb-3 flex flex-wrap items-center gap-2">
         <h1 className="text-xl font-bold">{STR.title}</h1>
-        <span className="rounded bg-yellow-500/20 px-2 py-0.5 text-xs font-semibold text-yellow-300" data-testid="placeholder-badge">
-          {STR.placeholderBadge}
-        </span>
       </header>
       <p className="mb-3 text-sm text-neutral-400">{STR.pickStage}</p>
       <div className="grid flex-1 grid-cols-3 content-start gap-3" data-testid="stage-cards">

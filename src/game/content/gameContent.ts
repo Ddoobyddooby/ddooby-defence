@@ -1,4 +1,5 @@
-// 후보 수치, 사용자 승인 전. BAL-01 후보 bal-01-v1(docs/BALANCE.md). 밸런스 승인값이 아니며 검증 봇(src/game/balance)의 통과 기준 BALX-01~10 으로만 맞췄다.
+// 게임 콘텐츠 수치 bal-01-v1 — **사용자 승인 2026-11-26**(BAL-01, docs/BALANCE.md). 검증 봇(src/game/balance) 통과 기준 BALX-01~10 + 사용자 실기기 플레이.
+// 값을 바꾸면 contentVersion 을 올리고 BALANCE.md 9절에 기록, 사용자 재승인을 받는다.
 // 맵(STAGE_MAPS)은 승인된 MAP-01 그대로. 조정 이력은 docs/balance/ 보고서 끝.
 import type { ContentBundle, WaveDef, WaveRole } from "../core/content/types";
 import { STAGE_MAPS } from "./stageMaps";
@@ -40,7 +41,7 @@ const WAVES = [STAGE1_WAVES, STAGE2_WAVES, STAGE3_WAVES];
 const BASE_HP = [24, 40, 30];
 const INITIAL_GOLD = [300, 350, 400];
 
-export const BALANCE_CANDIDATE: ContentBundle = {
+export const GAME_CONTENT: ContentBundle = {
   contentVersion: "bal-01-v1",
   towers: [
     {
