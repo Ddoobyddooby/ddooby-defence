@@ -27,6 +27,8 @@ export interface StorageBackend {
 
 export const PROGRESS_KEY = "ddooby-defence.progress";
 export const PROGRESS_CORRUPT_KEY = "ddooby-defence.progress.corrupt";
+/** 읽을 수 없는 원문 백업 슬롯(먼저 보존한 것을 지키며 다른 원문은 다음 빈 칸). */
+const BACKUP_KEYS = [PROGRESS_CORRUPT_KEY, ...[2, 3, 4, 5].map((n) => `${PROGRESS_CORRUPT_KEY}.${n}`)];
 const PROGRESS_VERSION = 1;
 
 /** 테스트·대체용 메모리 저장소(항상 저장 성공). */
@@ -104,13 +106,23 @@ export class LocalStorageProgressStore implements ProgressStore {
     return "ok";
   }
 
-  /** 읽지 못한 원문은 덮어쓰기 전에 corrupt 키로 복사해 둔다(이미 다른 원문이 보존돼 있으면 그것을 지키고 건드리지 않는다). 본 키는 첫 저장 성공 때 새 기록으로 바뀐다. */
+  /** 읽지 못한 원문 보존(load 용): 실패해도 던지지 않는다. 쓰기 전에는 `ensureBackup` 이 다시 확인한다. */
   private preserveCorrupt(backend: StorageBackend, raw: string): void {
     try {
-      if (backend.getItem(PROGRESS_CORRUPT_KEY) === null) backend.setItem(PROGRESS_CORRUPT_KEY, raw);
+      this.ensureBackup(backend, raw);
     } catch {
-      // 보존 실패는 읽기 결과에 영향을 주지 않는다(빈 기록으로 계속).
+      // 보존 실패는 읽기 결과에 영향을 주지 않는다(빈 기록으로 계속). 본 키는 보존이 확인되기 전에는 덮어쓰지 않는다(write).
     }
+  }
+
+  /** 원문이 백업 슬롯 중 하나에 똑같이 있도록 보장한다. 같은 원문이 있으면 그대로, 없으면 빈 첫 슬롯에 쓰고 다시 읽어 확인. 빈 슬롯이 없거나 실패하면 던진다. */
+  private ensureBackup(backend: StorageBackend, raw: string): void {
+    const values = BACKUP_KEYS.map((k) => backend.getItem(k));
+    if (values.includes(raw)) return;
+    const i = values.indexOf(null);
+    if (i === -1) throw new Error("no free backup slot");
+    backend.setItem(BACKUP_KEYS[i], raw);
+    if (backend.getItem(BACKUP_KEYS[i]) !== raw) throw new Error("backup not verified");
   }
 
   getCleared(): readonly string[] {
@@ -132,11 +144,22 @@ export class LocalStorageProgressStore implements ProgressStore {
     return this.saveStatus;
   }
 
+  /**
+   * 본 키 쓰기. 매번 먼저 본 키를 다시 읽는다(UI-CONTRACT 10절, 리뷰 F1·F2):
+   * 정상 기록이면 메모리에 합친 합집합을 쓰고, 읽을 수 없는 원문이면 백업 보존을 확인한 뒤에만 덮어쓴다. 재읽기·백업이 실패하면 쓰지 않고 failed.
+   */
   private write(): SaveStatus {
     this.saveStatus = "pending";
     try {
-      if (this.backend === null) throw new Error("storage unavailable");
-      this.backend.setItem(PROGRESS_KEY, JSON.stringify({ version: PROGRESS_VERSION, cleared: this.getCleared() }));
+      const backend = this.backend;
+      if (backend === null) throw new Error("storage unavailable");
+      const raw = backend.getItem(PROGRESS_KEY);
+      if (raw !== null) {
+        const parsed = parseProgress(raw);
+        if (parsed.ok) for (const id of parsed.cleared) this.cleared.add(id);
+        else this.ensureBackup(backend, raw);
+      }
+      backend.setItem(PROGRESS_KEY, JSON.stringify({ version: PROGRESS_VERSION, cleared: this.getCleared() }));
       this.saveStatus = "saved";
     } catch {
       this.saveStatus = "failed";

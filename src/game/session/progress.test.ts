@@ -50,14 +50,18 @@ describe("MemoryProgressStore", () => {
 /** 가짜 저장 백엔드: 맵 + 실패 스위치. */
 function fakeBackend(initial: Record<string, string> = {}) {
   const data = new Map(Object.entries(initial));
-  const flags = { failGet: false, failSet: false };
+  const flags = { failGet: false, failSet: false, failGetNext: 0, failSetKeys: new Set<string>() };
   const backend: StorageBackend = {
     getItem: (k) => {
       if (flags.failGet) throw new Error("denied");
+      if (flags.failGetNext > 0) {
+        flags.failGetNext -= 1;
+        throw new Error("transient");
+      }
       return data.get(k) ?? null;
     },
     setItem: (k, v) => {
-      if (flags.failSet) throw new Error("QuotaExceededError");
+      if (flags.failSet || flags.failSetKeys.has(k)) throw new Error("QuotaExceededError");
       data.set(k, v);
     },
     removeItem: (k) => void data.delete(k),
@@ -152,10 +156,11 @@ describe("LocalStorageProgressStore (UI-CONTRACT 10절)", () => {
     expect(new LocalStorageProgressStore(f.backend).load()).toBe("unreadable");
     expect(f.data.get(PROGRESS_CORRUPT_KEY)).toBe(raw);
   });
-  it("이미 보존된 corrupt 원문은 새 읽기 실패로 덮어쓰지 않는다(먼저 보존한 것을 지킴)", () => {
+  it("이미 보존된 corrupt 원문은 덮어쓰지 않고(먼저 보존한 것을 지킴) 다른 새 원문은 .corrupt.2 에 보존", () => {
     const f = fakeBackend({ [PROGRESS_KEY]: "{second", [PROGRESS_CORRUPT_KEY]: "{first" });
     new LocalStorageProgressStore(f.backend).load();
     expect(f.data.get(PROGRESS_CORRUPT_KEY)).toBe("{first");
+    expect(f.data.get("ddooby-defence.progress.corrupt.2")).toBe("{second");
   });
   it("읽기 실패 뒤 첫 클리어 저장이 본 키를 새 기록으로 바꾸고 corrupt 원문은 남는다", () => {
     const f = fakeBackend({ [PROGRESS_KEY]: "{broken" });
@@ -184,6 +189,93 @@ describe("LocalStorageProgressStore (UI-CONTRACT 10절)", () => {
     const s = new LocalStorageProgressStore(f.backend);
     s.load();
     expect(deriveStageCards(ok, ids, s.getCleared()).map((c) => c.state)).toEqual(["cleared", "available", "locked"]);
+  });
+});
+
+describe("쓰기 전 재확인·병합·백업 슬롯 (리뷰 SAVE-01 F1·F2)", () => {
+  const C = "ddooby-defence.progress.corrupt";
+  it("F1: 첫 getItem 일시 예외(unavailable)로 시작해도, 복구 후 저장은 본 키의 기존 클리어(stage-1)와 합쳐 쓰고 메모리 해금도 갱신", () => {
+    const f = fakeBackend({ [PROGRESS_KEY]: '{"version":1,"cleared":["stage-1"]}' });
+    f.flags.failGetNext = 1;
+    const s = new LocalStorageProgressStore(f.backend);
+    expect(s.load()).toBe("unavailable");
+    expect(s.getCleared()).toEqual([]);
+    expect(s.markCleared("stage-2")).toBe("saved");
+    expect(f.data.get(PROGRESS_KEY)).toBe('{"version":1,"cleared":["stage-1","stage-2"]}');
+    expect(s.getCleared()).toEqual(["stage-1", "stage-2"]);
+  });
+  it("다시 읽기가 예외면 쓰지 않고 failed, 본 키 불변, 메모리 클리어 유지 → 복구 후 retrySave 성공(기존 클리어 보존)", () => {
+    const f = fakeBackend({ [PROGRESS_KEY]: '{"version":1,"cleared":["stage-1"]}' });
+    const s = new LocalStorageProgressStore(f.backend);
+    s.load();
+    f.flags.failGet = true;
+    expect(s.markCleared("stage-2")).toBe("failed");
+    expect(f.data.get(PROGRESS_KEY)).toBe('{"version":1,"cleared":["stage-1"]}');
+    expect(s.getCleared()).toEqual(["stage-1", "stage-2"]);
+    f.flags.failGet = false;
+    expect(s.retrySave()).toBe("saved");
+    expect(f.data.get(PROGRESS_KEY)).toBe('{"version":1,"cleared":["stage-1","stage-2"]}');
+  });
+  it("다른 탭/세션이 쓴 클리어와 합집합으로 저장, 합친 목록이 메모리에도 반영", () => {
+    const f = fakeBackend();
+    const s = new LocalStorageProgressStore(f.backend);
+    s.load();
+    f.data.set(PROGRESS_KEY, '{"version":1,"cleared":["stage-9","stage-1"]}'); // 다른 탭이 기록
+    expect(s.markCleared("stage-2")).toBe("saved");
+    expect(f.data.get(PROGRESS_KEY)).toBe('{"version":1,"cleared":["stage-1","stage-2","stage-9"]}');
+    expect(s.getCleared()).toEqual(["stage-1", "stage-2", "stage-9"]);
+  });
+  it("F2: 손상 원문 백업 setItem 일시 실패 → load 는 unreadable. 복구 전 저장은 failed·본 키 불변, 복구 후 retrySave 가 백업을 만든 뒤 덮어쓴다", () => {
+    const raw = '{"version":2,"cleared":["old-stage"]}';
+    const f = fakeBackend({ [PROGRESS_KEY]: raw });
+    f.flags.failSetKeys.add(C);
+    const s = new LocalStorageProgressStore(f.backend);
+    expect(s.load()).toBe("unreadable");
+    expect(f.data.has(C)).toBe(false);
+    expect(s.markCleared("stage-1")).toBe("failed");
+    expect(f.data.get(PROGRESS_KEY)).toBe(raw);
+    expect(s.getCleared()).toEqual(["stage-1"]);
+    expect(s.retrySave()).toBe("failed");
+    expect(f.data.get(PROGRESS_KEY)).toBe(raw);
+    f.flags.failSetKeys.clear();
+    expect(s.retrySave()).toBe("saved");
+    expect(f.data.get(C)).toBe(raw);
+    expect(f.data.get(PROGRESS_KEY)).toBe('{"version":1,"cleared":["stage-1"]}');
+  });
+  it("두 번째 다른 손상 원문은 .corrupt.2, 같은 원문을 다시 로드하면 추가 키 없음", () => {
+    const f = fakeBackend({ [PROGRESS_KEY]: "{first", [C]: "{older" });
+    new LocalStorageProgressStore(f.backend).load();
+    expect([...f.data.keys()].sort()).toEqual([PROGRESS_KEY, C, C + ".2"].sort());
+    expect(f.data.get(C + ".2")).toBe("{first");
+    new LocalStorageProgressStore(f.backend).load();
+    new LocalStorageProgressStore(f.backend).load();
+    expect(f.data.size).toBe(3);
+  });
+  it("원문이 .corrupt.3 에 이미 있으면(앞 칸은 다른 원문) 보존된 것으로 보고 새 칸을 쓰지 않으며, 저장은 성공", () => {
+    const f = fakeBackend({ [PROGRESS_KEY]: "{x", [C]: "{a", [C + ".2"]: "{b", [C + ".3"]: "{x" });
+    const s = new LocalStorageProgressStore(f.backend);
+    s.load();
+    expect(f.data.size).toBe(4);
+    expect(s.markCleared("stage-1")).toBe("saved");
+    expect(f.data.size).toBe(4);
+    expect(f.data.get(PROGRESS_KEY)).toBe('{"version":1,"cleared":["stage-1"]}');
+  });
+  it("5칸이 모두 다른 원문이면 덮어쓰지 않고 failed·본 키 불변(메모리 해금 유지)", () => {
+    const f = fakeBackend({ [PROGRESS_KEY]: "{new", [C]: "{1", [C + ".2"]: "{2", [C + ".3"]: "{3", [C + ".4"]: "{4", [C + ".5"]: "{5" });
+    const s = new LocalStorageProgressStore(f.backend);
+    expect(s.load()).toBe("unreadable");
+    expect(s.markCleared("stage-1")).toBe("failed");
+    expect(f.data.get(PROGRESS_KEY)).toBe("{new");
+    expect(f.data.size).toBe(6);
+    expect(s.getCleared()).toEqual(["stage-1"]);
+  });
+  it("본 키가 비어 있으면(실제 빈 상태) 그대로 쓴다", () => {
+    const f = fakeBackend();
+    const s = new LocalStorageProgressStore(f.backend);
+    s.load();
+    expect(s.markCleared("stage-1")).toBe("saved");
+    expect(f.data.get(PROGRESS_KEY)).toBe('{"version":1,"cleared":["stage-1"]}');
+    expect(f.data.size).toBe(1);
   });
 });
 
