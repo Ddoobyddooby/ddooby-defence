@@ -498,3 +498,13 @@ Stage 1                Stage 2                Stage 3
 ### 15.5 SIM-02 보강
 
 - **발사 후 타깃 변경(REQ-TOWER-09) 전용 단언:** 틱 T 발사 → T+1 `setTargeting` 적용 → 비행 중 투사체의 `targetEnemyId`·스탯 불변, 다음 발사는 새 모드로 대상 선택. 모드 변경 시점에 **새 모드라면 다른 적을 고를 후보가 사거리 안에 2명 이상** 있어야 한다(재선택 구현을 구분하기 위해, 리뷰 SIM-03).
+
+### 15.6 실제 수치 골든 회귀 (GOLD-01)
+
+> 초안(claude-2 작성, claude-main이 다듬음). 승인 수치 bal-01-v1(`GAME_CONTENT`) 위에서 코어 변경이 실제 게임 결과를 바꾸는지 잡는다.
+
+- **위치:** `src/game/balance/regression/`(`scripts.ts` 고정 명령 스크립트, `scenarios.ts`, `regression.test.ts`, `golden/G1~G5.json`). 코어는 `content/`를 import하지 않는 규칙을 지키려고 코어 밖에 두고, 15.2의 골든 유틸(`core/attempt/regression/golden.ts`: 생성·직렬화·검증·갱신 가드)을 그대로 재사용한다(시나리오 형태 `ScenarioLike`만 일반화, 코어 동작·R1~R3 골든·`ATTEMPT_CODE_VERSION` 무변경).
+- **시나리오:** G1·G2·G3 = 스테이지 1·2·3 균형 봇(B1) 승리, G4 = 스테이지 3 초보 봇(B2) 패배, G5 = 스테이지 1 혼합 스크립트(조기 시작·전투 중 설치/강화·준비 중 판매·타깃 변경·전투 중 판매 거부). 각각 틱별 해시·결과·원장 비교, 새 코어 2회 재생, 매 틱 불변식(15.2·15.4와 같은 수준)을 검증한다.
+- **명령은 고정 스크립트:** B1·B2 명령은 봇 실행에서 한 번 기록해 `scripts.ts`에 그대로 저장했다. 테스트는 봇을 다시 돌리지 않으므로 봇·자리 점수 변경이 골든을 흔들지 않는다(스크립트를 고쳤다면 골든 갱신 사유).
+- **수치 변경 가드:** (1) `GAME_CONTENT.contentVersion`이 `scenarios.ts`의 `GOLDEN_CONTENT_VERSION`과 다르면 실패, (2) 골든 `input.contentHash`가 현재 수치의 해시와 다르면(버전을 올리지 않고 값만 바꾼 경우 포함) 실패. 조용히 통과하거나 자동 갱신하지 않는다.
+- **갱신:** `npm run golden:update`가 코어 R1~R3와 실제 수치 골든을 함께 갱신한다(15.2 가드 동일: 최초 생성·코드 버전 변경·입력(콘텐츠 해시·스크립트) 변경만 허용, 같은 코드 버전·같은 입력에서 결과가 달라지면 회귀로 거부). 수치를 바꾸는 변경은 BALANCE.md 9절 절차(버전 올림·재승인) 후 이 명령을 실행하고 `GOLDEN_CONTENT_VERSION`을 고친다.
