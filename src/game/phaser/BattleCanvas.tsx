@@ -13,29 +13,16 @@ export function BattleCanvas({ session }: { session: GameSession }) {
     if (!host) return;
 
     let disposed = false;
-    let game: { destroy(removeCanvas: boolean): void; scale: { resize(w: number, h: number): void; width: number; height: number } } | undefined;
-    // RESIZE 모드의 Phaser 는 window resize 시점에 부모 크기를 읽는데, React 레이아웃(HUD 폭)이 그 뒤에 바뀌면 낡은 크기가 남는다.
-    // 호스트 요소 자체의 크기 변화를 관찰해 다시 읽게 한다(인스턴스 재생성 없이 재배치만).
-    const fit = () => {
-      const w = Math.max(1, host.clientWidth);
-      const h = Math.max(1, host.clientHeight);
-      if (game !== undefined && (game.scale.width !== w || game.scale.height !== h)) game.scale.resize(w, h);
-    };
-    const observer = new ResizeObserver(fit);
-    observer.observe(host);
-
+    let game: { destroy(removeCanvas: boolean): void } | undefined;
+    // 크기·기기 배율 변화는 씬이 매 프레임 호스트 요소를 읽어 맞춘다(scene.syncSize). 여기서는 인스턴스 수명만 관리한다.
     import("./createGame").then(async ({ createGame }) => {
       const created = await createGame(host, session);
       if (disposed) created.destroy(true);
-      else {
-        game = created;
-        fit();
-      }
+      else game = created;
     });
 
     return () => {
       disposed = true;
-      observer.disconnect();
       game?.destroy(true);
     };
   }, [session]);

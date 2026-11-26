@@ -2,6 +2,7 @@
 // 모두 Graphics 의 최소 부분집합(GraphicsLike)만 쓴다. 게임 상태는 읽기만 한다.
 import type { EnemyType, TowerType, TraitType } from "../core/content/types";
 import { CELL_MT, type CompiledStageMap } from "../core/map/stageMap";
+import { computePathTiles, groundVariant } from "./pathTiles";
 import { ENEMY_COLORS, ENEMY_RADIUS, TOWER_COLORS, TRAIT_COLORS, UI_COLORS, type StagePalette } from "./palette";
 
 export interface GraphicsLike {
@@ -28,42 +29,65 @@ export const toPx = (geo: MapGeometry, mt: number): number => (mt / CELL_MT) * g
 export const screenX = (geo: MapGeometry, xMt: number): number => geo.originX + toPx(geo, xMt);
 export const screenY = (geo: MapGeometry, yMt: number): number => geo.originY + toPx(geo, yMt);
 
-/** 배경·경로·격자·출발 칸·기지(성문) 표식. 스테이지·크기가 바뀔 때만 다시 그린다. */
-export function drawMap(g: GraphicsLike, areaW: number, areaH: number, geo: MapGeometry, map: CompiledStageMap, palette: StagePalette): void {
+/** 맵에 그림이 있는지 알려 주는 조회기. 없는 요소만 아래 단순 도형으로 대체한다. */
+export interface MapArt {
+  hasGround(variant: 1 | 2 | 3): boolean;
+  hasPath(base: "straight" | "corner"): boolean;
+  hasSpawn(): boolean;
+  hasGate(): boolean;
+}
+export const NO_MAP_ART: MapArt = { hasGround: () => false, hasPath: () => false, hasSpawn: () => false, hasGate: () => false };
+
+/** 배경·경로·출발 칸·기지(성문) 표식(그림이 없는 요소만). 스테이지·크기가 바뀔 때만 다시 그린다. 격자선은 drawGrid. */
+export function drawMap(g: GraphicsLike, areaW: number, areaH: number, geo: MapGeometry, map: CompiledStageMap, palette: StagePalette, art: MapArt = NO_MAP_ART): void {
   g.clear();
   g.fillStyle(palette.letterbox, 1);
   g.fillRect(0, 0, areaW, areaH);
   const { tile, originX, originY } = geo;
-  const onPath = new Set(map.pathCells.map((c) => c.row * 18 + c.col));
+  const tiles = new Map(computePathTiles(map).map((t) => [t.row * 18 + t.col, t]));
   for (let row = 0; row < 10; row++) {
     for (let col = 0; col < 18; col++) {
-      const isPath = onPath.has(row * 18 + col);
-      g.fillStyle(isPath ? palette.path : (col + row) % 2 === 0 ? palette.ground : palette.groundAlt, 1);
-      g.fillRect(originX + col * tile, originY + row * tile, tile, tile);
-      if (isPath) {
+      const pt = tiles.get(row * 18 + col);
+      if (pt !== undefined) {
+        if (art.hasPath(pt.base)) continue;
+        g.fillStyle(palette.path, 1);
+        g.fillRect(originX + col * tile, originY + row * tile, tile, tile);
         g.lineStyle(1, palette.pathEdge, 0.6);
         g.strokeRect(originX + col * tile + 0.5, originY + row * tile + 0.5, tile - 1, tile - 1);
+      } else if (!art.hasGround(groundVariant(col, row))) {
+        g.fillStyle((col + row) % 2 === 0 ? palette.ground : palette.groundAlt, 1);
+        g.fillRect(originX + col * tile, originY + row * tile, tile, tile);
       }
     }
   }
+  const first = map.pathCells[0];
+  const last = map.pathCells[map.pathCells.length - 1];
+  if (!art.hasSpawn()) {
+    // 출발 칸: 밝은 마름모
+    const sx = originX + (first.col + 0.5) * tile;
+    const sy = originY + (first.row + 0.5) * tile;
+    g.fillStyle(palette.start, 0.9);
+    g.fillTriangle(sx, sy - tile * 0.3, sx - tile * 0.3, sy, sx + tile * 0.3, sy);
+    g.fillTriangle(sx, sy + tile * 0.3, sx - tile * 0.3, sy, sx + tile * 0.3, sy);
+  }
+  if (!art.hasGate()) {
+    // 기지(성문): 어두운 문 + 청록 깃발
+    const gx = originX + last.col * tile;
+    const gy = originY + last.row * tile;
+    g.fillStyle(palette.gateDark, 1);
+    g.fillRect(gx + tile * 0.1, gy + tile * 0.15, tile * 0.8, tile * 0.75);
+    g.fillStyle(palette.gate, 1);
+    g.fillRect(gx + tile * 0.62, gy + tile * 0.05, tile * 0.28, tile * 0.25);
+  }
+}
+
+/** 격자선(설치 칸 확인용). 그림 위에 얹는다. */
+export function drawGrid(g: GraphicsLike, geo: MapGeometry, palette: StagePalette): void {
+  g.clear();
+  const { originX, originY, tile } = geo;
   g.lineStyle(1, palette.grid, palette.gridAlpha);
   for (let c = 0; c <= 18; c++) g.lineBetween(originX + c * tile, originY, originX + c * tile, originY + 10 * tile);
   for (let r = 0; r <= 10; r++) g.lineBetween(originX, originY + r * tile, originX + 18 * tile, originY + r * tile);
-  const first = map.pathCells[0];
-  const last = map.pathCells[map.pathCells.length - 1];
-  // 출발 칸: 밝은 마름모
-  const sx = originX + (first.col + 0.5) * tile;
-  const sy = originY + (first.row + 0.5) * tile;
-  g.fillStyle(palette.start, 0.9);
-  g.fillTriangle(sx, sy - tile * 0.3, sx - tile * 0.3, sy, sx + tile * 0.3, sy);
-  g.fillTriangle(sx, sy + tile * 0.3, sx - tile * 0.3, sy, sx + tile * 0.3, sy);
-  // 기지(성문): 어두운 문 + 청록 깃발
-  const gx = originX + last.col * tile;
-  const gy = originY + last.row * tile;
-  g.fillStyle(palette.gateDark, 1);
-  g.fillRect(gx + tile * 0.1, gy + tile * 0.15, tile * 0.8, tile * 0.75);
-  g.fillStyle(palette.gate, 1);
-  g.fillRect(gx + tile * 0.62, gy + tile * 0.05, tile * 0.28, tile * 0.25);
 }
 
 /** 타워: 칸 안 정사각형 + 종류 색 + 레벨 점 1~4. */
