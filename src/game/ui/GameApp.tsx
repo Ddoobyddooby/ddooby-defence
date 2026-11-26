@@ -53,6 +53,9 @@ export function GameApp() {
       if (e.code === "Space" || e.code === "KeyP") {
         e.preventDefault();
         if (!e.repeat) session.togglePause();
+      } else if (e.code === "KeyF") {
+        // 웹 개발 편의: 배속 순환(1×→2×→5×).
+        if (!e.repeat) session.cycleSpeed();
       } else if (e.code === "Escape") session.cancel();
     };
     const onVisibility = () => session.setHidden(document.hidden);

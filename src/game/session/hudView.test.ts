@@ -13,11 +13,16 @@ const fresh = () => {
 };
 
 describe("formatTenths·prepRemainingText", () => {
-  it("틱 × 0.05 초를 소수 1자리로, 남은 시간은 올림", () => {
-    expect(prepRemainingText(400)).toBe("20.0");
-    expect(prepRemainingText(3)).toBe("0.2"); // 0.15 → 올림
-    expect(prepRemainingText(1)).toBe("0.1");
-    expect(prepRemainingText(0)).toBe("0.0");
+  it("준비 남은 시간은 정수 초, 올림(UI-02): 1틱=1초, 20틱=1초, 21틱=2초, 0틱=0", () => {
+    expect(prepRemainingText(400)).toBe("20");
+    expect(prepRemainingText(21)).toBe("2");
+    expect(prepRemainingText(20)).toBe("1");
+    expect(prepRemainingText(1)).toBe("1");
+    expect(prepRemainingText(0)).toBe("0");
+    expect(prepRemainingText(-3)).toBe("0");
+    expect(prepRemainingText(380)).toBe("19");
+  });
+  it("formatTenths 는 그대로(능력치 표기용)", () => {
     expect(formatTenths(35)).toBe("3.5");
     expect(formatTenths(8)).toBe("0.8");
   });
@@ -30,7 +35,7 @@ describe("hudView (UI-CONTRACT 7절)", () => {
     expect(h).toMatchObject({
       stageName: "초원 전초기지", waveIndex: 1, waveTotal: 5, phase: "preparation", phaseLabel: "준비", paused: false,
       gold: 300, baseHp: 20, maxBaseHp: 20, controlsEnabled: true, isResult: false, mode: "default", combat: null, detail: null,
-      prep: { remainingText: "20.0", canStartNow: true },
+      prep: { remainingText: "20", canStartNow: true }, speed: 1,
     });
     expect(h.towers.map((t) => [t.type, t.name, t.cost, t.affordable])).toEqual([
       ["archer", "궁수탑", 100, true], ["ballista", "발리스타", 160, true], ["mage", "마법탑", 150, true], ["frost", "서리탑", 110, true],

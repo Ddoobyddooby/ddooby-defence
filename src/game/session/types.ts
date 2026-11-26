@@ -67,3 +67,7 @@ export const EMPTY_UI: UiState = { placeType: null, selectedTowerId: null, sellC
 
 export type UiMode = "default" | "place" | "sellConfirm";
 export const uiModeOf = (ui: UiState): UiMode => (ui.sellConfirmId !== null ? "sellConfirm" : ui.placeType !== null ? "place" : "default");
+
+/** 배속(UI-CONTRACT 5절, UI-02). */
+export type Speed = 1 | 2 | 5;
+export const SPEEDS: readonly Speed[] = [1, 2, 5];
