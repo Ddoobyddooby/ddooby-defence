@@ -55,12 +55,12 @@ export function evaluateCriteria(bundle: ContentBundle, d: BalanceData): Criteri
   );
   add("BALX-04", "B2 초보: S1 승리, S3 패배", B("B2", 0).outcome === "victory" && B("B2", 2).outcome === "defeat", STAGES.map((s) => `S${s + 1} ${fmt(B("B2", s))}`).join(", "));
   const singles = Object.keys(SINGLE) as BotId[];
-  const s3Losers = singles.filter((id) => B(id, 2).outcome !== "victory");
+  const s3Losers = singles.filter((id) => B(id, 2).outcome === "defeat");
   const s3Winners = singles.filter((id) => B(id, 2).outcome === "victory");
   add(
     "BALX-05",
     "B3 단일 종류: 4종 모두 S1 승리, S3 는 2종 이상 패배·승리 종류는 B1 보다 남은 HP 적음",
-    singles.every((id) => B(id, 0).outcome === "victory") && s3Losers.length >= 2 && s3Winners.every((id) => B(id, 2).baseHp < B("B1", 2).baseHp),
+    singles.every((id) => B(id, 0).outcome === "victory" && B(id, 2).outcome !== "timeout") && s3Losers.length >= 2 && s3Winners.every((id) => B(id, 2).baseHp < B("B1", 2).baseHp),
     singles.map((id) => `${id}(${SINGLE[id]}) S1 ${fmt(B(id, 0))} / S3 ${fmt(B(id, 2))}`).join("; "),
   );
   add("BALX-06", "B4 조기 시작: S1 승리", B("B4", 0).outcome === "victory", STAGES.map((s) => `S${s + 1} ${fmt(B("B4", s))}`).join(", "));
@@ -118,7 +118,7 @@ export function evaluateCriteria(bundle: ContentBundle, d: BalanceData): Criteri
   checks.push([`고속형 상대 골드당 처치 궁수 1~2위(측정 ${killsRank("fast", "archer")}위)`, killsRank("fast", "archer") <= 2]);
   checks.push([`중장형 상대 골드당 피해 발리스타 1위(측정 ${dmgRank("heavy", "ballista")}위)`, dmgRank("heavy", "ballista") === 1]);
   checks.push([`군집형 상대 골드당 처치 마법 1위(측정 ${killsRank("swarm", "mage")}위)`, killsRank("swarm", "mage") === 1]);
-  const noFrostWorse = B("B5", 2).outcome !== "victory" || B("B5", 2).baseHp < B("B1", 2).baseHp;
+  const noFrostWorse = B("B5", 2).outcome === "defeat" || (B("B5", 2).outcome === "victory" && B("B5", 2).baseHp < B("B1", 2).baseHp);
   checks.push([`서리 제외(B5) 시 S3 결과가 나빠짐(B1 ${fmt(B("B1", 2))} → B5 ${fmt(B("B5", 2))})`, noFrostWorse]);
   add("BALX-09", "역할 점검(5절)", checks.every(([, ok]) => ok), checks.map(([n, ok]) => `${ok ? "○" : "×"} ${n}`).join("; "));
 

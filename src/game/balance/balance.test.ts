@@ -46,6 +46,32 @@ describe("BALX 기준", () => {
   });
 });
 
+describe("timeout 은 패배로 세지 않는다(리뷰 F1)", () => {
+  const withOutcome = (ids: string[], stage: number, outcome: "timeout" | "defeat") => {
+    const runs = { ...data.runs } as Record<string, (typeof data.runs)["B1"]>;
+    for (const id of ids) runs[id] = data.runs.B1.map((r, i) => (i === stage ? { ...data.runs[id as "B1"][i], outcome } : data.runs[id as "B1"][i]));
+    return { ...data, runs } as BalanceData;
+  };
+  const pass = (d: BalanceData, id: string) => evaluateCriteria(BALANCE_CANDIDATE, d).find((c) => c.id === id)!.pass;
+  it("BALX-05: S3 단일 종류가 timeout 이면 실패, defeat 이면 통과", () => {
+    expect(pass(withOutcome(["B3a", "B3b", "B3d"], 2, "timeout"), "BALX-05")).toBe(false);
+    expect(pass(withOutcome(["B3a", "B3b", "B3d"], 2, "defeat"), "BALX-05")).toBe(true);
+  });
+  it("BALX-04: B2 S3 timeout 이면 실패", () => {
+    expect(pass(withOutcome(["B2"], 2, "timeout"), "BALX-04")).toBe(false);
+  });
+  it("BALX-01/02/06: timeout 이면 실패", () => {
+    expect(pass(withOutcome(["B0"], 0, "timeout"), "BALX-01")).toBe(false);
+    expect(pass(withOutcome(["B1"], 1, "timeout"), "BALX-02")).toBe(false);
+    expect(pass(withOutcome(["B4"], 0, "timeout"), "BALX-06")).toBe(false);
+  });
+  it("BALX-09: 서리 제외(B5) S3 가 timeout 이면 '나빠짐' 으로 세지 않는다", () => {
+    const ok = (d: BalanceData) => evaluateCriteria(BALANCE_CANDIDATE, d).find((c) => c.id === "BALX-09")!.detail.includes("× 서리 제외");
+    expect(ok(withOutcome(["B5"], 2, "timeout"))).toBe(true);
+    expect(ok(withOutcome(["B5"], 2, "defeat"))).toBe(false);
+  });
+});
+
 describe("자리 점수·봇·보고서", () => {
   it("자리 점수: 같은 입력은 같은 순서, 점수 내림차순·동률은 row→col", () => {
     const map = compileStageMap(STAGE_MAPS[0]);
