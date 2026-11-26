@@ -15,7 +15,7 @@
   1. ~~DOC-01~~ 완료(2026-11-24, 재리뷰 1 통과). 문서 상호검증: 스택 확정 후 남은 "미정·확인 필요" 문구 정리 + codex-main 문서 QA (ART-01·TECH-01이 DOC-01 선행 없이 진행된 점 보완)
   2. ~~TECH-02~~ 완료(2026-11-24). 계약 `docs/SIM-CONTRACT.md`(재리뷰 2 통과) + 기초 모듈 `src/game/core/sim/`(claude-1 구현, 재리뷰 1 통과)
   3. ~~DOC-02~~ 완료(2026-11-24). 추적표 `docs/TRACE.md`, 태스크 반영 때마다 해당 행 갱신
-  4. ~~MAP-01~~ 완료(2026-11-24, 3맵 후보·기하 모듈). ~~DATA-01~~ 완료(2026-11-24, 스키마·검증기). ~~SIM-01~~·~~ECON-01~~ 완료(2026-11-24). ~~SIM-02~~·~~SIM-03~~ 완료(2026-11-25, 계약 14·15절). ~~UI-01~~ 완료(2026-11-25, `docs/UI-CONTRACT.md`, 화면에서 임시 수치로 플레이 가능). ~~MOB-01~~ 완료(2026-11-25, Android APK). ~~MOB-02~~ 완료(2026-11-26, 모바일 HUD·메뉴·뒤로가기). ~~SAVE-01~~ 완료(2026-11-26, 클리어 기록 localStorage). ~~MOB-03~~ 완료(2026-11-26, 좌우 대칭 여백). 진행 중: ART-02(앱 아이콘·스플래시 시안, codex-design). 다음 후보: BAL-01(실제 수치)
+  4. ~~MAP-01~~ 완료(2026-11-24, 3맵 후보·기하 모듈). ~~DATA-01~~ 완료(2026-11-24, 스키마·검증기). ~~SIM-01~~·~~ECON-01~~ 완료(2026-11-24). ~~SIM-02~~·~~SIM-03~~ 완료(2026-11-25, 계약 14·15절). ~~UI-01~~ 완료(2026-11-25, `docs/UI-CONTRACT.md`, 화면에서 임시 수치로 플레이 가능). ~~MOB-01~~ 완료(2026-11-25, Android APK). ~~MOB-02~~ 완료(2026-11-26, 모바일 HUD·메뉴·뒤로가기). ~~SAVE-01~~ 완료(2026-11-26, 클리어 기록 localStorage). ~~MOB-03~~ 완료(2026-11-26, 좌우 대칭 여백). ~~ART-02~~ 완료(2026-11-26, 앱 아이콘 C안). 진행 중: BAL-01(실제 수치 후보, `feat/bal-01`), UI-02(배속·정수 초·HUD 여백, `feat/ui-02`, codex-main 리뷰 중)
 - **운영 흐름:** 사용자는 claude-main 탭에서 지시 → 코딩 claude-1/2, QA·리뷰 codex-main, 디자인 codex-design (WORKFLOW 2~4절). `main` 반영·push는 claude-main 탭에서 사용자 직접 확인 후
 - **저장소 경로(2026-11-24 변경):** `~/Desktop/Ddooby/projects/ddooby-defence` (이전 `.../ddooby-defence/ddooby-defence` 이중 폴더 정리, 사용자 요청)
 - **구현 탭 작업 방식:** claude-1/2는 공유 폴더가 아닌 전용 git worktree와 작업 브랜치에서 작업한다. worktree는 형제 폴더 `../ddooby-defence-<task>`(예: `ddooby-defence-sim-02`)에 만들고, 병합 후 worktree·브랜치 삭제(사용자 결정 2026-11-24)
@@ -170,6 +170,11 @@
   - 결과: `MainActivity.applySymmetricSideInsets()` — 시스템 바·컷아웃 인셋의 좌우 중 큰 값을 양쪽 패딩으로, `capacitor.config.ts` SystemBars `insetsHandling: "disable"`. 웹 코드 무변경. debug APK 빌드·Galaxy A16 설치, **사용자 실기기 확인 "딱 좋아"**(2026-11-26)
   - 리뷰: 작은 네이티브 변경이라 별도 독립 리뷰 없이 사용자 실기기 확인으로 갈음(claude-main 제안, 사용자 반영 지시)
   - 남은 것: 컷아웃이 없는 기기·세로 진입 시 동작은 미확인
+
+- [x] **ART-02 — 앱 아이콘·스플래시** (2026-11-26 `main` 반영)
+  - 담당: codex-design 시안 3안(A 초원 성문·B 자수정 마법탑·C 성채 방패), 사용자 선택 **C**(2026-11-26), 반영 claude-main. MOB-01 리뷰 F8 후속
+  - 결과: Android 런처 아이콘(적응형 전경+배경 `#162C37`, 기존 밀도별 PNG)·시작 화면 PNG 교체, Android 12+ 시작 화면 배경색. 기록 `.codex-out/ART-02-image.md`(원본은 저장소 밖 `../ddooby-defence-art02/`). debug APK 빌드·Galaxy A16 설치, 사용자 실기기 확인 후 반영 지시(2026-11-26)
+  - 남은 것: `ic_launcher_round`는 원형 마스크 없이 같은 이미지(적응형 아이콘 미지원 기기용), 스토어용 512px 아이콘·그래픽은 배포 때
 
 - [ ] **BAL-01 — 실제 초기 수치·맵·웨이브 후보와 검증**
   - 담당: claude-main 후보 설계·분석, codex-main QA, 최종 승인 사용자
