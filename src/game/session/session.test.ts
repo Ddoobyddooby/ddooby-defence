@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { DEV_PLACEHOLDER } from "../content/devBundle";
 import { menuView } from "./hudView";
 import { LocalStorageProgressStore, MemoryProgressStore, PROGRESS_KEY, type StorageBackend } from "./progress";
-import { FEEDBACK_MS, GameSession } from "./session";
+import { FEEDBACK_MS, GameSession, MAX_TICKS_PER_ADVANCE } from "./session";
 
 type Bundle = { stages: { baseHp: number; initialGold: number; waves: unknown[] }[]; enemies: { speedMtPerSec: number }[] };
 const clone = (): Bundle => structuredClone(DEV_PLACEHOLDER) as unknown as Bundle;
@@ -918,5 +918,121 @@ describe("SAVE-01: 클리어 기록 저장 연동 (UI-CONTRACT 10절)", () => {
     expect(s.getState().notice).toBeNull();
     win(s);
     expect(battle(s).result?.save).toBe("saved");
+  });
+});
+
+describe("UI-02: 배속 1×·2×·5× (UI-CONTRACT 5절)", () => {
+  const started = () => {
+    const { session } = make();
+    session.startStage(0);
+    return session;
+  };
+  it("새 세션은 1×, cycleSpeed 는 1→2→5→1 순환, 상태·HUD 에 파생된다", () => {
+    const s = started();
+    expect(s.getState().speed).toBe(1);
+    expect(battle(s).hud.speed).toBe(1);
+    s.cycleSpeed();
+    expect([s.getState().speed, battle(s).hud.speed]).toEqual([2, 2]);
+    s.cycleSpeed();
+    expect(s.getState().speed).toBe(5);
+    s.cycleSpeed();
+    expect(s.getState().speed).toBe(1);
+  });
+  it("setSpeed: 1·2·5 외에는 무시, 같은 값은 알림 없음", () => {
+    const s = started();
+    let n = 0;
+    s.subscribe(() => (n += 1));
+    s.setSpeed(3 as never);
+    s.setSpeed(0 as never);
+    s.setSpeed(1);
+    expect([s.getState().speed, n]).toEqual([1, 0]);
+    s.setSpeed(5);
+    expect([s.getState().speed, n]).toEqual([5, 1]);
+  });
+  it("같은 실제 시간(100ms)당 틱 수가 배속에 비례: 1×=2, 2×=4, 5×=10", () => {
+    for (const [speed, expected] of [[1, 2], [2, 4], [5, 10]] as const) {
+      const s = started();
+      s.setSpeed(speed);
+      expect(s.advance(100)).toBe(expected);
+      expect(tick(s)).toBe(expected);
+    }
+  });
+  it("한 번의 상한은 5 × 배속(1×=5, 2×=10, 5×=25)이고 넘는 누적은 버린다", () => {
+    expect(MAX_TICKS_PER_ADVANCE).toBe(5);
+    for (const [speed, max] of [[1, 5], [2, 10], [5, 25]] as const) {
+      const s = started();
+      s.setSpeed(speed);
+      expect(s.advance(10000)).toBe(max);
+      expect(s.advance(9)).toBe(0); // 버려졌으므로 남은 누적 없음(9ms × 5 = 45 < 50)
+    }
+  });
+  it("누적 나머지는 게임 시간 기준: 5× 에서 7ms → 35, 4ms 더하면 55 → 1틱", () => {
+    const s = started();
+    s.setSpeed(5);
+    expect(s.advance(7)).toBe(0);
+    expect(s.advance(4)).toBe(1);
+  });
+  it("배속을 바꿔도 누적은 유지된다(2× 에서 20ms=40 → 1× 로 10ms 더하면 50 → 1틱)", () => {
+    const s = started();
+    s.setSpeed(2);
+    expect(s.advance(20)).toBe(0);
+    s.setSpeed(1);
+    expect(s.advance(10)).toBe(1);
+  });
+  it("일시정지 중에는 5× 여도 0틱, 재개하면 진행", () => {
+    const s = started();
+    s.setSpeed(5);
+    s.pause();
+    expect(s.advance(1000)).toBe(0);
+    expect(tick(s)).toBe(0);
+    s.resume();
+    expect(s.advance(100)).toBe(10);
+  });
+  it("숨김 중 0틱·복귀 첫 입력 폐기는 배속과 무관", () => {
+    const s = started();
+    s.setSpeed(5);
+    s.setHidden(true);
+    expect(s.advance(1000)).toBe(0);
+    s.setHidden(false);
+    s.resume();
+    expect(s.advance(10000)).toBe(0); // 복귀 첫 입력은 버린다
+    expect(s.advance(100)).toBe(10);
+  });
+  it("일시정지·결과 중에도 배속은 바꿀 수 있다", () => {
+    const s = started();
+    s.pause();
+    s.setSpeed(2);
+    expect(s.getState().speed).toBe(2);
+  });
+  it("재도전·스테이지 변경·스테이지 선택 복귀에도 배속이 유지된다", () => {
+    const s = started();
+    s.setSpeed(2);
+    s.retry();
+    expect(s.getState().speed).toBe(2);
+    s.toStageSelect();
+    expect(s.getState().speed).toBe(2);
+    s.startStage(0);
+    expect(s.advance(100)).toBe(4);
+  });
+  it("피드백 2초는 실제 시간: 5× 에서도 1999ms 까지 보이고 2000ms 에 사라진다", () => {
+    const s = started();
+    s.setSpeed(5);
+    s.build("archer", { col: 0, row: 2 }); // 길 위 → 거부
+    s.advance(50);
+    expect(battle(s).feedback).not.toBeNull();
+    s.pause();
+    s.advance(FEEDBACK_MS - 1);
+    expect(battle(s).feedback).not.toBeNull();
+    s.advance(1);
+    expect(battle(s).feedback).toBeNull();
+  });
+  it("결정성: 2×·5× 에서 같은 틱 수만큼 진행한 상태는 1× 와 동일하다", () => {
+    const run1 = started();
+    for (let i = 0; i < 40; i++) run1.advance(50);
+    const run5 = started();
+    run5.setSpeed(5);
+    for (let i = 0; i < 8; i++) run5.advance(50); // 8 × 5 = 40틱
+    expect(tick(run5)).toBe(tick(run1));
+    expect(JSON.stringify(run5.getRenderFrame()?.curr)).toBe(JSON.stringify(run1.getRenderFrame()?.curr));
   });
 });

@@ -6,7 +6,7 @@ import { towerLevelStats } from "../core/content/levelStats";
 import type { TargetingMode } from "../core/sim/commands";
 import { refundFor } from "../core/sim/formulas";
 import { PHASE_NAMES, STR, TOWER_NAMES } from "../ui/strings.ko";
-import { uiModeOf, type Phase, type Snapshot, type UiMode, type UiState } from "./types";
+import { uiModeOf, type Phase, type Snapshot, type Speed, type UiMode, type UiState } from "./types";
 
 export const TOWER_ORDER: readonly TowerType[] = ["archer", "ballista", "mage", "frost"];
 
@@ -46,6 +46,8 @@ export interface HudView {
   readonly waveTotal: number;
   readonly phase: Phase;
   readonly paused: boolean;
+  /** 현재 배속(1·2·5). */
+  readonly speed: Speed;
   /** 단계 짧은 표시(`준비`·`전투`·`승리`·`패배`). 일시정지는 메뉴가 대신 보여 주므로 여기에 섞지 않는다. */
   readonly phaseLabel: string;
   readonly gold: number;
@@ -79,9 +81,9 @@ export function formatTenths(tenths: number): string {
   const t = Math.max(0, Math.round(tenths));
   return `${Math.floor(t / 10)}.${t % 10}`;
 }
-/** 틱 × 0.05 초를 소수 1자리로(올림: 남은 시간이 0.0 으로 먼저 보이지 않게). */
+/** 남은 준비 시간: 틱 × 0.05 초를 정수 초로 올림(UI-02: 소수 없이 초 단위, 남은 시간이 0 으로 먼저 보이지 않게). */
 export function prepRemainingText(ticks: number): string {
-  return formatTenths(Math.ceil(Math.max(0, ticks) / 2));
+  return String(Math.ceil(Math.max(0, ticks) / 20));
 }
 
 function towerDef(content: StageContent, type: TowerType): TowerDef {
@@ -124,7 +126,7 @@ export function towerDetailOf(snapshot: Snapshot, content: StageContent, towerId
   };
 }
 
-export function hudView(snapshot: Snapshot, content: StageContent, ui: UiState, stageName: string, pending: PendingKeys = NO_PENDING): HudView {
+export function hudView(snapshot: Snapshot, content: StageContent, ui: UiState, stageName: string, pending: PendingKeys = NO_PENDING, speed: Speed = 1): HudView {
   const isResult = snapshot.phase === "victory" || snapshot.phase === "defeat";
   const controlsEnabled = !snapshot.paused && !isResult;
   const wave = content.stage.waves[snapshot.waveIndex - 1];
@@ -137,6 +139,7 @@ export function hudView(snapshot: Snapshot, content: StageContent, ui: UiState, 
     waveTotal: content.stage.waves.length,
     phase: snapshot.phase,
     paused: snapshot.paused,
+    speed,
     phaseLabel: PHASE_NAMES[snapshot.phase],
     gold: snapshot.gold,
     baseHp: snapshot.baseHp,

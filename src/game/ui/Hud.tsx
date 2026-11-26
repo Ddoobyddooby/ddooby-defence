@@ -15,8 +15,8 @@ const BTN = "min-h-10 min-w-10 rounded border px-1 text-xs font-medium leading-t
  */
 export function Hud({ session, hud, width }: { session: GameSession; hud: HudView; width: number }) {
   return (
-    <aside style={{ width }} className="flex h-full shrink-0 touch-manipulation flex-col gap-1 overflow-y-auto border-l border-neutral-800 bg-neutral-900 p-1 text-neutral-100" data-testid="hud">
-      <div className="flex items-center justify-between gap-1 px-0.5 text-xs" data-testid="hud-resources">
+    <aside style={{ width }} className="flex h-full shrink-0 touch-manipulation flex-col justify-between gap-1 overflow-y-auto border-l border-neutral-800 bg-neutral-900 px-1 pb-2 pt-[clamp(12px,5vh,24px)] text-neutral-100" data-testid="hud">
+      <div className="flex items-center justify-between gap-1 pl-0.5 pr-2 text-xs" data-testid="hud-resources">
         <span className="whitespace-nowrap" data-testid="hud-gold">
           {STR.hud.gold} <b className="text-yellow-300">{hud.gold}</b>
         </span>
@@ -34,17 +34,28 @@ export function Hud({ session, hud, width }: { session: GameSession; hud: HudVie
             {hud.phaseLabel}
           </div>
         </div>
-        <button
-          type="button"
-          className={`${BTN} h-10 w-10 shrink-0 border-neutral-600 bg-neutral-800 text-base hover:bg-neutral-700`}
-          disabled={hud.isResult}
-          onClick={() => (hud.paused ? session.closeMenu() : session.openMenu())}
-          aria-label={STR.hud.menu}
-          aria-pressed={hud.paused && !hud.isResult}
-          data-testid="menu-button"
-        >
-          ⚙
-        </button>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            className={`${BTN} h-10 w-10 shrink-0 text-sm font-bold ${hud.speed > 1 ? "border-yellow-300 bg-yellow-600 text-neutral-950 hover:bg-yellow-500" : "border-neutral-600 bg-neutral-800 hover:bg-neutral-700"}`}
+            onClick={() => session.cycleSpeed()}
+            aria-label={`${STR.hud.speed} ${hud.speed}×`}
+            data-testid="speed-button"
+          >
+            {hud.speed}×
+          </button>
+          <button
+            type="button"
+            className={`${BTN} h-10 w-10 shrink-0 border-neutral-600 bg-neutral-800 text-base hover:bg-neutral-700`}
+            disabled={hud.isResult}
+            onClick={() => (hud.paused ? session.closeMenu() : session.openMenu())}
+            aria-label={STR.hud.menu}
+            aria-pressed={hud.paused && !hud.isResult}
+            data-testid="menu-button"
+          >
+            ⚙
+          </button>
+        </div>
       </div>
 
       {hud.prep && (

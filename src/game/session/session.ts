@@ -9,10 +9,13 @@ import type { TargetingMode } from "../core/sim/commands";
 import { rejectText, STAGE_NAMES, STR } from "../ui/strings.ko";
 import { hudView, pendingKey, type HudView } from "./hudView";
 import { deriveStageCards, isEnterable, type LoadStatus, type ProgressStore, type SaveStatus, type StageCard } from "./progress";
-import { EMPTY_UI, type Snapshot, type UiState } from "./types";
+import { EMPTY_UI, SPEEDS, type Snapshot, type Speed, type UiState } from "./types";
+
+export type { Speed };
 
 export const TICK_MS = 50;
 export const MAX_TICKS_PER_ADVANCE = 5;
+/** 배속(UI-CONTRACT 5절, UI-02): 게임 누적에 elapsedMs × 배속을 더하고 한 번의 최대 틱도 같은 배수로 늘린다. */
 export const FEEDBACK_MS = 2000;
 const EVENT_BUFFER_MAX = 500;
 
@@ -43,6 +46,8 @@ export interface SessionState {
   readonly screen: "stageSelect" | "battle";
   readonly cards: readonly StageCard[];
   readonly battle: BattleState | null;
+  /** 현재 배속(세션 설정: 재도전·스테이지 변경에도 유지, 새 세션은 1×). */
+  readonly speed: Speed;
   /** 스테이지 선택 화면 저장 안내(UI-CONTRACT 10절): 읽기 실패로 새로 시작 / 저장소 사용 불가로 기록이 저장되지 않음. */
   readonly notice: "unreadable" | "unavailable" | null;
 }
@@ -101,6 +106,7 @@ export class GameSession {
   /** UI 시계(피드백 만료용). 일시정지 중에도 흐르지만 숨김 중에는 멈춘다. */
   private uiClock = 0;
   private hidden = false;
+  private speed: Speed = 1;
   /** 숨김에서 복귀한 직후 첫 advance 입력(숨김·정지 시간이 섞였을 수 있음)은 버리고 기준만 다시 잡는다(UI-CONTRACT 5절, 리뷰 F1). */
   private skipNextAdvance = false;
   private events: AttemptEvent[] = [];
@@ -133,7 +139,7 @@ export class GameSession {
     if (this.cached !== null) return this.cached;
     const cards = this.cards();
     const notice = this.loadStatus === "unreadable" || this.loadStatus === "unavailable" ? this.loadStatus : null;
-    const state: SessionState = { version: this.version, screen: this.battle === null ? "stageSelect" : "battle", cards, battle: this.battle === null ? null : this.battleState(this.battle, cards), notice };
+    const state: SessionState = { version: this.version, screen: this.battle === null ? "stageSelect" : "battle", cards, battle: this.battle === null ? null : this.battleState(this.battle, cards), speed: this.speed, notice };
     this.cached = state;
     return state;
   };
@@ -149,7 +155,7 @@ export class GameSession {
     const core = b.rec.core;
     const content = core.stageContent;
     const name = STAGE_NAMES[b.stageIndex] ?? content.stage.stageId;
-    const hud = hudView(b.curr, content, b.ui, name, b.pending);
+    const hud = hudView(b.curr, content, b.ui, name, b.pending, this.speed);
     const feedback = b.feedback !== null && this.uiClock < b.feedback.until ? b.feedback.text : null;
     let result: ResultView | null = null;
     if (b.curr.outcome !== null) {
@@ -227,13 +233,28 @@ export class GameSession {
     if (hidden) this.pause();
   }
 
+  /** 배속 지정(1·2·5 외에는 무시). 일시정지·결과 중에도 바꿀 수 있다(시간이 흐르지 않을 뿐). 누적(acc)은 게임 시간이라 그대로 둔다. */
+  setSpeed(speed: Speed): void {
+    if (!SPEEDS.includes(speed) || speed === this.speed) return;
+    this.speed = speed;
+    this.emit();
+  }
+  /** 1×→2×→5×→1× 순환. */
+  cycleSpeed(): void {
+    this.setSpeed(SPEEDS[(SPEEDS.indexOf(this.speed) + 1) % SPEEDS.length]);
+  }
+  getSpeed(): Speed {
+    return this.speed;
+  }
+
   get isRunning(): boolean {
     const b = this.battle;
     return b !== null && !this.hidden && !b.rec.core.paused && !b.rec.core.isResult();
   }
 
   /**
-   * 벽시계 연결(SIM-CONTRACT 2절): 누적 후 50ms 마다 step() 1회, 한 번에 최대 5틱. 한도에 걸리면 남은 누적을 버린다.
+   * 벽시계 연결(SIM-CONTRACT 2절): 누적(실제 시간 × 배속) 후 50ms 마다 step() 1회, 한 번에 최대 5 × 배속 틱. 한도에 걸리면 남은 누적을 버린다.
+   * UI 시계(피드백 만료)는 실제 시간 그대로.
    * 일시정지·결과·숨김에서는 0틱. 반환값은 실행한 틱 수.
    */
   advance(elapsedMs: number): number {
@@ -248,8 +269,9 @@ export class GameSession {
     let ticks = 0;
     const b = this.battle;
     if (b !== null && this.isRunning) {
-      this.acc += elapsedMs;
-      while (this.acc >= TICK_MS && ticks < MAX_TICKS_PER_ADVANCE && !b.rec.core.isResult()) {
+      this.acc += elapsedMs * this.speed;
+      const maxTicks = MAX_TICKS_PER_ADVANCE * this.speed;
+      while (this.acc >= TICK_MS && ticks < maxTicks && !b.rec.core.isResult()) {
         this.acc -= TICK_MS;
         this.stepOnce(b);
         ticks += 1;

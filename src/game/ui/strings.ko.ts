@@ -36,6 +36,7 @@ export const STR = {
     gold: "골드",
     baseHp: "기지",
     menu: "메뉴",
+    speed: "배속",
     startNow: "▶ 시작",
     spawnProgress: "생성",
     aliveEnemies: "생존 적",
