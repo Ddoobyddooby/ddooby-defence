@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { DEV_PLACEHOLDER } from "../content/devBundle";
 import { menuView } from "./hudView";
-import { MemoryProgressStore } from "./progress";
+import { LocalStorageProgressStore, MemoryProgressStore, PROGRESS_KEY, type StorageBackend } from "./progress";
 import { FEEDBACK_MS, GameSession } from "./session";
 
 type Bundle = { stages: { baseHp: number; initialGold: number; waves: unknown[] }[]; enemies: { speedMtPerSec: number }[] };
@@ -834,5 +834,89 @@ describe("MOB-02: handleBack 우선순위 (UI-CONTRACT 8.1절)", () => {
     s.openInfo();
     s.cancel();
     expect(battle(s).ui).toMatchObject({ infoOpen: false, selectedTowerId: 1 });
+  });
+});
+
+describe("SAVE-01: 클리어 기록 저장 연동 (UI-CONTRACT 10절)", () => {
+  const mem = (init: Record<string, string> = {}) => {
+    const data = new Map(Object.entries(init));
+    const flags = { failSet: false, failGet: false };
+    const backend: StorageBackend = {
+      getItem: (k) => {
+        if (flags.failGet) throw new Error("denied");
+        return data.get(k) ?? null;
+      },
+      setItem: (k, v) => {
+        if (flags.failSet) throw new Error("quota");
+        data.set(k, v);
+      },
+      removeItem: (k) => void data.delete(k),
+    };
+    return { data, flags, backend };
+  };
+  const win = (s: GameSession) => {
+    s.startStage(0);
+    s.startWave();
+    run(s, 200);
+  };
+
+  it("승리 → 저장 성공: 결과 save=saved, 저장 값에 stage-1, 새 세션(새로고침 흉내)에서 Stage 2 해금 유지", () => {
+    const m = mem();
+    const s = new GameSession({ bundle: sprint(100), store: new LocalStorageProgressStore(m.backend) });
+    win(s);
+    expect(battle(s).result).toMatchObject({ outcome: "victory", save: "saved" });
+    expect(m.data.get(PROGRESS_KEY)).toBe(JSON.stringify({ version: 1, cleared: [DEV_PLACEHOLDER.stages[0].stageId] }));
+    const s2 = new GameSession({ bundle: sprint(100), store: new LocalStorageProgressStore(m.backend) });
+    expect(s2.getState().notice).toBeNull();
+    expect(s2.getState().cards.map((c) => c.state)).toEqual(["cleared", "available", "locked"]);
+  });
+  it("승리 → 저장 실패: 메모리 해금은 즉시 유지, 결과 save=failed, 복구 후 retrySave → saved", () => {
+    const m = mem();
+    m.flags.failSet = true;
+    const s = new GameSession({ bundle: sprint(100), store: new LocalStorageProgressStore(m.backend) });
+    win(s);
+    expect(battle(s).result).toMatchObject({ outcome: "victory", save: "failed", nextEnabled: true });
+    expect(s.getState().cards.map((c) => c.state)).toEqual(["cleared", "available", "locked"]);
+    expect(m.data.has(PROGRESS_KEY)).toBe(false);
+    s.retrySave();
+    expect(battle(s).result?.save).toBe("failed");
+    m.flags.failSet = false;
+    const before = s.getState();
+    s.retrySave();
+    expect(s.getState()).not.toBe(before);
+    expect(battle(s).result?.save).toBe("saved");
+    expect(m.data.get(PROGRESS_KEY)).toBe(JSON.stringify({ version: 1, cleared: [DEV_PLACEHOLDER.stages[0].stageId] }));
+  });
+  it("패배는 save=null 이고 기록을 건드리지 않는다. 클리어한 스테이지를 재도전해 패배해도 플래그 유지", () => {
+    const m = mem({ [PROGRESS_KEY]: JSON.stringify({ version: 1, cleared: [DEV_PLACEHOLDER.stages[0].stageId] }) });
+    const s = new GameSession({ bundle: sprint(1), store: new LocalStorageProgressStore(m.backend) });
+    s.startStage(0);
+    s.startWave();
+    run(s, 30);
+    expect(battle(s).result).toMatchObject({ outcome: "defeat", save: null });
+    s.retry();
+    s.toStageSelect();
+    expect(s.getState().cards[0].state).toBe("cleared");
+    expect(m.data.get(PROGRESS_KEY)).toBe(JSON.stringify({ version: 1, cleared: [DEV_PLACEHOLDER.stages[0].stageId] }));
+  });
+  it("읽기 실패·저장소 사용 불가는 스테이지 선택 안내(notice)로 노출, 진행은 메모리로 계속", () => {
+    const bad = mem({ [PROGRESS_KEY]: "{broken" });
+    const a = new GameSession({ bundle: sprint(100), store: new LocalStorageProgressStore(bad.backend) });
+    expect(a.getState().notice).toBe("unreadable");
+    expect(a.getState().cards.map((c) => c.state)).toEqual(["available", "locked", "locked"]);
+    const gone = mem();
+    gone.flags.failGet = true;
+    const b = new GameSession({ bundle: sprint(100), store: new LocalStorageProgressStore(gone.backend) });
+    expect(b.getState().notice).toBe("unavailable");
+    gone.flags.failSet = true;
+    win(b);
+    expect(battle(b).result?.save).toBe("failed");
+    expect(b.getState().cards[0].state).toBe("cleared");
+  });
+  it("메모리 저장소는 notice 없음·save=saved", () => {
+    const { session: s } = make(sprint(100));
+    expect(s.getState().notice).toBeNull();
+    win(s);
+    expect(battle(s).result?.save).toBe("saved");
   });
 });

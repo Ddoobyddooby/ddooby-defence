@@ -8,7 +8,7 @@ import type { AttemptEvent } from "../core/attempt/types";
 import type { TargetingMode } from "../core/sim/commands";
 import { rejectText, STAGE_NAMES, STR } from "../ui/strings.ko";
 import { hudView, pendingKey, type HudView } from "./hudView";
-import { deriveStageCards, isEnterable, type ProgressStore, type StageCard } from "./progress";
+import { deriveStageCards, isEnterable, type LoadStatus, type ProgressStore, type SaveStatus, type StageCard } from "./progress";
 import { EMPTY_UI, type Snapshot, type UiState } from "./types";
 
 export const TICK_MS = 50;
@@ -25,6 +25,8 @@ export interface ResultView {
   readonly maxBaseHp: number;
   readonly hasNext: boolean;
   readonly nextEnabled: boolean;
+  /** 승리 결과의 클리어 기록 저장 상태(패배는 기록을 건드리지 않으므로 null, UI-CONTRACT 10절). */
+  readonly save: SaveStatus | null;
 }
 
 export interface BattleState {
@@ -41,6 +43,8 @@ export interface SessionState {
   readonly screen: "stageSelect" | "battle";
   readonly cards: readonly StageCard[];
   readonly battle: BattleState | null;
+  /** 스테이지 선택 화면 저장 안내(UI-CONTRACT 10절): 읽기 실패로 새로 시작 / 저장소 사용 불가로 기록이 저장되지 않음. */
+  readonly notice: "unreadable" | "unavailable" | null;
 }
 
 export type CommandOutcome = { readonly ok: true } | { readonly ok: false; readonly reason: "notBattle" | "paused" | "result" | "invalid" | "pending" };
@@ -83,6 +87,7 @@ function normalizeUi(ui: UiState): UiState {
 export class GameSession {
   private readonly bundle: unknown;
   private readonly store: ProgressStore;
+  private readonly loadStatus: LoadStatus;
   private readonly validation: ContentValidation;
   private readonly stageIds: (string | null)[];
   private readonly entryErrors = new Map<number, string[]>();
@@ -103,6 +108,7 @@ export class GameSession {
   constructor(options: SessionOptions) {
     this.bundle = options.bundle;
     this.store = options.store;
+    this.loadStatus = options.store.load();
     this.validation = validateContent(options.bundle);
     this.stageIds = this.validation.stages.map((s) => s.stageId);
   }
@@ -126,7 +132,8 @@ export class GameSession {
   getState = (): SessionState => {
     if (this.cached !== null) return this.cached;
     const cards = this.cards();
-    const state: SessionState = { version: this.version, screen: this.battle === null ? "stageSelect" : "battle", cards, battle: this.battle === null ? null : this.battleState(this.battle, cards) };
+    const notice = this.loadStatus === "unreadable" || this.loadStatus === "unavailable" ? this.loadStatus : null;
+    const state: SessionState = { version: this.version, screen: this.battle === null ? "stageSelect" : "battle", cards, battle: this.battle === null ? null : this.battleState(this.battle, cards), notice };
     this.cached = state;
     return state;
   };
@@ -156,6 +163,7 @@ export class GameSession {
         maxBaseHp: content.stage.baseHp,
         hasNext: next !== undefined,
         nextEnabled: next !== undefined && isEnterable(next),
+        save: b.curr.outcome === "victory" ? this.store.getSaveStatus() : null,
       };
     }
     return { stageIndex: b.stageIndex, attemptId: b.curr.attemptId, hud, ui: b.ui, feedback, result };
@@ -187,6 +195,12 @@ export class GameSession {
   /** 재도전: 같은 스테이지, 새 attemptId, 이전 시도 상태를 넘기지 않는다. 클리어 플래그는 유지된다. */
   retry(): boolean {
     return this.battle === null ? false : this.startStage(this.battle.stageIndex);
+  }
+
+  /** 저장 실패 뒤 `다시 저장`(UI-CONTRACT 10절). 메모리의 전체 클리어 기록을 다시 쓴다. */
+  retrySave(): void {
+    this.store.retrySave();
+    this.emit();
   }
 
   toStageSelect(): void {

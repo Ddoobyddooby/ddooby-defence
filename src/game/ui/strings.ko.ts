@@ -26,7 +26,11 @@ export const STR = {
   card: { locked: "잠김", available: "선택 가능", cleared: "클리어", contentError: "콘텐츠 오류" },
   cardHintLocked: "이전 스테이지를 클리어하면 열립니다",
   cardHintError: "데이터 검증에 실패해 시작할 수 없습니다",
-  progressNote: "클리어 기록은 이 탭에만 유지됩니다. 새로고침하면 사라질 수 있습니다.",
+  progressNote: "클리어 기록은 이 기기에 저장됩니다.",
+  progressNotice: {
+    unreadable: "저장 기록을 읽지 못해 새로 시작합니다.",
+    unavailable: "기록이 저장되지 않습니다. 앱을 다시 켜면 클리어 기록이 사라집니다.",
+  },
   hud: {
     wave: "웨이브",
     gold: "골드",
@@ -78,6 +82,10 @@ export const STR = {
     retry: "재도전",
     toSelect: "스테이지 선택",
     next: "다음 스테이지",
+    saved: "기록 저장됨",
+    saveFailed: "기록 저장 실패",
+    saveLossNote: "앱을 다시 켜면 이 클리어 기록이 사라질 수 있습니다.",
+    retrySave: "다시 저장",
   },
   paused_blocked: "일시정지 중에는 할 수 없습니다",
   notBattle: "지금은 할 수 없습니다",

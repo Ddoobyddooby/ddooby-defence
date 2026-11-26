@@ -1,19 +1,147 @@
-// 스테이지 진행 상태 (UI-CONTRACT 4절, SPEC 10절). UI-01 은 세션 메모리 구현만 둔다. SAVE-01 이 같은 인터페이스로 영구 저장을 붙인다.
+// 스테이지 진행 상태·영구 저장 (UI-CONTRACT 4·10절, SPEC 10절, SAVE-01).
 import type { ContentValidation } from "../core/content/types";
 
+/** 저장소 읽기 결과(UI-CONTRACT 10절). ok=저장 값 읽음, empty=저장 값 없음, unreadable=깨짐·형식 불일치·모르는 version(원문은 corrupt 키로 보존), unavailable=저장소를 쓸 수 없음. */
+export type LoadStatus = "ok" | "empty" | "unreadable" | "unavailable";
+/** 저장 상태(SPEC 9절). localStorage 는 동기라 pending 은 화면에 거의 안 보인다. */
+export type SaveStatus = "pending" | "saved" | "failed";
+
 export interface ProgressStore {
-  /** 클리어한 stageId 목록(해금은 여기서 파생). */
+  /** 시작 시 1회 읽는다(세션 생성자). 실패해도 던지지 않고 빈 기록으로 시작한다. */
+  load(): LoadStatus;
+  /** 메모리 기준 클리어 stageId 목록(해금은 여기서 파생). 저장 성공과 무관하다. 모르는 id 도 포함한다. */
   getCleared(): readonly string[];
-  markCleared(stageId: string): void;
+  /** 메모리에 즉시 반영하고 저장을 시도한다. */
+  markCleared(stageId: string): SaveStatus;
+  /** 메모리의 전체 기록을 다시 저장한다. */
+  retrySave(): SaveStatus;
+  /** 마지막 저장 시도 결과(시도 전에는 saved). */
+  getSaveStatus(): SaveStatus;
 }
 
+export interface StorageBackend {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
+export const PROGRESS_KEY = "ddooby-defence.progress";
+export const PROGRESS_CORRUPT_KEY = "ddooby-defence.progress.corrupt";
+const PROGRESS_VERSION = 1;
+
+/** 테스트·대체용 메모리 저장소(항상 저장 성공). */
 export class MemoryProgressStore implements ProgressStore {
   private readonly cleared = new Set<string>();
+  load(): LoadStatus {
+    return "empty";
+  }
   getCleared(): readonly string[] {
     return [...this.cleared].sort();
   }
-  markCleared(stageId: string): void {
+  markCleared(stageId: string): SaveStatus {
     this.cleared.add(stageId);
+    return "saved";
+  }
+  retrySave(): SaveStatus {
+    return "saved";
+  }
+  getSaveStatus(): SaveStatus {
+    return "saved";
+  }
+}
+
+/**
+ * 브라우저 localStorage 백엔드. 서버(정적 export 빌드·SSR)에는 window 가 없고, 접근 자체가 SecurityError 를 던질 수도 있어 null 을 돌려준다.
+ * 호출은 클라이언트에서만 의미가 있다(서버에서는 사용 불가로 취급될 뿐 아무것도 쓰지 않는다).
+ */
+export function browserStorageBackend(): StorageBackend | null {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return null;
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+type Parsed = { ok: true; cleared: string[] } | { ok: false };
+
+/** `{"version":1,"cleared":[...]}` 만 읽는다. 그 외(JSON 깨짐·객체 아님·모르는 version·cleared 가 배열 아님)는 읽기 실패. 문자열이 아닌 항목만 버린다. */
+function parseProgress(raw: string): Parsed {
+  let v: unknown;
+  try {
+    v = JSON.parse(raw);
+  } catch {
+    return { ok: false };
+  }
+  if (typeof v !== "object" || v === null || Array.isArray(v)) return { ok: false };
+  const o = v as { version?: unknown; cleared?: unknown };
+  if (o.version !== PROGRESS_VERSION || !Array.isArray(o.cleared)) return { ok: false };
+  return { ok: true, cleared: o.cleared.filter((x): x is string => typeof x === "string") };
+}
+
+/** 영구 저장소(UI-CONTRACT 10절). 클리어는 저장 성공과 무관하게 메모리에 즉시 반영된다. */
+export class LocalStorageProgressStore implements ProgressStore {
+  private readonly cleared = new Set<string>();
+  private saveStatus: SaveStatus = "saved";
+  constructor(private readonly backend: StorageBackend | null) {}
+
+  load(): LoadStatus {
+    const backend = this.backend;
+    if (backend === null) return "unavailable";
+    let raw: string | null;
+    try {
+      raw = backend.getItem(PROGRESS_KEY);
+    } catch {
+      return "unavailable";
+    }
+    if (raw === null) return "empty";
+    const parsed = parseProgress(raw);
+    if (!parsed.ok) {
+      this.preserveCorrupt(backend, raw);
+      return "unreadable";
+    }
+    for (const id of parsed.cleared) this.cleared.add(id);
+    return "ok";
+  }
+
+  /** 읽지 못한 원문은 덮어쓰기 전에 corrupt 키로 복사해 둔다(이미 다른 원문이 보존돼 있으면 그것을 지키고 건드리지 않는다). 본 키는 첫 저장 성공 때 새 기록으로 바뀐다. */
+  private preserveCorrupt(backend: StorageBackend, raw: string): void {
+    try {
+      if (backend.getItem(PROGRESS_CORRUPT_KEY) === null) backend.setItem(PROGRESS_CORRUPT_KEY, raw);
+    } catch {
+      // 보존 실패는 읽기 결과에 영향을 주지 않는다(빈 기록으로 계속).
+    }
+  }
+
+  getCleared(): readonly string[] {
+    return [...this.cleared].sort();
+  }
+
+  markCleared(stageId: string): SaveStatus {
+    const had = this.cleared.has(stageId);
+    this.cleared.add(stageId);
+    if (had && this.saveStatus === "saved") return "saved";
+    return this.write();
+  }
+
+  retrySave(): SaveStatus {
+    return this.write();
+  }
+
+  getSaveStatus(): SaveStatus {
+    return this.saveStatus;
+  }
+
+  private write(): SaveStatus {
+    this.saveStatus = "pending";
+    try {
+      if (this.backend === null) throw new Error("storage unavailable");
+      this.backend.setItem(PROGRESS_KEY, JSON.stringify({ version: PROGRESS_VERSION, cleared: this.getCleared() }));
+      this.saveStatus = "saved";
+    } catch {
+      this.saveStatus = "failed";
+    }
+    return this.saveStatus;
   }
 }
 

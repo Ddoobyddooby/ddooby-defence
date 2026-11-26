@@ -11,6 +11,8 @@ const BTN = "min-h-10 min-w-24 rounded border px-3 text-sm font-semibold disable
 // 정보 창·작은 버튼용(오버레이 버튼의 min-w-24 는 4열 타깃 버튼이 넘치게 한다). 터치 영역은 최소 40×40 유지.
 const SMALL_BTN = "min-h-10 min-w-10 rounded border px-1 text-xs font-medium leading-tight disabled:cursor-not-allowed disabled:opacity-40";
 const BACKDROP = "absolute inset-0 z-10 touch-manipulation flex items-center justify-center bg-black/55 p-3";
+// 결과 패널은 저장 실패 안내(2줄+버튼)까지 640×320 안에 들어가도록 여백을 줄인다.
+const RESULT_PANEL = "w-full max-w-xs rounded-lg border border-neutral-600 bg-neutral-900 p-3 text-center text-neutral-100 shadow-xl";
 const PANEL = "w-full max-w-xs rounded-lg border border-neutral-600 bg-neutral-900 p-4 text-center text-neutral-100 shadow-xl";
 
 /** 맵 영역 위에 얹는 거부 피드백(2초). 맵 입력을 막지 않는다. */
@@ -157,7 +159,7 @@ export function ResultOverlay({ session, battle }: { session: GameSession; battl
   const r = battle.result!;
   return (
     <div className={BACKDROP} data-testid="result-overlay">
-      <div className={PANEL}>
+      <div className={RESULT_PANEL}>
         <h2 className={`text-2xl font-bold ${r.outcome === "victory" ? "text-amber-300" : "text-red-300"}`} data-testid="result-title">
           {r.outcome === "victory" ? STR.result.victory : STR.result.defeat}
         </h2>
@@ -169,7 +171,22 @@ export function ResultOverlay({ session, battle }: { session: GameSession; battl
           <dt>{STR.result.baseHp}</dt>
           <dd data-testid="result-hp">{r.baseHp} / {r.maxBaseHp}</dd>
         </dl>
-        <div className="mt-3 flex flex-wrap justify-center gap-2">
+        {r.save === "saved" && (
+          <p className="mt-1 text-xs text-emerald-300" data-testid="save-status" data-save="saved">
+            {STR.result.saved}
+          </p>
+        )}
+        {r.save === "failed" && (
+          <div className="mt-1 text-xs text-red-300" data-testid="save-status" data-save="failed">
+            <span className="font-semibold">{STR.result.saveFailed}.</span> {STR.result.saveLossNote}
+            <div>
+              <button type="button" className={`${SMALL_BTN} mt-1 min-w-24 border-red-400 bg-red-900 text-sm text-neutral-100 hover:bg-red-800`} onClick={() => session.retrySave()} data-testid="retry-save-button">
+                {STR.result.retrySave}
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="mt-2 flex flex-wrap justify-center gap-2">
           <button type="button" className={`${BTN} border-emerald-500 bg-emerald-700 hover:bg-emerald-600`} onClick={() => session.retry()} data-testid="retry-button">
             {STR.result.retry}
           </button>
