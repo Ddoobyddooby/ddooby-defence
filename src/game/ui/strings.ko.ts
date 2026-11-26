@@ -1,5 +1,5 @@
 // 화면 문구 모음 (UI-CONTRACT 7절: 한 파일에 모은다). 세션(순수 TS)도 거부 피드백 문구를 여기서 읽는다.
-export const STAGE_NAMES = ["초원 전초기지", "눈 내리는 협곡", "어스름 폐허", "얼어붙은 빗길", "무너진 성채"] as const;
+export const STAGE_NAMES = ["초원 전초기지", "눈 내리는 협곡", "어스름 폐허", "얼어붙은 설원", "무너진 성채"] as const;
 export const TOWER_NAMES = { archer: "궁수탑", ballista: "발리스타", mage: "마법탑", frost: "서리탑" } as const;
 export const ENEMY_NAMES = { normal: "일반형", fast: "고속형", heavy: "중장형", swarm: "군집형" } as const;
 export const TRAIT_NAMES = { controlResistance: "저항", hpBoost: "강인", speedBoost: "질주" } as const;
