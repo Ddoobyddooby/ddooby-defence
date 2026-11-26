@@ -291,7 +291,7 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
         if (this.has(pk)) add(pk, cx, cy, tile, 2, 0.5, 0.5, t.rotation);
         if (t.kind === "spawn" && this.has(spawnKey(stage))) add(spawnKey(stage), cx, cy, tile, 3);
         // 성문은 칸보다 위로 커도 된다(규격 3.1): 가로·세로 1.5칸, 아래쪽 기준점 = 칸 아래.
-        if (t.kind === "gate" && this.has(gateKey(stage))) add(gateKey(stage), cx, originY + (t.row + 1) * tile, tile * 1.5, 3, 0.5, 1);
+        if (t.kind === "gate" && this.has(gateKey(stage))) add(gateKey(stage), Math.min(cx, originX + 18 * tile - (tile * 1.5) / 2), originY + (t.row + 1) * tile, tile * 1.5, 3, 0.5, 1); // 맵 오른쪽 끝에서 잘리지 않게 안쪽으로 당긴다
       }
     }
 
@@ -388,11 +388,11 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
           if (k === 0) this.recoil.delete(t.towerId);
         }
         const cx = geo.originX + (t.cell.col + 0.5) * tile;
-        const bottom = geo.originY + (t.cell.row + 1) * tile - tile * 0.1;
+        const bottom = geo.originY + (t.cell.row + 1) * tile - tile * 0.08;
         const drawn = this.towerPool.put(towerKey(t.type, t.level), {
           x: cx - (rc?.dx ?? 0) * tile * 0.07 * k,
           y: bottom - (rc?.dy ?? 0) * tile * 0.07 * k,
-          size: tile * 1.12,
+          size: tile * 1.3,
           originY: 0.85,
           scaleYMul: 1 - 0.05 * k,
           sort: t.cell.row / 10,
@@ -408,7 +408,7 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
         const py = screenY(geo, p.y);
         const last = this.lastEnemyPos.get(e.id);
         if (last !== undefined && Math.abs(p.x - last.x) > 1) this.enemyFlip.set(e.id, p.x < last.x); // 왼쪽으로 가면 뒤집기
-        const size = tile * 1.05;
+        const size = tile * 1.25;
         const phase = this.animMs * 0.012 + e.id * 1.3; // 걷는 흔들림(시각 전용)
         const bob = Math.abs(Math.sin(phase)) * tile * 0.04;
         const feetY = py + tile * 0.22 - bob;
