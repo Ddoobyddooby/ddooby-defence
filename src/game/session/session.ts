@@ -194,11 +194,12 @@ export class GameSession {
     this.battle = { stageIndex: index, rec, prev: null, curr, ui: EMPTY_UI, feedback: null, markedClear: false, pending: new Set() };
     this.acc = 0;
     this.events = [];
+    this.speed = 1; // 새 시도(새 스테이지·재도전·다음 스테이지)는 1×로 시작(QA-01 L2, 사용자 결정 2026-11-27)
     this.emit();
     return true;
   }
 
-  /** 재도전: 같은 스테이지, 새 attemptId, 이전 시도 상태를 넘기지 않는다. 클리어 플래그는 유지된다. */
+  /** 재도전: 같은 스테이지, 새 attemptId, 이전 시도 상태를 넘기지 않는다. 클리어 플래그는 유지되고 배속은 1×로 돌아간다. */
   retry(): boolean {
     return this.battle === null ? false : this.startStage(this.battle.stageIndex);
   }

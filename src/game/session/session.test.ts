@@ -1004,15 +1004,18 @@ describe("UI-02: 배속 1×·2×·5× (UI-CONTRACT 5절)", () => {
     s.setSpeed(2);
     expect(s.getState().speed).toBe(2);
   });
-  it("재도전·스테이지 변경·스테이지 선택 복귀에도 배속이 유지된다", () => {
+  it("QA-01 L2: 새 시도(재도전·선택 화면에서 시작, nextStage 도 같은 startStage 경로)는 1×로 시작한다", () => {
     const s = started();
-    s.setSpeed(2);
+    s.setSpeed(5);
     s.retry();
-    expect(s.getState().speed).toBe(2);
+    expect([s.getState().speed, battle(s).hud.speed]).toEqual([1, 1]);
+    expect(s.advance(100)).toBe(2);
+    s.setSpeed(2);
     s.toStageSelect();
     expect(s.getState().speed).toBe(2);
     s.startStage(0);
-    expect(s.advance(100)).toBe(4);
+    expect(s.getState().speed).toBe(1);
+    expect(s.advance(100)).toBe(2);
   });
   it("피드백 2초는 실제 시간: 5× 에서도 1999ms 까지 보이고 2000ms 에 사라진다", () => {
     const s = started();
