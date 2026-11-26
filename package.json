@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
+    "balance": "vitest run --config vitest.balance.config.mts --silent=false",
     "golden:update": "GOLDEN_UPDATE=1 vitest run src/game/core/attempt/regression/regression.test.ts",
     "android:sync": "next build && cap sync android",
     "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug",
