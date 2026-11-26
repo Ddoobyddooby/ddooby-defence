@@ -135,7 +135,7 @@
 | REQ-QA-03 | Codex 리뷰 결과 첫 줄 판정·심각도·파일:줄·수정 제안, 재리뷰 최대 2회 | CLAUDE.md 5절 | QA-01 | `.codex-out/TECH-02-test-strategy.md`, `.codex-out/TECH-02-impl-review.md` | 운영 중(태스크별 기록) |
 | REQ-QA-04 | 치명적·높음 결함·결정성 오류 시 반영 보류, 예외는 사용자 승인 | CLAUDE.md 3절, WORKFLOW 8절 | QA-01, REL-01 | — | 운영 중(현재 보류 0건) |
 | REQ-QA-05 | 실행 증거 없는 통과 금지, 테스트 상태 6종 구분 | CLAUDE.md 5절 | 전체 | 이 문서 1절 | 운영 중 |
-| REQ-QA-06 | 리플레이 회귀 기반: 실제 전투의 틱별 상태·경제 이벤트·최종 결과 비교와 의도적 불일치 검출 | TASKS SIM-03 | SIM-03 | `attempt/regression/`(골든 R1~R3: 틱별 해시·결과·경제 원장·2회 재생·매 틱 불변식, 실패 주입 F1~F9, 갱신 가드) | **통과**(`3ea5077`, codex-main 재리뷰 2 통과). 실제 수치 골든은 BAL-01 이후 |
+| REQ-QA-06 | 리플레이 회귀 기반: 실제 전투의 틱별 상태·경제 이벤트·최종 결과 비교와 의도적 불일치 검출 | TASKS SIM-03 | SIM-03 | `attempt/regression/`(골든 R1~R3: 틱별 해시·결과·경제 원장·2회 재생·매 틱 불변식, 실패 주입 F1~F9, 갱신 가드) | **통과**(`3ea5077`, codex-main 재리뷰 2 통과). 실제 수치 골든 G1~G5 `src/game/balance/regression/` 통과(GOLD-01, `b473fcc`) |
 | REQ-QA-07 | 전체 게이트 CORE/ECON/DATA/STATE/UI 증거, 통합·출시 검토 | TASKS REL-01 | REL-01 | — | 의존성 차단 |
 
 ## 3. 태스크별 역추적 (TASK → REQ)

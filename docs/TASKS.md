@@ -198,6 +198,12 @@
 
 ## 6. 독립 QA·반영
 
+- [x] **GOLD-01 — 승인 수치 골든 회귀** (2026-11-27 `main` 반영)
+  - 담당: claude-main 요청·리뷰(사용자 지시 2026-11-26: 이번 리뷰는 codex-main 대신 claude-main 탭), 구현 claude-2(worktree `../ddooby-defence-gold-01`, 브랜치 `feat/gold-01`)
+  - 결과: `src/game/balance/regression/`(G1~G3 균형 봇 S1~S3 승리, G4 초보 봇 S3 패배, G5 혼합 조작 S1 승리 — 고정 명령 스크립트, 틱별 해시·결과·원장·2회 재생·매 틱 불변식), 수치 변경 가드(contentVersion·contentHash), `golden:update`에 포함, `npm run golden:record-scripts`(봇 명령 재기록 출력). 코어 골든 유틸은 시나리오 형태만 일반화(R1~R3·`ATTEMPT_CODE_VERSION` 무변경). 계약 SIM-CONTRACT 15.6. lint/typecheck/test(750 passed)/build exit 0(claude-main 재실행), 의도적 불일치(수치·환급 변이) 실패 확인(claude-2)
+  - 리뷰(claude-main): **지적 있음 보통 1·낮음 1**(F1 기본 5초 제한 근접 불안정 테스트, F2 봇 스크립트 재기록 도구 없음) → 수정 → 통과
+  - 남은 것: 판매·환급 회귀는 G5만 잡음, 골든 JSON 약 600KB, 골든 직접 위조는 diff 리뷰 몫
+
 - [ ] **QA-01 — 구현 영역별 독립 리뷰 및 재검증**
   - 담당: codex-main QA PL; 통합 조정 claude-main
   - 선행: 해당 변경의 특정 커밋/파일/검증 결과

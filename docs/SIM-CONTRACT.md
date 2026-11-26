@@ -501,7 +501,7 @@ Stage 1                Stage 2                Stage 3
 
 ### 15.6 실제 수치 골든 회귀 (GOLD-01)
 
-> 초안(claude-2 작성, claude-main이 다듬음). 승인 수치 bal-01-v1(`GAME_CONTENT`) 위에서 코어 변경이 실제 게임 결과를 바꾸는지 잡는다.
+> GOLD-01(2026-11-27, claude-main 리뷰 통과). 승인 수치 bal-01-v1(`GAME_CONTENT`) 위에서 코어 변경이 실제 게임 결과를 바꾸는지 잡는다.
 
 - **위치:** `src/game/balance/regression/`(`scripts.ts` 고정 명령 스크립트, `scenarios.ts`, `regression.test.ts`, `golden/G1~G5.json`). 코어는 `content/`를 import하지 않는 규칙을 지키려고 코어 밖에 두고, 15.2의 골든 유틸(`core/attempt/regression/golden.ts`: 생성·직렬화·검증·갱신 가드)을 그대로 재사용한다(시나리오 형태 `ScenarioLike`만 일반화, 코어 동작·R1~R3 골든·`ATTEMPT_CODE_VERSION` 무변경).
 - **시나리오:** G1·G2·G3 = 스테이지 1·2·3 균형 봇(B1) 승리, G4 = 스테이지 3 초보 봇(B2) 패배, G5 = 스테이지 1 혼합 스크립트(조기 시작·전투 중 설치/강화·준비 중 판매·타깃 변경·전투 중 판매 거부). 각각 틱별 해시·결과·원장 비교, 새 코어 2회 재생, 매 틱 불변식(15.2·15.4와 같은 수준)을 검증한다.
