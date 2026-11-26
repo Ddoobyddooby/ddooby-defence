@@ -1,4 +1,4 @@
-// 게임 콘텐츠 수치 bal-02-v1. Stage 1~3·타워·적·특성·경제 값은 bal-01-v1 **사용자 승인 2026-11-26**(BAL-01) 그대로, Stage 4·5(STAGE-45, 2026-11-27)는 **후보(사용자 승인 전)**.
+// 게임 콘텐츠 수치 bal-02-v1. Stage 1~3·타워·적·특성·경제 값은 bal-01-v1 **사용자 승인 2026-11-26**(BAL-01) 그대로, Stage 4·5(STAGE-45)는 bal-02-v1 **사용자 승인 2026-11-27**.
 // 검증 봇(src/game/balance) 통과 기준 BALX-01~11 + 사용자 실기기 플레이(docs/BALANCE.md 8.1).
 // 값을 바꾸면 contentVersion 을 올리고 BALANCE.md 9절에 기록, 사용자 재승인을 받는다.
 // 맵(STAGE_MAPS)은 승인된 MAP-01 그대로. 조정 이력은 docs/balance/ 보고서 끝.
