@@ -6,6 +6,7 @@ import { towerLevelStats } from "../core/content/levelStats";
 import type { TargetingMode } from "../core/sim/commands";
 import { refundFor } from "../core/sim/formulas";
 import { PHASE_NAMES, STR, TOWER_NAMES } from "../ui/strings.ko";
+import { wavePreview, type WaveGroup } from "./wavePreview";
 import { uiModeOf, type Phase, type Snapshot, type Speed, type UiMode, type UiState } from "./types";
 
 export const TOWER_ORDER: readonly TowerType[] = ["archer", "ballista", "mage", "frost"];
@@ -57,6 +58,8 @@ export interface HudView {
   readonly prep: { readonly remainingText: string; readonly canStartNow: boolean } | null;
   /** 전투 단계: 이번 웨이브 생성 진행과 생존 적 수. */
   readonly combat: { readonly spawned: number; readonly totalSpawn: number; readonly alive: number } | null;
+  /** 준비 단계: 곧 시작할 웨이브의 구성(UI-CONTRACT 7.1). 준비 단계가 아니면 null. */
+  readonly preview: readonly WaveGroup[] | null;
   readonly towers: readonly TowerListItem[];
   readonly detail: TowerDetail | null;
   readonly mode: UiMode;
@@ -146,6 +149,7 @@ export function hudView(snapshot: Snapshot, content: StageContent, ui: UiState, 
     maxBaseHp: content.stage.baseHp,
     prep: snapshot.phase === "preparation" ? { remainingText: prepRemainingText(snapshot.prepTicksRemaining), canStartNow: controlsEnabled && !pending.has(pendingKey.startWave) } : null,
     combat: snapshot.phase === "combat" ? { spawned: snapshot.waveSpawnCursor, totalSpawn, alive: snapshot.enemies.length } : null,
+    preview: snapshot.phase === "preparation" && wave !== undefined ? wavePreview(wave) : null,
     towers: TOWER_ORDER.map((type) => {
       const cost = towerDef(content, type).buildCost;
       return { type, name: TOWER_NAMES[type], cost, affordable: snapshot.gold >= cost, selected: ui.placeType === type };
