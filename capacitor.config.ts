@@ -5,6 +5,10 @@ const config: CapacitorConfig = {
   appId: "com.ddooby.defence",
   appName: "Ddooby Defence",
   webDir: "out",
+  plugins: {
+    // MOB-03: 화면 가장자리 여백은 MainActivity가 좌우 대칭으로 직접 처리한다(카메라 구멍 반대쪽도 같은 폭).
+    SystemBars: { insetsHandling: "disable" },
+  },
 };
 
 export default config;
