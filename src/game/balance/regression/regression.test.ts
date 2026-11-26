@@ -2,12 +2,15 @@
 // 갱신은 `npm run golden:update`(GOLDEN_UPDATE=1)로만 한다. 같은 codeVersion·같은 입력(콘텐츠 해시·스크립트)에서 결과가 달라지면 갱신 가드가 거부한다(회귀).
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { GAME_CONTENT } from "../../content/gameContent";
 import { canonicalize } from "../../core/sim/canonical";
 import { ATTEMPT_CODE_VERSION } from "../../core/attempt";
 import { inputOf, playScenario, updateGoldens, verifyGolden, type Golden, type Verified } from "../../core/attempt/regression/golden";
 import { GAME_SCENARIOS, GOLDEN_CONTENT_VERSION, goldenUrl, type GameScenario } from "./scenarios";
+
+// 시나리오당 검증(재생 2회+불변식)이 수 초라 기본 5초 제한에 가깝다. CPU 부하 때문에 불안정해지지 않도록 넉넉히 둔다(리뷰 F1).
+vi.setConfig({ testTimeout: 60000 });
 
 const UPDATE = process.env.GOLDEN_UPDATE === "1";
 const pathOf = (id: string): string => fileURLToPath(goldenUrl(id));

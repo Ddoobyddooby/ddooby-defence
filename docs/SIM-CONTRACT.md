@@ -508,3 +508,4 @@ Stage 1                Stage 2                Stage 3
 - **명령은 고정 스크립트:** B1·B2 명령은 봇 실행에서 한 번 기록해 `scripts.ts`에 그대로 저장했다. 테스트는 봇을 다시 돌리지 않으므로 봇·자리 점수 변경이 골든을 흔들지 않는다(스크립트를 고쳤다면 골든 갱신 사유).
 - **수치 변경 가드:** (1) `GAME_CONTENT.contentVersion`이 `scenarios.ts`의 `GOLDEN_CONTENT_VERSION`과 다르면 실패, (2) 골든 `input.contentHash`가 현재 수치의 해시와 다르면(버전을 올리지 않고 값만 바꾼 경우 포함) 실패. 조용히 통과하거나 자동 갱신하지 않는다.
 - **갱신:** `npm run golden:update`가 코어 R1~R3와 실제 수치 골든을 함께 갱신한다(15.2 가드 동일: 최초 생성·코드 버전 변경·입력(콘텐츠 해시·스크립트) 변경만 허용, 같은 코드 버전·같은 입력에서 결과가 달라지면 회귀로 거부). 수치를 바꾸는 변경은 BALANCE.md 9절 절차(버전 올림·재승인) 후 이 명령을 실행하고 `GOLDEN_CONTENT_VERSION`을 고친다.
+- **수치 변경 시 절차:** 버전 올림(BALANCE.md 9절) → `npm run golden:record-scripts`(봇 B1·B2 명령을 현재 수치에서 다시 기록해 stdout 으로 출력, `scripts.ts` G1~G4 블록 교체·경고 확인) → `scenarios.ts`의 `expectedOutcome`·`expectedEndTick`·`GOLDEN_CONTENT_VERSION` 갱신 → `npm run golden:update`. G5(손으로 쓴 스크립트)는 의미가 유지되는지 직접 확인한다.
