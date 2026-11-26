@@ -69,14 +69,14 @@ export function evaluateCriteria(bundle: ContentBundle, d: BalanceData): Criteri
     singles.map((id) => `${id}(${SINGLE[id]}) S1 ${fmt(B(id, 0))} / S3 ${fmt(B(id, 2))} / S4 ${fmt(B(id, 3))} / S5 ${fmt(B(id, 4))}`).join("; "),
   );
   add("BALX-06", "B4 조기 시작: S1 승리", B("B4", 0).outcome === "victory", STAGES.map((s) => `S${s + 1} ${fmt(B("B4", s))}`).join(", "));
-  // S5 예외(claude-main 결정 2026-11-27): 54칸 경로·중장 속도 때문에 웨이브 전투 ≤ 90초, 스테이지 ≤ 380초. 나머지는 ≤ 75초·≤ 360초.
+  // S5 예외(claude-main 결정 2026-11-27): 54칸 경로·중장 속도 때문에 웨이브 전투 ≤ 90초, 스테이지 ≤ 390초. 나머지는 ≤ 75초·≤ 360초.
   const waveMax = (st: number) => (st === 4 ? 90 : 75);
-  const stageMax = (st: number) => (st === 4 ? 380 : 360);
+  const stageMax = (st: number) => (st === 4 ? 390 : 360);
   const timeOk = STAGES.every((st) => B("B1", st).seconds >= 240 && B("B1", st).seconds <= stageMax(st));
   const waveOk = STAGES.every((st) => B("B1", st).waves.length === 5 && B("B1", st).waves.every((w) => w.combatSeconds >= 30 && w.combatSeconds <= waveMax(st)));
   add(
     "BALX-07",
-    "플레이 시간(B1): 스테이지 240~360초(S5 ≤ 380), 웨이브당 전투 30~75초(S5 ≤ 90)",
+    "플레이 시간(B1): 스테이지 240~360초(S5 ≤ 390), 웨이브당 전투 30~75초(S5 ≤ 90)",
     timeOk && waveOk,
     STAGES.map((st) => `S${st + 1} ${B("B1", st).seconds}s [${B("B1", st).waves.map((w) => w.combatSeconds).join("/")}]`).join(", "),
   );

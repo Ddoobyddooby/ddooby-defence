@@ -48,7 +48,7 @@ const STAGE4_WAVES: WaveDef[] = [
 ];
 // Stage 5(폐허 테마, 중장형·체력 강화·제어 저항 특화): 단단한 적 물량. 바깥을 도는 나선(54칸), 기지가 안쪽.
 const STAGE5_WAVES: WaveDef[] = [
-  wave(0, 8000, 75, [s(0, 1200, 8, "normal")]),
+  wave(0, 15000, 75, [s(0, 1200, 8, "normal")]),
   wave(1, 8000, 85, [s(0, 2000, 3, "heavy"), s(2000, 500, 24, "fast", "speedBoost"), s(3000, 700, 14, "normal"), s(6000, 150, 30, "swarm")]),
   wave(2, 8000, 100, [s(0, 2000, 6, "heavy", "controlResistance"), s(1000, 800, 20, "normal"), s(7000, 150, 80, "swarm")]),
   wave(3, 8000, 115, [s(0, 1500, 7, "heavy", "hpBoost"), s(1000, 600, 64, "fast", "speedBoost"), s(1000, 600, 40, "normal", "controlResistance")]),

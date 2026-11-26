@@ -65,6 +65,7 @@
 | REQ-WAVE-05 | 웨이브 사이 중첩 없음, 완료 = 예약 생성 전부 완료 + 생존 적 0 | SPEC 6절 | SIM-01 | `attempt/attempt.test.ts`(웨이브 사이 중첩 없음, 완료 = 전원 생성+생존 0) | **통과**(`3ff5742`) |
 | REQ-WAVE-06 | 조기 시작·준비 타이머 만료는 정확히 한 번 전투 시작, 조기 시작 보너스 없음 | SPEC 6절, SIM-CONTRACT 2.1 | SIM-01, ECON-01 | `sim/testing/toySim.test.ts` T06·T07, `attempt/attempt.test.ts`(타이머 만료·조기 시작 1회, 전투 중 startWave 거부) | **통과**(`3ff5742`) |
 | REQ-WAVE-07 | 3맵·15웨이브 사전 검증 + 진입 재검증, 오류 스테이지 격리·진단, 가짜 데이터 자동 대체 금지 | SPEC 10절, PLAN 3.3 | DATA-01, UI-01 | `content/validate.test.ts`(전역/스테이지 격리, 오류 전부 수집, 진입 재검증 동일, 자동 보정 없음), `content/stageHash.test.ts` | 부분 통과(`ceded17`, 코어 검증·격리). 스테이지 카드 오류 표시는 UI-01 |
+| REQ-WAVE-08 | 5 Stage × 5 Wave(25웨이브), 새 맵 2개(4 설원·5 폐허 테마) 검증·진입 재검증 | SPEC 1·6절, SIM-CONTRACT 10.2·11.1 | STAGE-45 | `core/content/validate.test.ts`(스테이지 5), `core/map/stageMap.test.ts`(맵 5종), `session/progress.test.ts`(5카드·저장 호환), `phaser/pathTiles.test.ts`(생성 회전) | **통과**(STAGE-45) |
 
 ### REQ-ECON — 경제·원자성·판매 (게이트 ECON, QA ECOD)
 
@@ -125,6 +126,7 @@
 |---|---|---|---|---|---|
 | REQ-BALANCE-01 | 실제 맵·능력치·경제·웨이브 수치 후보와 사용자 최종 승인 | SPEC 12절 | BAL-01 | `src/game/balance/`(검증 봇 B0~B5·BALX-01~10 `balance.test.ts`), `docs/balance/bal-01-v1-report.md` | **통과**(자동 10/10 + 사용자 승인 2026-11-26) |
 | REQ-BALANCE-02 | 스테이지별 개별 경제·클리어 평가, 15웨이브 전략 학습 흐름 평가(기본·상성·경계 시나리오) | SPEC 6절, PLAN 7.1 | BAL-01 | 봇×스테이지 결과·역할 측정(보고서 2~4절), 사용자 실기기 플레이 | **통과**(자동 기준, 사용자 승인 2026-11-26). 장기 체감·민감도는 후속 |
+| REQ-BALANCE-03 | Stage 4(고속 특화)·Stage 5(중장 특화) 수치 후보 bal-02-v1: BALX-01~07 확장 + BALX-11 특화, S5 시간 예외(웨이브 ≤90초·스테이지 ≤390초) | SPEC 6절, BALANCE 8.1 | STAGE-45 | `balance/balance.test.ts`(BALX-01~11), `docs/balance/bal-02-v1-report.md`, 골든 G6·G7 | **자동 11/11 통과**(사용자 실기기 승인 대기) |
 
 ### REQ-QA — 게이트·리플레이·결함·문서 (QA GATE·COREG·TSTR·DEFQ·DOCQ·FINQ)
 

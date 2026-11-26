@@ -91,7 +91,7 @@ export const GAME_SCENARIOS: readonly GameScenario[] = [
     stageId: stageId(4),
     commands: G7_S5_B1,
     expectedOutcome: "victory",
-    expectedEndTick: 7579,
+    expectedEndTick: 7719,
     requiredEvents: ["towerBuilt", "projectileFired", "projectileExploded", "slowApplied", "enemyKilled", "waveCleared", "towerUpgraded", "resultReached"],
   },
 ];
