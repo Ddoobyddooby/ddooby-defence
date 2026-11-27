@@ -2,11 +2,12 @@
 import { describe, expect, it } from "vitest";
 import { STAGE_MAPS } from "../content/stageMaps";
 import { cellIndex, compileStageMap } from "../core/map/stageMap";
-import { computeDecor } from "./decor";
-import { ENEMY_TYPES } from "./assets";
+import { computeDecor, DECOR_KINDS, DECOR_WEIGHTS } from "./decor";
+import { ENEMY_TYPES, themeOf } from "./assets";
 import { enemyBarLayout } from "./sprites";
 
 const maps = STAGE_MAPS.map((m) => compileStageMap(m));
+const decorOf = (i: number) => computeDecor(maps[i], themeOf(i));
 
 describe("computeDecor", () => {
   it("스테이지 5개 전부 검증 대상(맵 5개)", () => {
@@ -15,8 +16,8 @@ describe("computeDecor", () => {
 
   it("같은 맵이면 항상 같은 결과(결정적, 두 번·다시 컴파일해도)", () => {
     for (const [i, m] of maps.entries()) {
-      expect(computeDecor(m)).toEqual(computeDecor(m));
-      expect(computeDecor(compileStageMap(STAGE_MAPS[i]))).toEqual(computeDecor(m));
+      expect(computeDecor(m, themeOf(maps.indexOf(m)))).toEqual(computeDecor(m, themeOf(maps.indexOf(m))));
+      expect(computeDecor(compileStageMap(STAGE_MAPS[i]), themeOf(i))).toEqual(computeDecor(m, themeOf(i)));
     }
   });
 
@@ -24,43 +25,54 @@ describe("computeDecor", () => {
     for (const m of maps) {
       const first = m.pathCells[0];
       const last = m.pathCells[m.pathCells.length - 1];
-      for (const d of computeDecor(m)) {
+      for (const d of computeDecor(m, themeOf(maps.indexOf(m)))) {
         expect(m.blocked.has(cellIndex(d))).toBe(false);
         expect(d.col >= 0 && d.col < 18 && d.row >= 0 && d.row < 10).toBe(true);
         expect([d.col, d.row]).not.toEqual([first.col, first.row]);
         expect([d.col, d.row]).not.toEqual([last.col, last.row]);
-        expect([1, 2, 3, 4, 5]).toContain(d.variant);
+        expect(d.variant >= 1 && d.variant <= DECOR_KINDS).toBe(true);
       }
     }
   });
 
-  it("빈 칸의 약 10%(스테이지마다 6~14%)", () => {
+  it("빈 칸의 약 20%(스테이지마다 15~25%)", () => {
     for (const m of maps) {
       const empty = 180 - m.blocked.size;
-      const n = computeDecor(m).length;
-      expect(n / empty).toBeGreaterThanOrEqual(0.06);
-      expect(n / empty).toBeLessThanOrEqual(0.14);
+      const n = computeDecor(m, themeOf(maps.indexOf(m))).length;
+      expect(n / empty).toBeGreaterThanOrEqual(0.15);
+      expect(n / empty).toBeLessThanOrEqual(0.25);
     }
   });
 
   it("같은 행·열로 이웃한 칸에 두 장식이 없다", () => {
     for (const m of maps) {
-      const set = new Set(computeDecor(m).map(cellIndex));
-      for (const d of computeDecor(m)) {
+      const set = new Set(computeDecor(m, themeOf(maps.indexOf(m))).map(cellIndex));
+      for (const d of computeDecor(m, themeOf(maps.indexOf(m)))) {
         if (d.col < 17) expect(set.has(cellIndex({ col: d.col + 1, row: d.row }))).toBe(false);
         if (d.row < 9) expect(set.has(cellIndex({ col: d.col, row: d.row + 1 }))).toBe(false);
       }
     }
   });
 
-  it("종류가 한 가지로 쏠리지 않는다(스테이지 5개 합쳐 5종 모두 등장)", () => {
-    const kinds = new Set(maps.flatMap((m) => computeDecor(m).map((d) => d.variant)));
-    expect(kinds.size).toBe(5);
+  it("8종 모두 등장하고, 초원은 나무·꽃(1·3·6·7·8)이 돌·그루터기(4·5)보다 확실히 자주 나온다", () => {
+    const meadow = decorOf(0);
+    expect(new Set(maps.flatMap((m, i) => computeDecor(m, themeOf(i)).map((d) => d.variant))).size).toBe(8);
+    const count = (vs: number[]) => meadow.filter((d) => vs.includes(d.variant)).length;
+    expect(DECOR_WEIGHTS).toHaveLength(3);
+    expect(count([1, 3, 6, 7, 8]) / 5).toBeGreaterThan((count([4, 5]) / 2) * 1.5);
+  });
+
+  it("같은 테마 스테이지(2·4, 3·5)는 장식 자리가 서로 다르다(스테이지 id 로 섞음)", () => {
+    const cells = (i: number) => new Set(decorOf(i).map(cellIndex));
+    for (const [a, b] of [[1, 3], [2, 4]] as const) {
+      const shared = [...cells(a)].filter((c) => cells(b).has(c)).length;
+      expect(shared).toBeLessThan(cells(a).size * 0.5); // 무작위로 겹쳐도 절반 미만
+    }
   });
 
   it("행 우선 순서이고 중복 칸이 없다", () => {
     for (const m of maps) {
-      const idx = computeDecor(m).map(cellIndex);
+      const idx = computeDecor(m, themeOf(maps.indexOf(m))).map(cellIndex);
       expect([...idx].sort((a, b) => a - b)).toEqual(idx);
       expect(new Set(idx).size).toBe(idx.length);
     }

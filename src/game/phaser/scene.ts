@@ -260,7 +260,7 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
       const palette = paletteOf(stage);
       drawMap(this.mapG as unknown as GraphicsLike, this.areaW, this.areaH, this.geo, this.map, palette, this.mapArt(stage));
       drawGrid(this.gridG as unknown as GraphicsLike, this.geo, palette);
-      this.decor = computeDecor(this.map);
+      this.decor = computeDecor(this.map, themeOf(stage));
       this.buildMapImages(stage, this.map);
       if (this.lastEnemyPos.size > 0 && frame.curr.tick === 0) {
         this.lastEnemyPos.clear();
