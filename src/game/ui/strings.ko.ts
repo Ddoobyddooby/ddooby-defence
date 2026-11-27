@@ -73,7 +73,7 @@ export const STR = {
     musicLicenseUrl: "https://creativecommons.org/licenses/by/3.0/",
     musicSource: "https://opengameart.org/content/war-humans-march",
     musicChanged: "변경: 반복 재생용으로 양끝에 10ms 페이드 적용, 포맷 변환(ogg)",
-    sfxLine: "Kenney (kenney.nl)",
+    sfxLine: "Kenney (kenney.nl) 외 OpenGameArt 제작자들",
     sfxLicense: "CC0",
   },
   audio: { sfx: "효과음", bgm: "배경음", on: "켜짐", off: "꺼짐" },
