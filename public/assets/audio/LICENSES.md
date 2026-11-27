@@ -25,7 +25,7 @@
 | sfx-bolt.ogg | 80 CC0 RPG SFX `item_wood_03.ogg` + Swishes `swish-7.wav` 겹침 | NoirPhantom89 / qubodup | https://opengameart.org/content/80-cc0-rpg-sfx , https://opengameart.org/content/swishes-sound-pack | 위와 같음(0.3초) |
 | sfx-fire.ogg | LEGIT Audio Fire Staff 7 의 앞 0.55초 | LEGIT Audio | https://opengameart.org/content/fire-staff-sound-effects | 모노 44.1kHz, 앞 무음 제거, 0.55초 자름+페이드, 정규화, ogg q3 |
 | sfx-explode.ogg | 25 CC0 Bang `bang_02.ogg` | Snabisch | https://opengameart.org/content/25-cc0-bang-firework-sfx | 0.55초 자름+페이드(0.2초), 정규화, ogg q3 |
-| sfx-frost.ogg | Ice Shatters `LedasLuzta.ogg` | Chris_M_The_Gamedude (crystalgames.space) | https://opengameart.org/content/ice-breakingshattering | 0.55초 자름+페이드, 정규화, ogg q3 |
+| sfx-frost.ogg | LEGIT Audio Fire Staff 7 의 앞 0.55초 | LEGIT Audio | https://opengameart.org/content/fire-staff-sound-effects | 모노 44.1kHz, 앞 무음 제거, 0.55초 자름+페이드, 정규화, ogg q3 — sfx-fire.ogg 와 같은 파일(사용자 결정 2026-11-27) |
 
 선택은 파일 이름·길이 기준이며 귀로 확인하지 않았다(소리가 어울리지 않으면 같은 팩의 다른 파일로 교체).
 ## 배경음 (CC-BY 3.0 — 게임 안 크레딧 표시 필수)

@@ -40,7 +40,8 @@ export const SFX_CONFIG: Readonly<Record<SfxName, SfxConfig>> = {
   bolt: { minIntervalMs: 80, maxConcurrent: 3, volume: 0.35 },
   fire: { minIntervalMs: 80, maxConcurrent: 3, volume: 0.45 },
   explode: { minIntervalMs: 90, maxConcurrent: 3, volume: 0.8 },
-  frost: { minIntervalMs: 90, maxConcurrent: 3, volume: 0.6 },
+  // 사용자 결정 2026-11-27: 서리 명중도 마법탑 발사와 같은 소리(sfx-frost.ogg = sfx-fire.ogg 복사본).
+  frost: { minIntervalMs: 90, maxConcurrent: 3, volume: 0.45 },
   "enemy-die": { minIntervalMs: 70, maxConcurrent: 4, volume: 0.4 },
   "base-hit": { minIntervalMs: 200, maxConcurrent: 2, volume: 0.7 },
   victory: { minIntervalMs: 1000, maxConcurrent: 1, volume: 1 },
