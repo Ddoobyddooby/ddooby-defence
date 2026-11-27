@@ -4,6 +4,7 @@ import type { TargetingMode } from "../core/sim/commands";
 import { menuView, type HudView, type TowerDetail } from "../session/hudView";
 import type { BattleState } from "../session/session";
 import type { GameSession } from "../session/session";
+import { AudioToggles } from "./AudioToggles";
 import { STR, TARGETING_NAMES } from "./strings.ko";
 
 const BTN = "min-h-10 min-w-24 rounded border px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40";
@@ -63,6 +64,9 @@ export function MenuOverlay({ session, hud }: { session: GameSession; hud: HudVi
                 </>
               )}
             </dl>
+            <div className="mt-2">
+              <AudioToggles />
+            </div>
             <div className="mt-3 flex flex-wrap justify-center gap-2">
               <button type="button" className={`${BTN} border-emerald-500 bg-emerald-700 hover:bg-emerald-600`} onClick={() => session.closeMenu()} data-testid="resume-button">
                 {STR.menu.resume}

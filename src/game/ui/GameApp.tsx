@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { getSoundEngine } from "../audio";
 import { GAME_CONTENT } from "../content/gameContent";
 import { BattleCanvas } from "../phaser/BattleCanvas";
 import { computeLayout, type Layout } from "../session/layout";
@@ -59,7 +60,10 @@ export function GameApp() {
         if (!e.repeat) session.cycleSpeed();
       } else if (e.code === "Escape") session.cancel();
     };
-    const onVisibility = () => session.setHidden(document.hidden);
+    const onVisibility = () => {
+      session.setHidden(document.hidden);
+      getSoundEngine().setHidden(document.hidden);
+    };
     window.addEventListener("keydown", onKey);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
@@ -67,6 +71,30 @@ export function GameApp() {
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [session]);
+
+  // 소리(SND-01): 세션 이벤트를 받아 재생하고, 첫 입력에서 잠금 해제, 일시정지에 맞춰 배경음을 낮춘다. 표현 전용.
+  useEffect(() => {
+    const sound = getSoundEngine();
+    const stopTap = session.addEventTap((events, snap) => sound.onEvents(events, (id) => snap.towers.find((t) => t.towerId === id)?.type));
+    const onFirst = () => sound.unlock();
+    const onClick = (e: MouseEvent) => {
+      const el = e.target instanceof Element ? e.target.closest("button") : null;
+      if (el !== null && !el.disabled) sound.playUi("tap");
+    };
+    window.addEventListener("pointerdown", onFirst, { once: true });
+    window.addEventListener("keydown", onFirst, { once: true });
+    window.addEventListener("click", onClick, true);
+    return () => {
+      stopTap();
+      window.removeEventListener("pointerdown", onFirst);
+      window.removeEventListener("keydown", onFirst);
+      window.removeEventListener("click", onClick, true);
+    };
+  }, [session]);
+  const menuOpen = state.battle !== null && state.battle.hud.paused;
+  useEffect(() => {
+    getSoundEngine().setPaused(menuOpen);
+  }, [menuOpen]);
 
   // 지원 크기 미달·세로로 바뀌면 안내 화면이 되어 전투 캔버스가 내려가고(Phaser 재생성 허용) 그동안 시간이 흐르지 않는다.
   // 돌아왔을 때 갑자기 진행되지 않도록 안내로 바뀌는 순간 일시정지한다(재개는 사용자가, 리뷰 F2).
@@ -78,7 +106,7 @@ export function GameApp() {
   if (viewport === null) return <div className="h-dvh w-full bg-neutral-950" />;
   const layout: Layout = computeLayout(viewport.w, viewport.h);
   if (!layout.supported) return <OrientationNotice problem={layout.problem!} />;
-  if (state.screen === "stageSelect" || state.battle === null) return <StageSelect session={session} cards={state.cards} notice={state.notice} />;
+  if (state.screen === "stageSelect" || state.battle === null) return <StageSelect session={session} cards={state.cards} notice={state.notice} creditsOpen={state.creditsOpen} />;
 
   const battle = state.battle;
   const detail = battle.hud.detail;

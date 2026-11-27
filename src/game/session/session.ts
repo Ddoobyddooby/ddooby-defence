@@ -50,6 +50,8 @@ export interface SessionState {
   readonly speed: Speed;
   /** 스테이지 선택 화면 저장 안내(UI-CONTRACT 10절): 읽기 실패로 새로 시작 / 저장소 사용 불가로 기록이 저장되지 않음. */
   readonly notice: "unreadable" | "unavailable" | null;
+  /** 스테이지 선택 화면의 크레딧 패널이 열려 있다(뒤로가기가 먼저 닫는다, SND-01). */
+  readonly creditsOpen: boolean;
 }
 
 export type CommandOutcome = { readonly ok: true } | { readonly ok: false; readonly reason: "notBattle" | "paused" | "result" | "invalid" | "pending" };
@@ -109,7 +111,10 @@ export class GameSession {
   private speed: Speed = 1;
   /** 숨김에서 복귀한 직후 첫 advance 입력(숨김·정지 시간이 섞였을 수 있음)은 버리고 기준만 다시 잡는다(UI-CONTRACT 5절, 리뷰 F1). */
   private skipNextAdvance = false;
+  private creditsOpen = false;
   private events: AttemptEvent[] = [];
+  /** 틱마다 이벤트를 받는 관찰자(소리 등 표현 전용, SND-01). 코어·상태에 영향 없다. */
+  private readonly eventTaps = new Set<(events: readonly AttemptEvent[], snapshot: Snapshot) => void>();
 
   constructor(options: SessionOptions) {
     this.bundle = options.bundle;
@@ -128,6 +133,13 @@ export class GameSession {
     };
   };
 
+  addEventTap(tap: (events: readonly AttemptEvent[], snapshot: Snapshot) => void): () => void {
+    this.eventTaps.add(tap);
+    return () => {
+      this.eventTaps.delete(tap);
+    };
+  }
+
   private emit(): void {
     this.version += 1;
     this.cached = null;
@@ -139,7 +151,7 @@ export class GameSession {
     if (this.cached !== null) return this.cached;
     const cards = this.cards();
     const notice = this.loadStatus === "unreadable" || this.loadStatus === "unavailable" ? this.loadStatus : null;
-    const state: SessionState = { version: this.version, screen: this.battle === null ? "stageSelect" : "battle", cards, battle: this.battle === null ? null : this.battleState(this.battle, cards), speed: this.speed, notice };
+    const state: SessionState = { version: this.version, screen: this.battle === null ? "stageSelect" : "battle", cards, battle: this.battle === null ? null : this.battleState(this.battle, cards), speed: this.speed, notice, creditsOpen: this.creditsOpen };
     this.cached = state;
     return state;
   };
@@ -207,6 +219,17 @@ export class GameSession {
   /** 저장 실패 뒤 `다시 저장`(UI-CONTRACT 10절). 메모리의 전체 클리어 기록을 다시 쓴다. */
   retrySave(): void {
     this.store.retrySave();
+    this.emit();
+  }
+
+  openCredits(): void {
+    if (this.battle !== null || this.creditsOpen) return;
+    this.creditsOpen = true;
+    this.emit();
+  }
+  closeCredits(): void {
+    if (!this.creditsOpen) return;
+    this.creditsOpen = false;
     this.emit();
   }
 
@@ -297,6 +320,13 @@ export class GameSession {
     b.curr = b.rec.core.snapshot() as unknown as Snapshot;
     for (const e of events) {
       if (e.type === "commandRejected") this.setFeedback(b, rejectText(String(e.reason)));
+    }
+    for (const tap of this.eventTaps) {
+      try {
+        tap(events, b.curr);
+      } catch {
+        // 표현 전용 관찰자(소리 등)의 오류가 게임 진행을 멈추지 않게 한다.
+      }
     }
     this.events.push(...events);
     if (this.events.length > EVENT_BUFFER_MAX) this.events.splice(0, this.events.length - EVENT_BUFFER_MAX);
@@ -457,7 +487,11 @@ export class GameSession {
    */
   handleBack(): "handled" | "exit" {
     const b = this.battle;
-    if (b === null) return "exit";
+    if (b === null) {
+      if (!this.creditsOpen) return "exit";
+      this.closeCredits();
+      return "handled";
+    }
     if (b.rec.core.isResult()) {
       this.toStageSelect();
       return "handled";

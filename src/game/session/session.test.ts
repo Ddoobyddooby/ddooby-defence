@@ -1039,3 +1039,45 @@ describe("UI-02: 배속 1×·2×·5× (UI-CONTRACT 5절)", () => {
     expect(JSON.stringify(run5.getRenderFrame()?.curr)).toBe(JSON.stringify(run1.getRenderFrame()?.curr));
   });
 });
+
+describe("addEventTap (SND-01)", () => {
+  it("틱 이벤트를 관찰자에게 알리고(스냅샷 포함), 해제하면 멈춘다. 일시정지 중에는 틱이 없어 알림도 없다", () => {
+    const { session } = make();
+    session.startStage(0);
+    session.advance(0);
+    const seen: string[] = [];
+    const un = session.addEventTap((events) => {
+      for (const e of events) seen.push(e.type);
+    });
+    session.startWave();
+    run(session, 3);
+    expect(seen).toContain("waveStarted");
+    session.pause();
+    const n = seen.length;
+    run(session, 5);
+    expect(seen.length).toBe(n);
+    session.resume();
+    un();
+    const m = seen.length;
+    run(session, 5);
+    expect(seen.length).toBe(m);
+  });
+});
+
+describe("크레딧 패널 (SND-01)", () => {
+  it("스테이지 선택 화면에서만 열리고, 뒤로가기가 먼저 닫으며, 닫힌 뒤의 뒤로가기는 exit", () => {
+    const { session } = make();
+    expect(session.getState().creditsOpen).toBe(false);
+    session.openCredits();
+    expect(session.getState().creditsOpen).toBe(true);
+    expect(session.handleBack()).toBe("handled");
+    expect(session.getState().creditsOpen).toBe(false);
+    expect(session.handleBack()).toBe("exit");
+    session.openCredits();
+    session.closeCredits();
+    expect(session.getState().creditsOpen).toBe(false);
+    session.startStage(0);
+    session.openCredits(); // 전투 중에는 열리지 않는다
+    expect(session.getState().creditsOpen).toBe(false);
+  });
+});
