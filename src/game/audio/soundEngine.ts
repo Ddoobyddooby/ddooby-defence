@@ -17,9 +17,9 @@ export interface AudioBackend {
   resume(): void;
 }
 
-export const BGM_VOLUME = 0.35;
+export const BGM_VOLUME = 0.25;
 /** 메뉴(일시정지)·결과 직후에는 배경음을 낮춘다. */
-export const BGM_DUCKED_VOLUME = 0.12;
+export const BGM_DUCKED_VOLUME = 0.09;
 export const RESULT_DUCK_MS = 2500;
 
 export interface PlayRecord {

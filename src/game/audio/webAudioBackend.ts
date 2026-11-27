@@ -15,8 +15,13 @@ export class WebAudioBackend implements AudioBackend {
   private readonly playing = new Set<AudioBufferSourceNode>();
   private bgmGain: GainNode | null = null;
   private bgmSource: AudioBufferSourceNode | null = null;
-  private bgmVolume = 0.35;
+  private bgmVolume = 0.25;
   private bgmWanted = false;
+
+  /** 검증용 상태(개발 빌드 콘솔에서 읽는다). */
+  debugState(): { bgmPlaying: boolean; bgmLoop: boolean; bgmVolume: number; ctx: string } {
+    return { bgmPlaying: this.bgmSource !== null, bgmLoop: this.bgmSource?.loop ?? false, bgmVolume: this.bgmGain?.gain.value ?? -1, ctx: this.ctx?.state ?? "none" };
+  }
 
   private context(): Ctx | null {
     if (this.ctx !== null) return this.ctx;

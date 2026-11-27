@@ -23,4 +23,11 @@
 | sfx-defeat.ogg | Music Jingles | Sax jingles/jingles_SAX03.ogg | https://kenney.nl/assets/music-jingles |
 
 선택은 파일 이름·길이 기준이며 귀로 확인하지 않았다(소리가 어울리지 않으면 같은 팩의 다른 파일로 교체).
-배경음(`bgm-main.ogg`)은 사용자가 후보를 듣고 고른 뒤 추가하며, 그때 이 표에 출처를 더한다.
+## 배경음 (CC-BY 3.0 — 게임 안 크레딧 표시 필수)
+
+| 파일 | 곡 | 저작자 | 라이선스 | 출처 |
+|---|---|---|---|---|
+| bgm-main.ogg | "War Humans March" | tridentkeep(원곡 "theme humans march", Frostbite Medieval soundtrack), Bobjt(리믹스, 2025) | CC BY 3.0 — https://creativecommons.org/licenses/by/3.0/ | https://opengameart.org/content/war-humans-march |
+
+- 변경 사항: 원본 war_humans_march.mp3(꼬리 없는 반복용 버전)를 44.1kHz로 디코딩해 양 끝에 10ms 페이드를 걸고 ogg(q2)로 변환. 그 외 편집 없음.
+- 표시 위치: 스테이지 선택 화면 `크레딧` 버튼(src/game/ui/Credits.tsx, 문구는 strings.ko.ts의 credits). 제목·저작자·라이선스 링크·출처·변경 여부를 표시한다.

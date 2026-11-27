@@ -106,7 +106,7 @@ export function GameApp() {
   if (viewport === null) return <div className="h-dvh w-full bg-neutral-950" />;
   const layout: Layout = computeLayout(viewport.w, viewport.h);
   if (!layout.supported) return <OrientationNotice problem={layout.problem!} />;
-  if (state.screen === "stageSelect" || state.battle === null) return <StageSelect session={session} cards={state.cards} notice={state.notice} />;
+  if (state.screen === "stageSelect" || state.battle === null) return <StageSelect session={session} cards={state.cards} notice={state.notice} creditsOpen={state.creditsOpen} />;
 
   const battle = state.battle;
   const detail = battle.hud.detail;

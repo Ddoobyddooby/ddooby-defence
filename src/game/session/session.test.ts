@@ -1063,3 +1063,21 @@ describe("addEventTap (SND-01)", () => {
     expect(seen.length).toBe(m);
   });
 });
+
+describe("크레딧 패널 (SND-01)", () => {
+  it("스테이지 선택 화면에서만 열리고, 뒤로가기가 먼저 닫으며, 닫힌 뒤의 뒤로가기는 exit", () => {
+    const { session } = make();
+    expect(session.getState().creditsOpen).toBe(false);
+    session.openCredits();
+    expect(session.getState().creditsOpen).toBe(true);
+    expect(session.handleBack()).toBe("handled");
+    expect(session.getState().creditsOpen).toBe(false);
+    expect(session.handleBack()).toBe("exit");
+    session.openCredits();
+    session.closeCredits();
+    expect(session.getState().creditsOpen).toBe(false);
+    session.startStage(0);
+    session.openCredits(); // 전투 중에는 열리지 않는다
+    expect(session.getState().creditsOpen).toBe(false);
+  });
+});

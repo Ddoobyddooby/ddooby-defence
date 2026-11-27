@@ -6,9 +6,10 @@ import { WebAudioBackend } from "./webAudioBackend";
 let engine: SoundEngine | null = null;
 export function getSoundEngine(): SoundEngine {
   if (engine === null) {
-    engine = new SoundEngine(new WebAudioBackend(), browserStorage());
+    const backend = new WebAudioBackend();
+    engine = new SoundEngine(backend, browserStorage());
     // 검증용: 개발 빌드에서만 재생 기록을 콘솔에서 볼 수 있게 한다.
-    if (process.env.NODE_ENV !== "production") (window as unknown as { __soundLog?: unknown }).__soundLog = engine.log;
+    if (process.env.NODE_ENV !== "production") Object.assign(window, { __soundLog: engine.log, __audioDebug: () => backend.debugState() });
   }
   return engine;
 }

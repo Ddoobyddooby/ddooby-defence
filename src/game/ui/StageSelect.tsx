@@ -2,6 +2,7 @@
 
 import type { GameSession } from "../session/session";
 import type { StageCard } from "../session/progress";
+import { Credits } from "./Credits";
 import { AudioToggles } from "./AudioToggles";
 import { STAGE_NAMES, STR } from "./strings.ko";
 
@@ -12,13 +13,16 @@ const STATE_STYLE: Record<StageCard["state"], string> = {
   contentError: "border-red-500 bg-red-950/40 text-red-200",
 };
 
-export function StageSelect({ session, cards, notice }: { session: GameSession; cards: readonly StageCard[]; notice: "unreadable" | "unavailable" | null }) {
+export function StageSelect({ session, cards, notice, creditsOpen = false }: { session: GameSession; cards: readonly StageCard[]; notice: "unreadable" | "unavailable" | null; creditsOpen?: boolean }) {
   return (
-    <main className="flex h-dvh w-full flex-col overflow-auto bg-neutral-950 p-3 text-neutral-100">
+    <main className="relative flex h-dvh w-full flex-col overflow-auto bg-neutral-950 p-3 text-neutral-100">
       <header className="mb-1 flex flex-wrap items-center gap-2">
         <h1 className="text-xl font-bold">{STR.title}</h1>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
           <AudioToggles />
+          <button type="button" className="min-h-10 rounded border border-neutral-600 bg-neutral-800 px-3 text-sm font-semibold text-neutral-300 hover:bg-neutral-700" onClick={() => session.openCredits()} data-testid="credits-button">
+            {STR.credits.button}
+          </button>
         </div>
       </header>
       <p className="mb-2 text-sm text-neutral-400">{STR.pickStage}</p>
@@ -60,6 +64,7 @@ export function StageSelect({ session, cards, notice }: { session: GameSession; 
           {STR.progressNotice[notice]}
         </p>
       )}
+      {creditsOpen && <Credits session={session} />}
     </main>
   );
 }
