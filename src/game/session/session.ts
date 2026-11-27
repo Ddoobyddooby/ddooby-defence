@@ -110,6 +110,8 @@ export class GameSession {
   /** 숨김에서 복귀한 직후 첫 advance 입력(숨김·정지 시간이 섞였을 수 있음)은 버리고 기준만 다시 잡는다(UI-CONTRACT 5절, 리뷰 F1). */
   private skipNextAdvance = false;
   private events: AttemptEvent[] = [];
+  /** 틱마다 이벤트를 받는 관찰자(소리 등 표현 전용, SND-01). 코어·상태에 영향 없다. */
+  private readonly eventTaps = new Set<(events: readonly AttemptEvent[], snapshot: Snapshot) => void>();
 
   constructor(options: SessionOptions) {
     this.bundle = options.bundle;
@@ -127,6 +129,13 @@ export class GameSession {
       this.listeners.delete(listener);
     };
   };
+
+  addEventTap(tap: (events: readonly AttemptEvent[], snapshot: Snapshot) => void): () => void {
+    this.eventTaps.add(tap);
+    return () => {
+      this.eventTaps.delete(tap);
+    };
+  }
 
   private emit(): void {
     this.version += 1;
@@ -298,6 +307,7 @@ export class GameSession {
     for (const e of events) {
       if (e.type === "commandRejected") this.setFeedback(b, rejectText(String(e.reason)));
     }
+    for (const tap of this.eventTaps) tap(events, b.curr);
     this.events.push(...events);
     if (this.events.length > EVENT_BUFFER_MAX) this.events.splice(0, this.events.length - EVENT_BUFFER_MAX);
     this.reconcileUi(b);

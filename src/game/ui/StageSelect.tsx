@@ -2,6 +2,7 @@
 
 import type { GameSession } from "../session/session";
 import type { StageCard } from "../session/progress";
+import { AudioToggles } from "./AudioToggles";
 import { STAGE_NAMES, STR } from "./strings.ko";
 
 const STATE_STYLE: Record<StageCard["state"], string> = {
@@ -16,6 +17,9 @@ export function StageSelect({ session, cards, notice }: { session: GameSession; 
     <main className="flex h-dvh w-full flex-col overflow-auto bg-neutral-950 p-3 text-neutral-100">
       <header className="mb-1 flex flex-wrap items-center gap-2">
         <h1 className="text-xl font-bold">{STR.title}</h1>
+        <div className="ml-auto">
+          <AudioToggles />
+        </div>
       </header>
       <p className="mb-2 text-sm text-neutral-400">{STR.pickStage}</p>
       <div className="grid flex-1 grid-cols-5 content-start gap-2" data-testid="stage-cards">

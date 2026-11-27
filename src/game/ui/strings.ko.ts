@@ -62,6 +62,7 @@ export const STR = {
     close: "닫기",
     seconds: "초",
   },
+  audio: { sfx: "효과음", bgm: "배경음", on: "켜짐", off: "꺼짐" },
   menu: {
     title: "메뉴",
     hint: "계속하기, Space 또는 P 키로 돌아갑니다",

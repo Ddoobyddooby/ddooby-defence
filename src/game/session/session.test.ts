@@ -1039,3 +1039,27 @@ describe("UI-02: 배속 1×·2×·5× (UI-CONTRACT 5절)", () => {
     expect(JSON.stringify(run5.getRenderFrame()?.curr)).toBe(JSON.stringify(run1.getRenderFrame()?.curr));
   });
 });
+
+describe("addEventTap (SND-01)", () => {
+  it("틱 이벤트를 관찰자에게 알리고(스냅샷 포함), 해제하면 멈춘다. 일시정지 중에는 틱이 없어 알림도 없다", () => {
+    const { session } = make();
+    session.startStage(0);
+    session.advance(0);
+    const seen: string[] = [];
+    const un = session.addEventTap((events) => {
+      for (const e of events) seen.push(e.type);
+    });
+    session.startWave();
+    run(session, 3);
+    expect(seen).toContain("waveStarted");
+    session.pause();
+    const n = seen.length;
+    run(session, 5);
+    expect(seen.length).toBe(n);
+    session.resume();
+    un();
+    const m = seen.length;
+    run(session, 5);
+    expect(seen.length).toBe(m);
+  });
+});
