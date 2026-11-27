@@ -14,11 +14,12 @@ import {
   type GraphicsLike, type MapArt, type MapGeometry,
 } from "./draw";
 import { paletteOf, UI_COLORS } from "./palette";
-import { ASSET_NAMES, themeOf, assetUrl, enemyKey, gateKey, groundKey, pathKey, PROJECTILE_SPRITE, spawnKey, towerKey, TRAIT_SPRITE } from "./assets";
+import { ASSET_NAMES, themeOf, assetUrl, decorKey, enemyKey, gateKey, groundKey, pathKey, PROJECTILE_SPRITE, spawnKey, towerKey, TRAIT_SPRITE } from "./assets";
 import { animationDelta } from "./animClock";
 import { backingSize, clientToArea, renderScale } from "./dpr";
 import { computePathTiles, groundVariant, spawnRotation } from "./pathTiles";
-import { ImagePool } from "./sprites";
+import { computeDecor, type DecorCell } from "./decor";
+import { enemyBarLayout, ImagePool } from "./sprites";
 
 type Cell = { col: number; row: number };
 
@@ -54,6 +55,9 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
     private enemyPool!: ImagePool;
     private belowPool!: ImagePool;
     private barIconPool!: ImagePool;
+    private decorPool!: ImagePool;
+    /** 현재 맵의 장식 칸(맵·스테이지가 바뀔 때만 다시 계산). */
+    private decor: DecorCell[] = [];
     private projPool!: ImagePool;
     private fxPool!: ImagePool;
     private mapImages: PhaserNS.GameObjects.Image[] = [];
@@ -113,6 +117,7 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
       this.projG = this.add.graphics().setDepth(40);
       this.fxG = this.add.graphics().setDepth(50);
       this.barG = this.add.graphics().setDepth(60);
+      this.decorPool = new ImagePool(this, 6); // 바닥·격자 위, 타워(20)·적(31) 아래
       this.towerPool = new ImagePool(this, 20);
       this.belowPool = new ImagePool(this, 29);
       this.enemyPool = new ImagePool(this, 31);
@@ -204,7 +209,7 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
       this.projG.clear();
       this.fxG.clear();
       this.barG.clear();
-      for (const pool of [this.towerPool, this.enemyPool, this.belowPool, this.barIconPool, this.projPool, this.fxPool]) pool.begin();
+      for (const pool of [this.decorPool, this.towerPool, this.enemyPool, this.belowPool, this.barIconPool, this.projPool, this.fxPool]) pool.begin();
       if (frame === null) {
         this.mapG.clear();
         this.gridG.clear();
@@ -224,7 +229,7 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
     }
 
     private endPools(): void {
-      for (const pool of [this.towerPool, this.enemyPool, this.belowPool, this.barIconPool, this.projPool, this.fxPool]) pool.end();
+      for (const pool of [this.decorPool, this.towerPool, this.enemyPool, this.belowPool, this.barIconPool, this.projPool, this.fxPool]) pool.end();
     }
 
     private clearMapImages(): void {
@@ -255,6 +260,7 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
       const palette = paletteOf(stage);
       drawMap(this.mapG as unknown as GraphicsLike, this.areaW, this.areaH, this.geo, this.map, palette, this.mapArt(stage));
       drawGrid(this.gridG as unknown as GraphicsLike, this.geo, palette);
+      this.decor = computeDecor(this.map, themeOf(stage));
       this.buildMapImages(stage, this.map);
       if (this.lastEnemyPos.size > 0 && frame.curr.tick === 0) {
         this.lastEnemyPos.clear();
@@ -379,6 +385,19 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
       }
       for (const id of this.seenProjectiles) if (!alive.has(id)) this.seenProjectiles.delete(id);
 
+      // 맵 장식: 타워가 있는 칸은 그리지 않는다(판매로 비면 다시 그린다). 그림이 없으면 장식만 생략(대체 도형 없음).
+      const towerCells = new Set(snap.towers.map((t) => t.cell.row * 18 + t.cell.col));
+      for (const d of this.decor) {
+        if (towerCells.has(d.row * 18 + d.col)) continue;
+        this.decorPool.put(decorKey(themeOf(frame.stageIndex), d.variant), {
+          x: geo.originX + (d.col + 0.5) * tile,
+          y: geo.originY + (d.row + 1) * tile - tile * 0.1,
+          size: tile,
+          originY: 0.85,
+          sort: d.row / 10,
+        });
+      }
+
       // 타워(아래 칸일수록 앞에 그린다)
       const towers = [...snap.towers].sort((a, b) => a.cell.row - b.cell.row);
       for (const t of towers) {
@@ -423,8 +442,7 @@ export function createBattleScene(Phaser: typeof PhaserNS, session: GameSession)
         }
         if (hasSprite) {
           this.enemyPool.put(key, { x: px, y: feetY, size, originY: 0.85, rotation: Math.sin(phase) * 0.1, flipX: this.enemyFlip.get(e.id) === true, sort });
-          const barW = Math.max(10, tile * 0.55);
-          const barTop = feetY - size * 0.85 - Math.max(3, tile * 0.1);
+          const { barTop, barW } = enemyBarLayout(e.enemyType, feetY, size, tile); // 머리 꼭대기 바로 위(종류별 크기 반영)
           drawHpBar(bg, px, barTop, barW, e.hp / e.maxHp);
           if (slowed && !this.has("fx-slow")) {
             eg.lineStyle(Math.max(1.5, tile * 0.05), UI_COLORS.slowRing, 0.95);
