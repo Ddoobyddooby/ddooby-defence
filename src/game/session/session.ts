@@ -307,7 +307,13 @@ export class GameSession {
     for (const e of events) {
       if (e.type === "commandRejected") this.setFeedback(b, rejectText(String(e.reason)));
     }
-    for (const tap of this.eventTaps) tap(events, b.curr);
+    for (const tap of this.eventTaps) {
+      try {
+        tap(events, b.curr);
+      } catch {
+        // 표현 전용 관찰자(소리 등)의 오류가 게임 진행을 멈추지 않게 한다.
+      }
+    }
     this.events.push(...events);
     if (this.events.length > EVENT_BUFFER_MAX) this.events.splice(0, this.events.length - EVENT_BUFFER_MAX);
     this.reconcileUi(b);
